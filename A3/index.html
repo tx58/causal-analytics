@@ -1,0 +1,1096 @@
+<!doctype html>
+<!--
+  Asynchronous module 3 (GBA 436, Fall B 2026, posted after Lecture 7; written so it can be reused):
+  what can go wrong in experiments. Web version of A3_biases_in_experiments.tex, per Tianli (2026-10-25):
+  Part 4 of the deck (attrition, experimental effects, measurement, interference, multiple testing) is
+  dropped; the inference part shows no formulas, only the logic, the eight-unit example by hand, and the
+  resume-audit permutation test. Narration rewritten as a read-aloud script; no lecture/homework numbers.
+  Sources: P. Ellickson (AEC 520 handouts 1 and 3), E. Zou (EC 425/525 week 3), E. Prager (Kellogg L7),
+  A. Haviv (GBA436R async decks); Athey & Imbens (2017); MHE 2.2 (STAR). Numbers: code/A3_examples.py.
+  Player and editing: see ../A1_LLN_CLT_regression_math/README.md.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>When Experiments Go Wrong</title>
+<meta name="description" content="Self-paced module: internal and external validity, balance checks, stratified designs, non-compliance (ITT and LATE), external validity, and randomization inference without formulas.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="assets/player.css">
+<style>
+  .parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin-top: 12px; }
+  .parts button { text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 10px 12px; cursor: pointer; font-size: 15px; line-height: 1.35; }
+  .parts button:hover { border-color: var(--brand); }
+  .parts button b { display: block; color: var(--brand); font-size: 13px; text-transform: uppercase; letter-spacing: .05em; }
+  .feature { display: grid; grid-template-columns: 36px 1fr; gap: 6px 10px; align-items: start; margin: 8px 0; }
+  .feature .ic { width: 32px; height: 32px; border-radius: 8px; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  .formula-table td { text-align: left; vertical-align: top; }
+  .formula-table td:first-child { color: var(--muted); }
+  svg.plot .bar-good { fill: var(--good); opacity: .85; }
+  svg.plot .bar-bad { fill: var(--bad); opacity: .8; }
+  table.t tr.sig td { color: var(--bad); font-weight: 600; }
+  /* eight units */
+  .units { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; margin: 8px 0; }
+  .unit { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border: 2px solid var(--line); border-radius: 10px; background: var(--card); cursor: pointer; }
+  .unit .u { font-size: 12px; color: var(--muted); }
+  .unit .y { font-size: 26px; font-weight: 700; color: var(--ink); line-height: 1.1; }
+  .unit .lab { font-size: 12px; color: var(--muted); }
+  .unit.on { border-color: var(--brand); background: var(--brand-soft); }
+  .unit.on .lab { color: var(--brand); font-weight: 650; }
+  @media (max-width: 760px) { .units { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .dag text { fill: var(--ink); font-size: 18px; font-family: var(--font); }
+  .dag .small { font-size: 12px; fill: var(--muted); }
+</style>
+<script>
+  window.MODULE_CONFIG = {
+    moduleId: "A3-experiments-go-wrong",
+    title: "When experiments go wrong",
+    subtitle: "Causal Analytics · Asynchronous module",
+    // Colab buttons: publish_site.py writes the GitHub location into the published copy.
+    colabUrl: "",
+    github: "tx58/causal-analytics/A3",
+    notebook: "A3_notebook.ipynb",
+  };
+</script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script defer src="assets/charts.js"></script>
+<script defer src="assets/widgets.js"></script>
+<script defer src="assets/player.js"></script>
+</head>
+<body>
+<div id="deck">
+
+<!-- ======================================================================= START -->
+<section class="slide title-slide" id="title" data-part="Start" data-title="Welcome">
+  <div class="slide-card">
+    <div class="eyebrow">Causal Analytics · Asynchronous module</div>
+    <h1>When experiments go wrong</h1>
+    <p class="lead" style="color:var(--muted);margin:0 0 10px">Validity, failed and stratified randomization, non-compliance, external validity, and how to read a <i>p</i>-value from a coin flip</p>
+    <div class="who">Tianli Xia · Simon Business School, University of Rochester</div>
+    <div class="start-row">
+      <button class="btn primary" data-action="play-all">▶ Watch from the start (auto-advance)</button>
+      <button class="btn" data-action="next">Go at my own pace →</button>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Welcome to this module. In the live sessions, randomized experiments were our gold standard: flip a coin, compare the two groups, and the difference is the causal effect. That promise is real, but it comes with fine print.</p>
+    <p>In this module we read the fine print. What happens if the randomization was not carried out as planned? What if people don't take the treatment they were assigned? What does an experiment on one group tell us about another? And how do we know whether a difference is just luck?</p>
+    <p>For each problem, we'll ask three questions: what does the naive comparison actually measure, which real experiment ran into it, and what is the fix?</p>
+  </aside>
+</section>
+
+<section class="slide" id="how-to" data-part="Start">
+  <div class="slide-card">
+    <h2>How to use this page</h2>
+    <div class="cols">
+      <div>
+        <div class="feature"><span class="ic">▶</span><div><b>Listen.</b> Each slide has its own short voice-over. Press <kbd>Space</kbd>; change the speed at the bottom right.</div></div>
+        <div class="feature"><span class="ic">⇄</span><div><b>Your pace.</b> Use <kbd>←</kbd> <kbd>→</kbd> or the contents. <i>Auto-advance</i> plays it like a video.</div></div>
+        <div class="feature"><span class="ic">≡</span><div><b>Read.</b> The transcript is under each slide (<kbd>T</kbd> hides it).</div></div>
+      </div>
+      <div>
+        <div class="feature"><span class="ic">✦</span><div><b>Try it.</b> Simulations on the <i>try it</i> slides. The eight-unit example is a game: shuffle the labels yourself.</div></div>
+        <div class="feature"><span class="ic">{ }</span><div><b>Code.</b> Python cells run in the page; the same code is in a Colab notebook.</div></div>
+        <div class="feature"><span class="ic">✓</span><div><b>Check.</b> Short self-checks end each part. Not graded.</div></div>
+      </div>
+    </div>
+    <p>Notation as in the module on potential outcomes: \(Y_{1i}\), \(Y_{0i}\), treatment received \(D_i\). New in Part 3: treatment <i>assigned</i>, \(Z_i\).</p>
+    <div class="box key">
+      <div class="label">What you need for the exam</div>
+      <p>The vocabulary, the <b>direction</b> of each bias and its fix, reading a balance table, ITT and LATE = ITT / first stage, and the logic of a randomization test. Not formulas for standard errors.</p>
+    </div>
+  </div>
+  <aside class="script">
+    <p>A quick word on how to use this page. As before, every slide has its own voice-over, you can go at your own pace, and the transcript is under each slide.</p>
+    <p>There are several simulations to try. In the last part there's a little game with eight units, where you shuffle the treatment labels yourself. That game is the whole idea of randomization inference, so please play it.</p>
+    <p>For the exam, focus on the vocabulary, the direction of each bias and how to fix it, reading a balance table, the ratio that gives the effect on compliers, and the logic of a randomization test. You won't need formulas for standard errors.</p>
+  </aside>
+</section>
+
+<section class="slide" id="roadmap" data-part="Start">
+  <div class="slide-card">
+    <h2>Five parts</h2>
+    <div class="parts">
+      <button data-goto="promises"><b>Part 1</b>Internal and external validity: the vocabulary</button>
+      <button data-goto="balance"><b>Part 2</b>Did randomization work? Balance, stratified designs, subverted assignment</button>
+      <button data-goto="assign-receipt"><b>Part 3</b>Non-compliance: intention to treat, compliers, LATE</button>
+      <button data-goto="persons"><b>Part 4</b>External validity and scale-up</button>
+      <button data-goto="uncertainty"><b>Part 5</b>Inference: a <i>p</i>-value from the coin itself</button>
+      <button data-goto="summary"><b>Wrap-up</b>Summary and practice notebook</button>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The module has five parts. Part one sets up the vocabulary: internal and external validity. Part two asks whether the randomization actually worked, and what to do when it was stratified or subverted. Part three is about non-compliance: people who don't take the treatment they were assigned. Part four is about external validity: does the result carry over to the real deployment? And part five is about inference: how to judge whether a difference is just luck, using nothing but the coin flip itself.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 1 -->
+<section class="slide" id="promises" data-part="1 · Validity">
+  <div class="slide-card">
+    <h2>What random assignment promises, and the fine print</h2>
+    <p>From the module on potential outcomes: the difference in means = ATE + selection bias + a heterogeneity term. Random assignment makes treatment independent of potential outcomes, so both bias terms vanish and the difference in means estimates the ATE.</p>
+    <p>Every word in that sentence hides a condition:</p>
+    <table class="t">
+      <tr><th class="l">The phrase</th><th class="l">The fine print</th><th>Where</th></tr>
+      <tr><td class="l">"random assignment"</td><td class="l">Was it carried out? Did anyone override it? Did the probability differ across groups?</td><td>Part 2</td></tr>
+      <tr><td class="l">"treatment"</td><td class="l">The treatment people <i>got</i> may differ from the one they were <i>assigned</i></td><td>Part 3</td></tr>
+      <tr><td class="l">"the ATE"</td><td class="l">For these units, this version of the treatment, this setting, this horizon</td><td>Part 4</td></tr>
+      <tr><td class="l">"estimates"</td><td class="l">How sure are we that it isn't luck?</td><td>Part 5</td></tr>
+    </table>
+  </div>
+  <aside class="script">
+    <p>Let's start with what random assignment promises. In the module on potential outcomes we saw that a difference in means equals the average treatment effect plus two bias terms, and that random assignment makes both of them zero.</p>
+    <p>That's the promise. But every word in it hides a condition. Random assignment: was it actually carried out, did anyone override it, and did the probability of treatment differ across groups? That's part two. Treatment: the treatment people actually got may not be the one they were assigned. That's part three. The average treatment effect: for which people, which version of the treatment, which setting, and over what period? That's part four. And estimates: how sure can we be that the difference isn't just luck? That's part five.</p>
+  </aside>
+</section>
+
+<section class="slide" id="internal" data-part="1 · Validity">
+  <div class="slide-card">
+    <h2>Internal validity</h2>
+    <div class="box"><div class="label">Definition (Shadish, Cook &amp; Campbell 2002)</div><p>A study has <b>internal validity</b> if the observed association between treatment and outcome reflects a causal relationship <i>in the study population</i>: an unbiased estimate of the effect on these units, in this setting.</p></div>
+    <ul>
+      <li>A <b>well-executed</b> experiment has internal validity by design: the manipulation comes before the measurement, and the coin decides who is treated.</li>
+      <li>The whole question is what "well-executed" hides. Anything the design fails to eliminate is a threat: failed or subverted randomization, conditional randomization analyzed as if simple, non-compliance, and others.</li>
+      <li>Losing internal validity means a <b>biased</b> estimate. Not noisy: <i>wrong on average</i>. A small experiment can be internally valid; a flawed one with a million users is not.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Two pieces of vocabulary. The first is internal validity. A study is internally valid if the association it finds between treatment and outcome is a causal effect for the people in the study, in that setting.</p>
+    <p>A well-executed experiment has internal validity by design. The coin decides who is treated, so nothing else can explain the difference. The whole question is what well-executed hides. Anything the design fails to eliminate is a threat to internal validity.</p>
+    <p>And notice what losing internal validity means: a biased estimate, wrong on average. That's different from noisy. A small experiment can be perfectly internally valid, just imprecise. A badly run experiment with a million users is precisely wrong.</p>
+  </aside>
+</section>
+
+<section class="slide" id="external" data-part="1 · Validity">
+  <div class="slide-card">
+    <h2>External validity</h2>
+    <div class="box"><div class="label">Definition (Shadish, Cook &amp; Campbell 2002)</div><p><b>External validity</b> is "the extent to which a causal relationship holds over variation in persons, settings, treatments, and outcomes": does the estimate generalize beyond the experiment?</p></div>
+    <ul>
+      <li><b>Persons</b>: volunteers, consenters, one country's users, this quarter's cohort</li>
+      <li><b>Settings</b>: a pilot in two cities; no competitor response; no word of mouth</li>
+      <li><b>Treatments</b>: the feature as engineers built it for the test, not as shipped at scale</li>
+      <li><b>Outcomes</b>: two weeks of clicks, not a year of retention</li>
+    </ul>
+    <p>Experiments do <i>not</i> guarantee external validity. Losing it is not bias in the experiment; it is <b>answering the wrong question very precisely</b>.</p>
+  </div>
+  <aside class="script">
+    <p>The second piece of vocabulary is external validity: does the result hold beyond the experiment? Researchers usually break this into four dimensions.</p>
+    <p>Persons: the people in the experiment may be special. Volunteers, customers who opted in, users in one country. Settings: a pilot in two cities, where competitors don't react. Treatments: the version built for the test may differ from what gets shipped. And outcomes: two weeks of clicks is not a year of retention.</p>
+    <p>Experiments guarantee none of these. And note that losing external validity is not a bias inside the experiment. The experiment answered its question correctly. It's just the wrong question for the decision you're making.</p>
+  </aside>
+</section>
+
+<section class="slide" id="covid" data-part="1 · Validity">
+  <div class="slide-card">
+    <h2>A contrast: how effective is one vaccine?</h2>
+    <div class="cols c-40">
+      <div>
+        <table class="t">
+          <tr><th class="l">Country</th><th>Effectiveness</th></tr>
+          <tr><td class="l">Britain</td><td>88%</td></tr><tr><td class="l">Canada</td><td>87%</td></tr>
+          <tr><td class="l">Scotland</td><td>79%</td></tr><tr><td class="l">Israel</td><td>64%</td></tr>
+        </table>
+        <p class="small">Pfizer–BioNTech vaccine against the Delta variant: four observational studies, summer 2021.</p>
+      </div>
+      <div>
+        <ul>
+          <li>Same vaccine, same variant, same months. Estimates from 64% to 88%. Why?</li>
+          <li>None is an experiment. Once the vaccine is out, who gets vaccinated is a choice: the unvaccinated may take more risks; the old were vaccinated first and are frailer; outbreaks hit regions with different vaccination rates.</li>
+          <li>And who gets <i>tested</i> differs: Israel tested all contacts of a case, so it found more mild cases among the vaccinated.</li>
+          <li>The randomized trial (44,000 volunteers) had none of these problems: <b>internal validity</b>. But a 2020 trial on the original strain says little about Delta in 2021: <b>external validity</b>.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="src">Numbers as reported in <i>The New York Times</i>, "Why Vaccinated People Are Getting Breakthrough Infections," July 2021.</p>
+  </div>
+  <aside class="script">
+    <p>Here's an example that shows both kinds of validity at once. In the summer of 2021, four countries estimated how well the Pfizer vaccine protected against the Delta variant. Same vaccine, same variant, same months. The estimates ranged from 64 to 88 percent.</p>
+    <p>Why so different? None of these studies was an experiment. Once a vaccine is available, getting it is a choice. Unvaccinated people may take more risks. Older people were vaccinated first, and they're frailer. Outbreaks hit some regions harder than others. And testing differed: Israel tested every contact of a case, so it found mild infections among vaccinated people that other countries missed.</p>
+    <p>The original randomized trial had none of these problems. It was internally valid. But it was run in 2020, on the original strain. What it says about Delta in 2021 is a question of external validity.</p>
+  </aside>
+</section>
+
+<section class="slide" id="checklist" data-part="1 · Validity">
+  <div class="slide-card">
+    <h2>The checklist for this module</h2>
+    <div class="cols">
+      <div>
+        <p><b>Threats to internal validity</b> (bias)</p>
+        <ul>
+          <li>Failure to randomize, or subverted assignment <span class="small">· Part 2</span></li>
+          <li>Conditional randomization analyzed as if simple <span class="small">· Part 2</span></li>
+          <li>Non-compliance: assigned ≠ received <span class="small">· Part 3</span></li>
+        </ul>
+        <p><b>And the question of luck</b></p>
+        <ul><li>Is the difference bigger than chance would produce? <span class="small">· Part 5</span></li></ul>
+      </div>
+      <div>
+        <p><b>Threats to external validity</b> (generalization)</p>
+        <ul>
+          <li>Non-representative persons <span class="small">· Part 4</span></li>
+          <li>The pilot is not the program <span class="small">· Part 4</span></li>
+          <li>General-equilibrium and scale-up effects <span class="small">· Part 4</span></li>
+          <li>Short horizon: novelty and learning <span class="small">· Part 4</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="box key"><p>For each: what does the naive difference in means identify? Which real experiment ran into it? What is the fix?</p></div>
+  </div>
+  <aside class="script">
+    <p>Here's the checklist for the rest of the module. On the internal side: randomization that failed or was overridden, randomization that differed across groups but was analyzed as if it didn't, and non-compliance. On the external side: unusual participants, a pilot that differs from the real program, effects that change when everyone is treated, and experiments that are too short. And then there's the question of luck, which we take up at the end.</p>
+    <p>For each item, we'll ask the same three questions: what does the naive comparison measure, which real experiment ran into it, and what's the fix?</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-1" data-part="1 · Validity" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="b">
+      <div class="q">1. A retailer runs a perfectly randomized email experiment on the 8% of customers who opted in to marketing email and finds a 3% lift. What does the opt-in threaten?</div>
+      <button class="opt" data-k="a">Internal validity: the estimate is biased.</button>
+      <button class="opt" data-k="b">External validity: 3% is the effect on opted-in customers; the other 92% may respond differently.</button>
+      <button class="opt" data-k="c">Neither.</button>
+      <div class="explain">Among the opted-in, assignment was random, so internal validity is fine. Opted-in customers read marketing email; the effect on the rest is unknown and probably smaller.</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">2. A clinical trial excludes patients with any other condition, so that nothing else changes during the trial. What does this buy, and what does it cost?</div>
+      <button class="opt" data-k="a">It buys internal validity and costs external validity: no evidence for the patients with other conditions, who are most of the people who will take the drug.</button>
+      <button class="opt" data-k="b">It buys external validity and costs internal validity.</button>
+      <div class="explain">Cleaner comparisons, fewer things changing; but the evidence covers only the healthy subgroup.</div>
+    </div>
+    <div class="quiz" data-answer="c">
+      <div class="q">3. "Our A/B test had a million users, so the result must be right." What does the large \(n\) help with?</div>
+      <button class="opt" data-k="a">Bias</button><button class="opt" data-k="b">Generalization</button><button class="opt" data-k="c">Precision only: it shrinks standard errors, but does nothing for bias or generalization</button>
+      <div class="explain">A million users in a two-week test on the test build is still two weeks on the test build.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Three quick questions on the vocabulary. Click an answer to see the explanation.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 2 -->
+<section class="slide" id="balance" data-part="2 · Did randomization work?">
+  <div class="slide-card">
+    <h2>Balance: what randomization implies about things we can see</h2>
+    <ul>
+      <li>If \(D_i\) is independent of everything about unit \(i\), it is independent of every <b>pre-treatment</b> variable \(X_i\): age, past purchases, region. So treated and control should have the same averages of every \(X\).</li>
+      <li>This is <b>testable</b>, unlike independence from \(Y_{0i}\):
+        <ul>
+          <li>one variable at a time: compare means (a \(t\)-test, or regress \(X\) on \(D\));</li>
+          <li>all at once: regress \(D\) on all the \(X\)'s and test that every coefficient is zero (a joint \(F\)-test).</li>
+        </ul>
+      </li>
+    </ul>
+    <div class="cols">
+      <div class="box"><div class="label">Imbalance</div><p>Evidence that the randomization <i>procedure</i> failed, and that unobservables are probably imbalanced too.</p></div>
+      <div class="box optional"><div class="label">Balance</div><p><i>Consistent</i> with random assignment, but no proof: selection on something you didn't measure leaves your table balanced and your estimate biased.</p></div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Part two asks whether the randomization actually worked. The main tool is the balance check.</p>
+    <p>If treatment was truly random, it's unrelated to everything about a unit, including every characteristic measured before the treatment. So the treated and control groups should look alike on age, past purchases, region, and so on. Unlike independence from potential outcomes, this we can test: compare means one variable at a time, or test all of them jointly.</p>
+    <p>But be careful about what the test can tell you. Imbalance is evidence that something went wrong in the procedure. Balance, on the other hand, is not proof that everything went right. If treatment was assigned based on something you didn't measure, your balance table can look perfect and your estimate still be biased.</p>
+  </aside>
+</section>
+
+<section class="slide" id="balance-sim" data-part="2 · Did randomization work?" data-pause>
+  <div class="slide-card">
+    <h2>Try it: how many "significant" imbalances are normal?</h2>
+    <div class="widget" data-widget="balanceSim"></div>
+    <ul class="small">
+      <li>Each row's test rejects 5% of the time even when assignment is random. With ten rows, about <b>40%</b> of perfect experiments show at least one star.</li>
+      <li>One star in ten rows is not a failure. Look at the joint test and at the <b>sizes</b> of the differences, not the stars. In the résumé audit, 1 of 14 characteristics differed at \(p&lt;0.05\) and the joint test gave \(p=0.86\).</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Here's a question that trips up a lot of analysts: how many significant differences should a balance table show if the randomization worked perfectly?</p>
+    <p>Press run one experiment. Each experiment randomizes two thousand customers and compares the groups on ten characteristics. Every so often, a row turns red: a difference significant at five percent, purely by chance. Now run a thousand experiments. About forty percent of perfectly randomized experiments show at least one significant row. That's one minus point nine five to the tenth power.</p>
+    <p>Move the slider to check thirty variables: now most perfect experiments show a star somewhere. So one star in a balance table is not a failure. Look at the joint test, and at whether the differences are large relative to the outcome. In the résumé experiment from class, one of fourteen characteristics was significant, and the joint test was nowhere near rejecting.</p>
+  </aside>
+</section>
+
+<section class="slide" id="star" data-part="2 · Did randomization work?">
+  <div class="slide-card">
+    <h2>Tennessee STAR: the experiment</h2>
+    <ul class="lead">
+      <li>Project STAR (Student/Teacher Achievement Ratio), Tennessee 1985–89: about 11,600 students in 79 schools, entering kindergarten.</li>
+      <li><b>Within each school</b>, students <i>and</i> teachers were randomly assigned to a <b>small</b> class (13–17), a <b>regular</b> class (22–25), or a regular class with a full-time aide.</li>
+      <li>Outcome: Stanford Achievement Test percentile scores.</li>
+      <li>Why it matters: class size is the most expensive lever in education, and outside an experiment small classes go to richer districts, or to weaker students under remedial programs. Selection bias either way.</li>
+    </ul>
+    <p class="src">Krueger (1999), "Experimental Estimates of Education Production Functions," <i>QJE</i>; tables as in Angrist &amp; Pischke, <i>Mostly Harmless Econometrics</i>, Tables 2.2.1–2.2.2.</p>
+  </div>
+  <aside class="script">
+    <p>Let's look at a famous experiment. In the late 1980s, Tennessee ran Project STAR. About eleven thousand six hundred kindergarteners in seventy-nine schools were randomly assigned to small classes, regular classes, or regular classes with a teacher's aide. Teachers were randomized too.</p>
+    <p>Why run an experiment? Class size is the most expensive lever in education, and outside an experiment, small classes are not randomly distributed. They tend to be in richer districts, or they're assigned to struggling students. Either way, a simple comparison is biased.</p>
+    <p>One detail to remember: the randomization happened within each school. We'll see why that matters in a moment.</p>
+  </aside>
+</section>
+
+<section class="slide" id="star-balance" data-part="2 · Did randomization work?">
+  <div class="slide-card">
+    <h2>STAR: the balance table</h2>
+    <table class="t">
+      <tr><th></th><th class="l">Variable</th><th>Small</th><th>Regular</th><th>Regular/aide</th><th>Joint <i>p</i></th></tr>
+      <tr><td>1.</td><td class="l">Free lunch</td><td>.47</td><td>.48</td><td>.50</td><td>.09</td></tr>
+      <tr><td>2.</td><td class="l">White/Asian</td><td>.68</td><td>.67</td><td>.66</td><td>.26</td></tr>
+      <tr><td>3.</td><td class="l">Age in 1985</td><td>5.44</td><td>5.43</td><td>5.42</td><td>.32</td></tr>
+      <tr><td>4.</td><td class="l">Attrition rate</td><td>.49</td><td>.52</td><td>.53</td><td>.02</td></tr>
+      <tr><td>5.</td><td class="l">Class size in kindergarten</td><td>15.1</td><td>22.4</td><td>22.8</td><td>.00</td></tr>
+      <tr><td>6.</td><td class="l">Percentile score in kindergarten</td><td>54.7</td><td>48.9</td><td>50.0</td><td>.00</td></tr>
+    </table>
+    <ul>
+      <li>Rows 1–3 are <b>pre-treatment</b>: balanced (differences of a point or two).</li>
+      <li>Row 5 shows the assignment worked: class sizes really differed (15 vs. 22).</li>
+      <li>Row 6 is the <b>outcome</b>: small classes score about 6 percentile points higher.</li>
+      <li class="small">Row 4 (who left the study) is measured after assignment, so it's not a balance check; it's a different problem, not covered in this module.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Here's the STAR balance table. Let's read it row by row, and classify each row.</p>
+    <p>Rows one to three are measured before the treatment: free lunch status, race, and age. They're balanced: the three groups differ by a point or two, and none of the joint tests rejects at five percent. Row five is the treatment itself: small classes really were smaller, fifteen students against twenty-two. Row six is the outcome: children in small classes scored about six percentile points higher.</p>
+    <p>Row four, the share of students who left the study, is different. It's measured after assignment, so it's not a balance check at all. It's a separate problem, which we won't cover here.</p>
+  </aside>
+</section>
+
+<section class="slide" id="star-estimates" data-part="2 · Did randomization work?">
+  <div class="slide-card">
+    <h2>STAR: what controls and school fixed effects do</h2>
+    <div class="cols c-40">
+      <table class="t" style="font-size:14.5px">
+        <tr><th class="l"></th><th>(1)</th><th>(2)</th><th>(3)</th><th>(4)</th></tr>
+        <tr><td class="l">Small class</td><td>4.82</td><td>5.37</td><td>5.36</td><td>5.37</td></tr>
+        <tr><td class="l"></td><td class="small">(2.19)</td><td class="small">(1.26)</td><td class="small">(1.21)</td><td class="small">(1.19)</td></tr>
+        <tr><td class="l">Regular/aide</td><td>.12</td><td>.29</td><td>.53</td><td>.31</td></tr>
+        <tr><td class="l">White/Asian</td><td>–</td><td>–</td><td>8.35</td><td>8.44</td></tr>
+        <tr><td class="l">Girl</td><td>–</td><td>–</td><td>4.48</td><td>4.39</td></tr>
+        <tr><td class="l">Free lunch</td><td>–</td><td>–</td><td>−13.15</td><td>−13.07</td></tr>
+        <tr><td class="l">Teacher characteristics</td><td>–</td><td>–</td><td>–</td><td>Yes</td></tr>
+        <tr><td class="l">School fixed effects</td><td>No</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+      </table>
+      <ul>
+        <li>(1): the plain difference in means, 4.82 (SE 2.19).</li>
+        <li>(2) adds school fixed effects: <b>5.37</b>, and the SE nearly halves. Expected, because STAR randomized <i>within</i> schools.</li>
+        <li>(3)–(4) add student and teacher characteristics: the estimate doesn't move (they are balanced) and the SE falls a bit more.</li>
+        <li>Free lunch has a big coefficient, but it's not a causal effect, just a predictor.</li>
+        <li><b>Lesson:</b> controls in an experiment are for precision and for checking. If the treatment coefficient moves a lot, something is wrong.</li>
+      </ul>
+    </div>
+    <p class="small">Dependent variable: percentile score; standard errors clustered by class; n = 5,681.</p>
+  </div>
+  <aside class="script">
+    <p>And here's the regression table. Column one is the plain difference in means: small classes add about four point eight percentile points, with a standard error of two point two.</p>
+    <p>Column two adds school fixed effects: the estimate rises to five point four, and the standard error nearly halves. That's expected. STAR randomized within schools, so comparing within schools removes noise from differences between schools, and, as we'll see next, a small bias too.</p>
+    <p>Columns three and four add student and teacher characteristics. The small-class estimate doesn't move, which is reassuring: those characteristics were balanced, so controlling for them shouldn't matter. The standard error shrinks a little more.</p>
+    <p>One more thing: free lunch has a big negative coefficient. That's not the effect of free lunches. It's just a predictor of scores. In an experiment, controls are there for precision and as a check, not to be interpreted.</p>
+  </aside>
+</section>
+
+<section class="slide" id="conditional" data-part="2 · Did randomization work?">
+  <div class="slide-card">
+    <h2>Conditionally randomized (stratified) experiments</h2>
+    <ul>
+      <li><b>Completely</b> randomized: every unit has the same probability of treatment.</li>
+      <li><b>Conditionally</b> randomized (stratified): the probability depends on a known pre-treatment group \(S_i\), the <b>stratum</b> (a school, a country, a store). Randomization is real, but <i>within</i> strata.</li>
+      <li>Why: capacity (a school can open only so many small classes), cost or ethics (treat more of the group that needs it), or precision. A/B tests: roll-out shares that differ by country or platform.</li>
+      <li>The consequence: if the treatment share differs across strata, treatment is <b>correlated with the stratum</b>, and with everything the stratum predicts. Independence holds only within strata.</li>
+      <li>So the plain, pooled difference in means is <b>biased</b>: the treated group over-represents high-share strata, the control group low-share strata.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>That brings us to an important design detail. In a completely randomized experiment, everyone has the same chance of treatment. In a conditionally randomized, or stratified, experiment, the chance depends on the group a unit belongs to: a school, a country, a store.</p>
+    <p>There are good reasons to do this. A school can only open so many small classes. A company may roll out a test to fifty percent of users in one country and ten percent in another.</p>
+    <p>But here's the catch. If the treatment share differs across groups, then treatment is correlated with group membership, and with everything the group predicts. The randomization is still real, but only within each group. Pool the groups and compare, and the treated group is over-weighted toward the high-share groups. That comparison is biased.</p>
+  </aside>
+</section>
+
+<section class="slide" id="stratified" data-part="2 · Did randomization work?" data-pause>
+  <div class="slide-card">
+    <h2>Try it: two schools, different treatment shares</h2>
+    <div class="widget" data-widget="stratified"></div>
+    <p class="small">School A: 1,500 students, higher baseline scores (60), small-class effect 7. School B: 500 students, baseline 40, effect 3. ATE = (1,500 × 7 + 500 × 3) / 2,000 = 6. Set both shares equal and the pooled comparison is fine again.</p>
+    <div class="box key"><p><b>Rule:</b> if you randomized within strata, control for the strata. Compare within each stratum, then average using the stratum sizes.</p></div>
+  </div>
+  <aside class="script">
+    <p>Let's see the bias. There are two schools. School A is bigger and has higher baseline scores, and in school A small classes help a lot. School B is smaller, with lower scores, and small classes help less. The true average effect is six.</p>
+    <p>School A put eighty percent of its students in small classes; school B only thirty percent. Look at the red bar: pooling the two schools gives about fifteen, more than twice the truth. The treated group is mostly school A students, who score high anyway.</p>
+    <p>Within each school, the comparison is fine. A regression with a school dummy gets close, but it weights the schools in a slightly odd way. Comparing within schools and averaging with the school sizes gets exactly six.</p>
+    <p>Now drag the two sliders to the same value. The pooled comparison is fine again, because when every school has the same share, treatment is no longer related to school. The rule: if you randomized within strata, always control for the strata.</p>
+  </aside>
+</section>
+
+<section class="slide" id="minneapolis" data-part="2 · Did randomization work?">
+  <div class="slide-card">
+    <h2>Subverted assignment: the Minneapolis domestic-violence experiment</h2>
+    <div class="cols">
+      <div>
+        <table class="t" style="font-size:14.5px">
+          <tr><th class="l">Delivered ↓ / Designed →</th><th>Arrest</th><th>Advice</th><th>Separate</th><th>Total</th></tr>
+          <tr><td class="l">Arrest</td><td><b>91</b></td><td>18</td><td>26</td><td>135</td></tr>
+          <tr><td class="l">Advice</td><td>0</td><td><b>84</b></td><td>5</td><td>89</td></tr>
+          <tr><td class="l">Separate</td><td>1</td><td>6</td><td><b>82</b></td><td>89</td></tr>
+          <tr><td class="l">Total</td><td>92</td><td>108</td><td>113</td><td>313</td></tr>
+        </table>
+      </div>
+      <ul class="small" style="font-size:15.5px">
+        <li>1981–82: which police response to domestic violence minimizes repeat violence: arrest, advice (mediation), or separation (order the offender out for 8 hours)?</li>
+        <li>Random assignment by color-coded forms in random order in each officer's pad.</li>
+        <li>Officers "upgraded" 44 of the 221 non-arrest cases to arrest: when the offender wouldn't leave, when weapons or intoxication were involved, when the officer was assaulted.</li>
+        <li>The <i>delivered</i> arrest group contains the most dangerous cases. Comparing by delivered treatment is <b>selection bias again</b>, making arrest look <i>less</i> effective.</li>
+        <li>The fix (Part 3): compare by <b>designed</b> treatment.</li>
+      </ul>
+    </div>
+    <p class="src">Sherman &amp; Berk (1984), "The Specific Deterrent Effects of Arrest for Domestic Assault," <i>American Sociological Review</i>.</p>
+  </div>
+  <aside class="script">
+    <p>Sometimes randomization is not just stratified, it's overridden. In the early 1980s, Minneapolis police ran an experiment on how to respond to domestic violence calls: arrest the offender, give advice, or order the offender to leave for eight hours.</p>
+    <p>The assignment was random: officers had pads of color-coded forms in random order, and they were supposed to apply whatever the top form said. The table compares the designed treatment, in the columns, with what was actually delivered, in the rows. Most cases are on the diagonal. But officers upgraded forty-four of the non-arrest cases to arrests, usually the most dangerous ones: when the offender refused to leave, when weapons or alcohol were involved, or when the officer was attacked.</p>
+    <p>So the group that was actually arrested contains the hardest cases. Comparing outcomes by the treatment delivered brings selection bias right back, and it makes arrest look less effective than it is. The fix, which part three develops, is to compare by the designed treatment.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-2" data-part="2 · Did randomization work?" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="b">
+      <div class="q">1. A balance table with 20 pre-treatment variables shows two with \(p&lt;0.05\), and the joint test has \(p=0.45\). Did randomization fail?</div>
+      <button class="opt" data-k="a">Yes: two significant differences.</button>
+      <button class="opt" data-k="b">No: about two in twenty is what chance produces, and the joint test is far from rejecting. Check the sizes of the differences.</button>
+      <div class="explain">64% of perfect experiments with 20 rows show at least one star. If the two differences are small relative to the outcome's spread, proceed, and include them as controls to show the estimate doesn't move.</div>
+    </div>
+    <div class="quiz" data-answer="c">
+      <div class="q">2. A streaming service tests a new recommender on 50% of US users and 10% of Brazilian users. Brazilians watch less. The analyst pools both countries. The estimate is</div>
+      <button class="opt" data-k="a">unbiased, because assignment was random</button><button class="opt" data-k="b">biased downward</button>
+      <button class="opt" data-k="c">biased upward: the treated group is mostly American, so the US–Brazil gap is counted as an effect. Compare within country and average.</button>
+      <div class="explain">Never pool arms with different assignment probabilities without controlling for the stratum.</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">3. In STAR, school fixed effects moved the estimate from 4.82 to 5.37, but student characteristics didn't move it. Why is the first not alarming and the second reassuring?</div>
+      <button class="opt" data-k="a">STAR randomized within schools, so the within-school comparison is the right one; student characteristics were balanced, so they shouldn't matter.</button>
+      <button class="opt" data-k="b">Both are signs that randomization failed.</button>
+      <div class="explain">Controls for the stratum belong in the regression; balanced controls are a check that passed.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Three questions on part two.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 3 -->
+<section class="slide" id="assign-receipt" data-part="3 · Non-compliance">
+  <div class="slide-card">
+    <h2>Assignment is not receipt</h2>
+    <ul>
+      <li>New notation: \(Z_i\in\{0,1\}\) is the treatment <b>assigned</b> by the randomization; \(D_i\in\{0,1\}\) is the treatment <b>received</b>.</li>
+      <li>Random assignment makes \(Z_i\) exogenous. It does <i>not</i> make \(D_i\) exogenous if people can deviate: receipt is then a choice, and choices are related to potential outcomes.</li>
+      <li><b>One-sided</b> non-compliance: some assigned to treatment don't take it, but no one in the control group can get it. A coupon only the treated can redeem; a feature only the treated can switch on.</li>
+      <li><b>Two-sided</b> non-compliance: control units can also get the treatment. The Oregon health-insurance lottery (losers could get Medicaid other ways); a drug available elsewhere.</li>
+    </ul>
+    <p class="small">"We can't force people to comply. We can only offer them a treatment."</p>
+  </div>
+  <aside class="script">
+    <p>Part three is about non-compliance, and it needs one new piece of notation. Z i is the treatment a unit was assigned by the randomization. D i is the treatment it actually received.</p>
+    <p>Random assignment makes Z random. It does not make D random if people can deviate from their assignment. Then receiving the treatment is a choice, and choices are related to potential outcomes.</p>
+    <p>There are two versions. With one-sided non-compliance, some people offered the treatment don't take it, but nobody in the control group can get it. A coupon that only the treatment group received is an example. With two-sided non-compliance, the control group can also get the treatment. In the Oregon health insurance lottery, some lottery losers got Medicaid anyway, through other routes.</p>
+  </aside>
+</section>
+
+<section class="slide" id="itt" data-part="3 · Non-compliance">
+  <div class="slide-card">
+    <h2>Intention to treat: the effect of the offer</h2>
+    <ul>
+      <li>The <b>intention-to-treat</b> (ITT) analysis ignores receipt and compares outcomes by <b>assignment</b>: \(\;\widehat{\text{ITT}}=\bar Y_{Z=1}-\bar Y_{Z=0}\). Same difference in means (or OLS of \(Y\) on \(Z\)) as in a perfect experiment, same standard error. Unbiased, because \(Z\) was randomized.</li>
+      <li>What it estimates: the average effect of <b>being offered</b> the treatment, including everyone who ignored the offer.</li>
+      <li>The right question for a policy or product change that can only be offered: "What happens to ER visits if we expand Medicaid eligibility?" "What happens to sales if we send the coupon?"</li>
+      <li>Not the right question for "what does Medicaid do to the people who get it?" The ITT <b>dilutes</b> the effect by the take-up rate.</li>
+      <li class="small">The ITT depends on take-up, and take-up depends on how the offer was made: a different campaign gives a different ITT.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>The first and safest analysis is called intention to treat. Ignore what people actually did, and compare outcomes by what they were assigned. It's the same difference in means as in a perfect experiment, and it's unbiased, because the assignment was random.</p>
+    <p>But be clear about what it estimates: the effect of being offered the treatment, including all the people who ignored the offer. For many business and policy questions, that's exactly what you want. If you can only send a coupon, not force people to use it, the ITT tells you what sending the coupon does.</p>
+    <p>If instead you want to know what the treatment does to the people who actually take it, the ITT understates it, because it's diluted by everyone who didn't take it up. And keep in mind that take-up depends on how the offer was made, so a different campaign would give a different ITT.</p>
+  </aside>
+</section>
+
+<section class="slide" id="types" data-part="3 · Non-compliance">
+  <div class="slide-card">
+    <h2>Four kinds of people</h2>
+    <div class="cols">
+      <div>
+        <p>Let \(D_i(z)\) be the treatment unit \(i\) would receive if assigned \(z\). Each unit has a <b>compliance type</b>:</p>
+        <table class="t">
+          <tr><th class="l">Type</th><th>If assigned control</th><th>If assigned treatment</th></tr>
+          <tr><td class="l">Complier</td><td>0</td><td>1</td></tr>
+          <tr><td class="l">Always-taker</td><td>1</td><td>1</td></tr>
+          <tr><td class="l">Never-taker</td><td>0</td><td>0</td></tr>
+          <tr><td class="l">Defier</td><td>1</td><td>0</td></tr>
+        </table>
+        <p class="small">The type is fixed, like a potential outcome. We only see what each unit did under its actual assignment, so we never see its type.</p>
+      </div>
+      <div>
+        <p>Who ends up in each observed cell (no defiers):</p>
+        <table class="t">
+          <tr><th></th><th>Received 0</th><th>Received 1</th></tr>
+          <tr><td class="l">Assigned 0</td><td>compliers + never-takers</td><td>always-takers</td></tr>
+          <tr><td class="l">Assigned 1</td><td>never-takers</td><td>compliers + always-takers</td></tr>
+        </table>
+        <ul class="small" style="font-size:15.5px">
+          <li>Random assignment makes the <b>mix of types</b> the same in both assignment groups.</li>
+          <li>But the mix differs between received and not received: never-takers are only ever untreated, always-takers only ever treated.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>To think clearly about non-compliance, it helps to sort people into four types, based on what they would do under each assignment.</p>
+    <p>Compliers take the treatment if assigned to it and not otherwise. Always-takers take it no matter what. Never-takers never take it. And defiers do the opposite of their assignment; we'll assume there are none.</p>
+    <p>A person's type is like a potential outcome: it's fixed, but we never see it, because we only see what they did under the assignment they got.</p>
+    <p>Now look at the table on the right. Because assignment is random, the mix of types is the same in both assignment groups. But look at the treatment received. The untreated group contains compliers and never-takers. The treated group contains compliers and always-takers. Those are different people.</p>
+  </aside>
+</section>
+
+<section class="slide" id="as-treated" data-part="3 · Non-compliance">
+  <div class="slide-card">
+    <h2>Why "as treated" and "per protocol" are biased</h2>
+    <ul>
+      <li><b>As treated</b> (by treatment received): \(\bar Y_{D=1}-\bar Y_{D=0}\). The \(D=1\) group is compliers + always-takers; the \(D=0\) group is compliers + never-takers. Different <i>people</i>, not just different treatments: an observational comparison with all its selection bias.</li>
+      <li><b>Per protocol</b>: keep only the units that did what they were told. Same problem: it conditions on a choice made after assignment.</li>
+      <li>The direction is whatever selection into \(D\) produces. In Minneapolis, the delivered-arrest group had the hardest cases, so "as treated" understated arrest's effect. In a drug trial where the sickest can't tolerate the pill, it overstates the drug's effect.</li>
+    </ul>
+    <div class="box key"><p><b>Rule:</b> never analyze an experiment by the treatment received. Analyze by assignment (ITT) and, if you want the effect of the treatment itself, scale it (next slides).</p></div>
+  </div>
+  <aside class="script">
+    <p>That's why two very common analyses are biased. The first is "as treated": compare everyone who received the treatment with everyone who didn't. That compares compliers plus always-takers with compliers plus never-takers. Different kinds of people. It's an observational comparison, with all the selection bias we worked so hard to remove.</p>
+    <p>The second is "per protocol": keep only people who did what they were assigned. Same problem: it selects on a choice made after the coin was flipped.</p>
+    <p>The bias can go either way. In Minneapolis, the arrested group had the most dangerous cases, so arrest looked worse than it was. In a drug trial where the sickest patients can't tolerate the pill, the drug looks better than it is. So the rule is: never analyze an experiment by the treatment received. Compare by assignment, and if you want the effect of the treatment itself, scale it up, as we'll see next.</p>
+  </aside>
+</section>
+
+<section class="slide" id="late" data-part="3 · Non-compliance">
+  <div class="slide-card">
+    <h2>Two assumptions, then the effect on compliers</h2>
+    <div class="cols c-60">
+      <div>
+        <ol>
+          <li><b>Monotonicity</b> (no defiers): the offer never <i>pushes anyone out</i> of the treatment.</li>
+          <li><b>Exclusion</b>: the assignment affects the outcome <i>only through</i> the treatment. Winning the lottery letter does nothing to your health except via Medicaid.</li>
+        </ol>
+        <p class="small">Plus what randomization gives: \(Z_i\) is unrelated to types and potential outcomes; and the offer changes take-up (<b>relevance</b>: compliers exist).</p>
+      </div>
+      <svg class="dag" viewBox="0 0 320 170" role="img" aria-label="Z causes D, D causes Y; unobserved U causes D and Y; the direct arrow from Z to Y is ruled out">
+        <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"/></marker>
+          <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--bad)"/></marker></defs>
+        <text x="30" y="95">Z</text><text x="150" y="95">D</text><text x="270" y="95">Y</text><text x="150" y="160">U</text>
+        <line x1="50" y1="89" x2="140" y2="89" stroke="var(--ink)" stroke-width="2" marker-end="url(#arr)"/>
+        <line x1="170" y1="89" x2="260" y2="89" stroke="var(--ink)" stroke-width="2" marker-end="url(#arr)"/>
+        <line x1="155" y1="140" x2="155" y2="102" stroke="var(--ink)" stroke-width="2" marker-end="url(#arr)"/>
+        <line x1="168" y1="145" x2="265" y2="100" stroke="var(--ink)" stroke-width="2" marker-end="url(#arr)"/>
+        <path d="M40,75 C90,15 220,15 268,75" fill="none" stroke="var(--bad)" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arr2)"/>
+        <text x="154" y="22" class="small" text-anchor="middle" style="fill:var(--bad)">ruled out by exclusion</text>
+      </svg>
+    </div>
+    <p>Under these, the effect of the <b>treatment</b> on <b>compliers</b> is identified:</p>
+    $$\text{LATE}=E[Y_{1i}-Y_{0i}\mid\text{complier}]=\frac{E[Y_i\mid Z_i=1]-E[Y_i\mid Z_i=0]}{E[D_i\mid Z_i=1]-E[D_i\mid Z_i=0]}=\frac{\text{ITT}}{\text{first stage}}$$
+  </div>
+  <aside class="script">
+    <p>So how do we get the effect of the treatment itself? We need two assumptions.</p>
+    <p>First, monotonicity: there are no defiers. Being offered the treatment never makes someone less likely to take it.</p>
+    <p>Second, exclusion: the assignment affects the outcome only through the treatment. Getting a lottery letter doesn't change your health, except by getting you insurance. In the diagram, U stands for everything unobserved that drives both take-up and the outcome. Randomization means U doesn't affect Z. Exclusion rules out the dashed arrow from Z straight to Y.</p>
+    <p>With these assumptions, the effect of the treatment on compliers equals the intention-to-treat effect divided by the first stage, which is the difference in take-up between the two assignment groups. We call it the local average treatment effect, or LATE.</p>
+  </aside>
+</section>
+
+<section class="slide" id="ratio" data-part="3 · Non-compliance">
+  <div class="slide-card">
+    <h2>Why the ratio works</h2>
+    <ul>
+      <li>Split the ITT by type. The type shares are the same in both arms (random assignment). Under exclusion, the offer does nothing to <b>always-takers</b> (treated either way) or <b>never-takers</b> (untreated either way).</li>
+      <li>So <b>all of the ITT comes from compliers</b>, diluted by their share: ITT = (share of compliers) × (effect on compliers).</li>
+      <li>The <b>first stage</b> (take-up with the offer minus take-up without) is exactly that share.</li>
+      <li>Divide: ITT / first stage = effect on compliers. <b>Local</b>: local to the people this offer moved.</li>
+      <li>Not the ATE: always-takers and never-takers are never seen in both states.</li>
+      <li class="small">The same ratio is what two-stage least squares computes, with a standard error; the live session on instrumental variables and the homework on randomization as an instrument do it properly.</li>
+    </ul>
+    <div class="box"><p><b>Numbers.</b> A coupon raises purchases by 2 points in the offered group. 50% of the offered use it; 10% of the control group get one anyway. Effect on compliers = 2 / (0.5 − 0.1) = <b>5 points</b>.</p></div>
+  </div>
+  <aside class="script">
+    <p>Why does that ratio work? Split the intention-to-treat effect by type. Always-takers get the treatment whether or not they're offered it, and never-takers never get it. So, under exclusion, the offer does nothing to either group. All of the ITT comes from compliers, diluted by their share in the population.</p>
+    <p>And the first stage, the difference in take-up between the offered and the control group, is exactly the share of compliers. Divide one by the other and you get the effect on compliers.</p>
+    <p>A quick example. A coupon raises purchases by two percentage points in the offered group. Half of the offered group use it, and ten percent of the control group get one anyway. The effect on compliers is two divided by point four, or five points.</p>
+    <p>Notice the word local. This is the effect for the people this particular offer moved, not for everyone.</p>
+  </aside>
+</section>
+
+<section class="slide" id="nc-sim" data-part="3 · Non-compliance" data-pause>
+  <div class="slide-card">
+    <h2>Try it: five estimators, one experiment</h2>
+    <div class="widget" data-widget="noncompliance"></div>
+    <p class="small">The true effect on compliers is 4. Always-takers and never-takers start from different outcome levels (like a drug trial where the healthiest buy the drug anyway and the sickest can't tolerate it). Turn "how different" to zero and the biased estimators improve; change the complier share and the ITT shrinks or grows, but the Wald ratio stays at 4.</p>
+  </div>
+  <aside class="script">
+    <p>Let's put the five estimators side by side. In this experiment, half the people are compliers, and the true effect on compliers is four. Always-takers would have high outcomes anyway, and never-takers low ones.</p>
+    <p>The blue bar, the ITT, is two: the effect of four, diluted by the fifty percent complier share. The first stage estimates that share. Their ratio, the green bar, lands exactly on four. The two red bars, as treated and per protocol, are way too big, around seventeen and thirteen, because they compare different kinds of people.</p>
+    <p>Now play with the sliders. Lower the share of compliers: the ITT shrinks, but the ratio stays at four. Turn down how different the non-compliers are: the red bars come down toward the truth. They're only right when nobody selects into treatment, and that's exactly what you can't count on.</p>
+  </aside>
+</section>
+
+<section class="slide" id="oregon" data-part="3 · Non-compliance">
+  <div class="slide-card">
+    <h2>One-sided non-compliance, and the Oregon numbers</h2>
+    <ul>
+      <li>If no one in the control group can get the treatment, there are no always-takers: the first stage is just the <b>compliance rate</b> among the offered, and the compliers are the <i>treated</i>. Then (Bloom 1984)
+        $$\frac{\text{ITT}}{\text{compliance rate}}=\text{effect on the treated (ATT)}$$</li>
+      <li><b>Oregon</b>: winning the lottery raised Medicaid coverage by 24.7 points (15.1% → 39.8%: two-sided, since some losers got covered) and ER use by 1.7 points. The effect of Medicaid on those it moved: \(0.017/0.247=0.069\), about <b>7 percentage points</b> on a base of 34.5%.</li>
+      <li class="small">The homework on randomization as an instrument does exactly this for an academic-support program where only 11 of 82 eligible students used it.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>A useful special case: one-sided non-compliance, where nobody in the control group can get the treatment. Then there are no always-takers, the first stage is just the share of the offered who took it up, and the compliers are exactly the people who were treated. So the ratio gives the effect on the treated. This result is due to Howard Bloom.</p>
+    <p>Here's a real example: the Oregon health insurance lottery, which we discussed in class. Winning the lottery raised Medicaid coverage by about twenty-five percentage points, and emergency room use by one point seven points. Dividing gives the effect of Medicaid on the people the lottery moved onto it: about seven percentage points more ER use, on a base of about thirty-five percent. Oregon was actually two-sided, because some losers got Medicaid anyway, so that number is a LATE.</p>
+    <p>The homework on randomization as an instrument does exactly this calculation for a program that very few eligible students used.</p>
+  </aside>
+</section>
+
+<section class="slide" id="itt-late" data-part="3 · Non-compliance">
+  <div class="slide-card">
+    <h2>ITT or LATE? Report both</h2>
+    <table class="t">
+      <tr><th class="l"></th><th class="l">ITT</th><th class="l">LATE (ITT / first stage)</th></tr>
+      <tr><td class="l">Question</td><td class="l">effect of <i>offering</i> the treatment</td><td class="l">effect of <i>receiving</i> it</td></tr>
+      <tr><td class="l">Who</td><td class="l">everyone assigned</td><td class="l">compliers (one-sided: the treated)</td></tr>
+      <tr><td class="l">Assumptions</td><td class="l">random assignment</td><td class="l">+ monotonicity, exclusion</td></tr>
+      <tr><td class="l">Precision</td><td class="l">usual standard error</td><td class="l">roughly ITT's SE / first stage: <i>larger</i></td></tr>
+      <tr><td class="l">Use it for</td><td class="l">policies and offers you can't force</td><td class="l">the treatment itself: a drug, a feature</td></tr>
+    </table>
+    <ul>
+      <li>Neither is the ATE. With low take-up both are weak: the ITT is small and the LATE is noisy (10% take-up multiplies the SE by about ten).</li>
+      <li>Fixing compliance (better onboarding, defaults, reminders) is a <b>design</b> problem, not an analysis problem.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>So which should you report, the ITT or the LATE? Usually both, because they answer different questions. The ITT tells you the effect of offering the treatment to everyone assigned, and it needs only random assignment. The LATE tells you the effect of actually receiving the treatment, for compliers, and it needs the two extra assumptions.</p>
+    <p>There's a price in precision. The LATE's standard error is roughly the ITT's standard error divided by the first stage. If only ten percent take up the treatment, the standard error is about ten times bigger.</p>
+    <p>So low take-up hurts both numbers. The fix is in the design: better onboarding, defaults, reminders. No analysis can rescue an experiment where almost nobody took the treatment.</p>
+  </aside>
+</section>
+
+<section class="slide" id="py-nc" data-part="3 · Non-compliance" data-pause>
+  <div class="slide-card">
+    <h2>In Python: the five estimators</h2>
+    <div class="pycell" data-colab="noncompliance"><textarea>
+import numpy as np
+rng = np.random.default_rng(2024)
+N = 20_000
+kind = rng.choice(["c", "n", "a"], size=N, p=[0.5, 0.3, 0.2])   # complier / never-taker / always-taker
+z = rng.integers(0, 2, N)                                        # random assignment
+d = np.where(kind == "c", z, np.where(kind == "a", 1, 0))         # treatment received
+y0 = np.select([kind == "c", kind == "n", kind == "a"], [50, 40, 65]) + rng.normal(0, 10, N)
+y1 = y0 + np.select([kind == "c", kind == "n", kind == "a"], [4, 2, 6])
+y = d * y1 + (1 - d) * y0
+
+itt = y[z == 1].mean() - y[z == 0].mean()                        # the effect of the offer
+first_stage = d[z == 1].mean() - d[z == 0].mean()                # share of compliers
+pp = ((z == 1) & (d == 1)) | ((z == 0) & (d == 0))
+print(f"ITT           {itt:6.2f}")
+print(f"first stage   {first_stage:6.3f}")
+print(f"Wald (LATE)   {itt / first_stage:6.2f}   (true effect on compliers: 4)")
+print(f"as treated    {y[d == 1].mean() - y[d == 0].mean():6.2f}")
+print(f"per protocol  {y[pp & (z == 1)].mean() - y[pp & (z == 0)].mean():6.2f}")
+</textarea></div>
+    <p class="small">Your turn: make it one-sided (no always-takers: set the shares to <code>[0.6, 0.4, 0.0]</code>). Is the ratio now the effect on the treated?</p>
+  </div>
+  <aside class="script">
+    <p>Here's the same experiment in code. We draw each person's type, flip a coin for the assignment, and let the treatment received depend on the type. Then we compute the five estimators. You'll see the ITT near two, the first stage near point five, their ratio near four, and the two biased estimators far above.</p>
+    <p>Then try making non-compliance one-sided by removing the always-takers. The ratio now gives the effect on the treated.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-3" data-part="3 · Non-compliance" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="b">
+      <div class="q">1. A bank randomly <i>offers</i> a budgeting app to 10,000 customers; 2,500 install it; no control customer can. Overdraft fees fall by $3 per offered customer. The effect of the app on those who installed it?</div>
+      <button class="opt" data-k="a">−$3</button><button class="opt" data-k="b">−$12 (= −3 / 0.25)</button><button class="opt" data-k="c">−$0.75</button>
+      <div class="explain">ITT −$3; compliance rate 0.25; one-sided, so the ratio is the effect on the treated. Assumes the offer itself didn't change fees for the 7,500 who didn't install (exclusion).</div>
+    </div>
+    <div class="quiz" data-answer="c">
+      <div class="q">2. An analyst compares churn among users who turned on a new feature with churn among users who didn't, within the treatment arm. This is</div>
+      <button class="opt" data-k="a">the ITT</button><button class="opt" data-k="b">the LATE</button>
+      <button class="opt" data-k="c">a per-protocol / as-treated comparison: users who turn it on (compliers + always-takers) differ from those who don't (never-takers), so it's biased</button>
+      <div class="explain">Compare the treatment arm with the control arm (ITT), and scale by the activation rate.</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">3. In Oregon, 15% of lottery <i>losers</i> were on Medicaid a year later. What type are they, and what if winning also made people more health-conscious?</div>
+      <button class="opt" data-k="a">Always-takers; exclusion fails, and the ratio wrongly credits Medicaid with the direct effect, inflated by dividing by 0.247.</button>
+      <button class="opt" data-k="b">Never-takers; nothing changes.</button>
+      <div class="explain">A direct effect of winning on behavior ends up in the ITT, and dividing by a small first stage magnifies it.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Three questions on non-compliance. The second one describes a mistake that's very common in product analytics.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 4 -->
+<section class="slide" id="persons" data-part="4 · External validity">
+  <div class="slide-card">
+    <h2>Persons: who was in the experiment?</h2>
+    <ul class="lead">
+      <li>Experiments need participants: volunteers, consenters, customers who opted in, stores whose managers agreed, undergraduates in a lab.</li>
+      <li>The estimate is internally valid <i>for them</i>. If effects vary with what makes them special, it doesn't transfer.</li>
+      <li><b>Treatment vs. eligibility effects</b>: the experiment measures the effect on those enrolled; a program at scale reaches a different mix, with different take-up.</li>
+      <li>Exclusions made for internal validity have the same cost. From 1977 to 1993 the US FDA recommended excluding women "of childbearing potential" from early drug trials: cleaner trials, and two decades of drugs with little evidence for women under 45.</li>
+    </ul>
+    <p class="src">FDA, "Guideline for the Study and Evaluation of Gender Differences in the Clinical Evaluation of Drugs" (1993).</p>
+  </div>
+  <aside class="script">
+    <p>Part four is about external validity, starting with the people in the experiment.</p>
+    <p>Experiments need participants, and participants are rarely a random sample of the people you care about. They're volunteers, people who agreed to take part, customers who opted in, or stores whose managers cooperated. The estimate is valid for them. If the effect depends on whatever makes them special, it won't carry over.</p>
+    <p>And exclusions made to protect internal validity have a cost. For about fifteen years, the US Food and Drug Administration recommended keeping women who could become pregnant out of early drug trials. That made the trials cleaner, but it left two decades of drugs with little evidence on how they work for younger women.</p>
+  </aside>
+</section>
+
+<section class="slide" id="pilot" data-part="4 · External validity">
+  <div class="slide-card">
+    <h2>Treatments and settings: the pilot is not the program</h2>
+    <ul>
+      <li><b>Implementation</b>: a pilot is run by the team that designed it, with a budget and monitoring the full program won't have. The treatment at scale is a different treatment.</li>
+      <li><b>Scale-up</b>: at scale, participants differ (word of mouth, different selection), implementers differ (the best staff ran the pilot), and oversight differs.</li>
+      <li><b>General equilibrium</b>: treating 2% of units leaves prices, competitors, and labor markets alone. Treating 100% doesn't.
+        <ul>
+          <li>Job-search assistance in France: the treated found jobs faster partly <i>at the expense</i> of untreated job seekers in the same market (Crépon et al. 2013).</li>
+          <li>A discount tested on 5% of users doesn't trigger a competitor's response; a permanent price cut does.</li>
+          <li>A feature that works because it is rare (a badge, a status) may do nothing when everyone has it.</li>
+        </ul>
+      </li>
+      <li>The two-sided platform case from the live sessions is the same problem: holding creators fixed made the viewer-only test misleading.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Next, the treatment and the setting. A pilot is usually run by the people who designed it, with extra money and close monitoring. When the program scales up, a different team runs it on a smaller budget. In effect, it's a different treatment.</p>
+    <p>Then there are general equilibrium effects. Treating two percent of a market changes nothing around it. Treating everyone does. A job-search program in France helped treated job seekers find work faster, but partly by taking jobs that untreated job seekers would have gotten. At full scale, the net effect is smaller. A discount tested on five percent of users won't make a competitor respond. A permanent price cut will. And a status badge may work only because it's rare.</p>
+    <p>You've seen this before: in the short-video platform case, a test that held creators fixed missed how creators responded.</p>
+  </aside>
+</section>
+
+<section class="slide" id="horizon" data-part="4 · External validity">
+  <div class="slide-card">
+    <h2>Outcomes and horizon: how long did it run?</h2>
+    <ul class="lead">
+      <li>Short experiments measure short-run effects: a new layout gets clicks because it is <b>new</b> (novelty), or loses them because users haven't <b>learned</b> it yet. Both fade.</li>
+      <li>Long-run outcomes (retention, lifetime value, health) are rarely in the test window. The experiment measures a <b>proxy</b>, and the proxy's link to the real outcome is an assumption.</li>
+      <li>Plot the effect over time; don't stop after the first week.</li>
+      <li>Running longer helps external validity and costs internal validity: more people drop out, more contamination, more other things change.</li>
+      <li>When the long run is the question: <b>holdouts</b> (a small group kept untreated for months after launch) and long-term proxies validated against past experiments.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Third, the horizon. Most experiments are short, so they measure short-run effects. A new page layout may get more clicks just because it's new, or fewer because users haven't learned it yet. Both effects fade.</p>
+    <p>The outcomes we really care about, like retention, lifetime value, or health, usually lie beyond the test window. So the experiment measures a proxy, and whether the proxy predicts the real outcome is an assumption, not a result.</p>
+    <p>What can you do? Plot the effect over time, and don't stop at the first week. And when the long run really matters, keep a holdout: a small group that stays untreated for months after launch, so you can measure the long-run effect directly.</p>
+  </aside>
+</section>
+
+<section class="slide" id="reweight" data-part="4 · External validity">
+  <div class="slide-card">
+    <h2>Heterogeneity and re-weighting: the partial fix</h2>
+    <ul>
+      <li>If the effect varies with things we <b>observe</b>, and the target population has a different mix of them, re-weight the experiment's subgroup effects by the target's mix:
+        $$\text{ATE}_{\text{target}}=\sum_{\text{groups}}(\text{effect in group})\times(\text{group's share in the target})$$</li>
+      <li>Example: the experiment is 70% new customers, the market 30%. Effects: 4% for new, 1% for existing. Experiment: \(0.7\times4+0.3\times1=3.1\%\). Target: \(0.3\times4+0.7\times1=1.9\%\).</li>
+      <li>This fixes the "persons" dimension when the relevant differences are observed and covered by the experiment. It does nothing for settings, treatments, horizons, or unobserved differences.</li>
+      <li class="small">Estimated heterogeneity is also how you <b>target</b>: treat only where the effect exceeds the cost. Pre-specify the subgroups, or treat them as hypotheses for the next experiment.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>There's a partial fix for the persons problem: re-weighting. If the effect differs across groups we can observe, and the target population has a different mix of those groups, we can average the experiment's group-level effects using the target's mix.</p>
+    <p>For example: the experiment was seventy percent new customers, but the market is only thirty percent new. The effect is four percent for new customers and one percent for existing ones. The experiment's average is three point one percent, but re-weighted to the market it's one point nine.</p>
+    <p>But know the limits. Re-weighting fixes differences in people that you observe and that the experiment covers. It does nothing for differences in settings, treatments, or horizons, or for differences you didn't measure.</p>
+  </aside>
+</section>
+
+<section class="slide" id="tradeoff" data-part="4 · External validity">
+  <div class="slide-card">
+    <h2>The trade-off, and the designer's choices</h2>
+    <div class="cols">
+      <div class="widget" data-widget="tradeoff"></div>
+      <ul>
+        <li>The more tightly you control the environment (simple subjects, short run, one city, frozen competitors), the cleaner the estimate and the less it resembles the world.</li>
+        <li>Each fix for internal validity moves right; each demand for generalization moves left.</li>
+        <li>No formula. An honest answer to "what is the effect?" states the population, the treatment as delivered, the setting, and the horizon, and says which would change at scale.</li>
+        <li><b>Two experiments beat one</b>: a clean small one to establish the mechanism, and a messier large one (or a staged roll-out) to measure it where it will be used.</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="script">
+    <p>All of this adds up to a trade-off. The more tightly you control an experiment, with simple subjects, a short run, one city, and nothing else changing, the cleaner the estimate, and the less it looks like the world where you'll use it. Every fix for internal validity pushes you toward the lab. Every demand for realism pushes you toward the field.</p>
+    <p>There's no formula for the right balance. But there's an honest way to report results: say which population, which version of the treatment, which setting, and which horizon you measured, and which of those would change at scale.</p>
+    <p>And in practice, two experiments often beat one: a small, clean one to establish that the effect is real, and a larger, messier one, or a staged roll-out, to measure it where it matters.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-4" data-part="4 · External validity" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="c">
+      <div class="q">1. A ride-hailing company tests a driver bonus in one mid-sized city for two weeks: +12% hours supplied. Which is a "treatments" threat to using 12% for a nationwide, permanent bonus?</div>
+      <button class="opt" data-k="a">One city's drivers may differ from drivers elsewhere.</button>
+      <button class="opt" data-k="b">Competitors didn't respond to a two-week test.</button>
+      <button class="opt" data-k="c">A bonus known to be temporary triggers a burst of hours that a permanent one wouldn't.</button>
+      <div class="explain">(a) is persons, (b) is settings. A fourth threat, outcomes: two weeks of hours, not retention over a year.</div>
+    </div>
+    <div class="quiz" data-answer="b">
+      <div class="q">2. Coaching 10% of job seekers raises their employment by 5 points. Why might coaching <i>everyone</i> help less, and how would you detect it?</div>
+      <button class="opt" data-k="a">It wouldn't; the experiment is randomized.</button>
+      <button class="opt" data-k="b">Displacement: the coached take jobs the uncoached would have gotten. Randomize the <i>share</i> treated across labor markets and compare control groups.</button>
+      <div class="explain">This is the design Crépon et al. (2013) used in France.</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">3. The experiment is 70% new customers; the market is 30% new. Effects: 4% new, 1% existing. Re-weighted effect for the market?</div>
+      <button class="opt" data-k="a">1.9%</button><button class="opt" data-k="b">3.1%</button><button class="opt" data-k="c">2.5%</button>
+      <div class="explain">0.3 × 4 + 0.7 × 1 = 1.9%. Assumes the group effects transfer and that new vs. existing captures the relevant difference.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Three questions on external validity.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 5 -->
+<section class="slide" id="uncertainty" data-part="5 · Inference">
+  <div class="slide-card">
+    <h2>Where does the uncertainty come from?</h2>
+    <div class="cols">
+      <div class="box optional"><div class="label">The regression view</div><p>Our units are a random sample from a big population. The standard error says how the estimate would vary across <b>other samples</b>.</p></div>
+      <div class="box"><div class="label">The experimental view</div><p>The units are fixed; each has its own potential outcomes. What was random is <b>which</b> of them got treated. The uncertainty is about <b>other coin flips</b> for the same units.</p></div>
+    </div>
+    <ul>
+      <li>The second view is natural for experiments: we often have the whole population (every store, every user), and the one thing we <i>know</i> was random is the coin.</li>
+      <li>It leads to a test that needs no formula and no assumption about how the data are distributed, and that is exact in any sample size: <b>randomization inference</b>.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Part five is about luck: how do we know a difference isn't just chance? And I promise, no formulas.</p>
+    <p>In the regression view, which you learned first, our data are a random sample from a big population, and the standard error describes how much the estimate would change with a different sample.</p>
+    <p>In an experiment, there's a more natural view. The units are what they are: every store, every user. What was random is which of them got treated. So the question becomes: how much would the estimate change if the coin had landed differently for these same units?</p>
+    <p>That view leads to a beautifully simple test, called randomization inference. It needs no formula, no assumption about the shape of the data, and it's exact in any sample size. Let's see how it works.</p>
+  </aside>
+</section>
+
+<section class="slide" id="shuffle-idea" data-part="5 · Inference">
+  <div class="slide-card">
+    <h2>The idea: if the treatment did nothing, the labels are arbitrary</h2>
+    <ol class="lead">
+      <li>Suppose the treatment did <b>nothing to anyone</b> (the "sharp null"). Then every unit's outcome would have been the same under either label.</li>
+      <li>So we can ask: what difference would we have seen under <b>every other way the coin could have fallen</b>? Shuffle the treatment labels, keep the outcomes where they are, and recompute the difference.</li>
+      <li>Do that for every possible shuffle (or thousands of random ones). The <b><i>p</i>-value</b> is the share of shuffles that give a difference at least as large as the one we actually saw.</li>
+    </ol>
+    <div class="box key"><p>If real differences like ours are rare among shuffles, it's hard to believe the treatment did nothing. The only randomness is the coin, and we know exactly how it was flipped.</p></div>
+  </div>
+  <aside class="script">
+    <p>Here's the whole idea in three steps.</p>
+    <p>Step one: suppose the treatment did nothing at all, to anyone. Then each unit would have had exactly the same outcome whether it was labeled treated or control. The labels would be arbitrary.</p>
+    <p>Step two: if the labels are arbitrary, we can shuffle them. Keep every unit's outcome where it is, randomly reassign who is called treated, and recompute the difference in means. That's the difference we would have seen if the coin had fallen differently.</p>
+    <p>Step three: do that for every possible shuffle, or for thousands of random ones. The p-value is simply the share of shuffles that produce a difference at least as large as the real one. If such large differences almost never happen by shuffling, it's hard to believe the treatment did nothing. Let's try it with eight units.</p>
+  </aside>
+</section>
+
+<section class="slide" id="eight-units" data-part="5 · Inference" data-pause>
+  <div class="slide-card">
+    <h2>Try it: eight units, by hand</h2>
+    <div class="widget" data-widget="eightUnits"></div>
+    <ul class="small">
+      <li>The actual experiment treated units 1–4: treated mean 8, control mean 2, difference <b>6</b>. Click units to make your own assignment (exactly four treated), or shuffle.</li>
+      <li>There are 70 ways to choose 4 of 8. Show all 70: only 6 give a difference as large as 6 in either direction, so <b>p = 6/70 ≈ 0.09</b>. (Only 3 of 70 are as large in the positive direction: 3/70 ≈ 0.04.)</li>
+      <li>The usual \(t\)-test on the same eight numbers says \(p\approx0.04\). With eight skewed numbers, its normal approximation is off; the shuffle count is exact.</li>
+    </ul>
+    <p class="src">Example from Athey &amp; Imbens (2017), "The Econometrics of Randomized Experiments," <i>Handbook of Field Experiments</i>.</p>
+  </div>
+  <aside class="script">
+    <p>Here are eight units with their observed outcomes. In the real experiment, units one to four were treated. The treated average is eight, the control average is two, so the difference is six. Is six a lot, or could it be luck?</p>
+    <p>If the treatment did nothing, any four units could just as well have been the treated ones. Click on the units to try another assignment. Make sure exactly four are treated, and the page computes the difference. Then press shuffle the labels a few times. Each shuffle adds a bar to the chart.</p>
+    <p>There are only seventy ways to choose four units out of eight, so we can check them all. Press show all seventy. The red bars are the assignments that give a difference of six or more, in either direction. There are six of them. So the p-value is six out of seventy, about point oh nine. Not quite significant at five percent.</p>
+    <p>Interestingly, the usual t-test on the same eight numbers says about point oh four. With only eight skewed numbers, its approximation isn't reliable. The count of shuffles is exact.</p>
+  </aside>
+</section>
+
+<section class="slide" id="resume" data-part="5 · Inference" data-pause>
+  <div class="slide-card">
+    <h2>Try it: the résumé audit, shuffled</h2>
+    <div class="widget" data-widget="resumePerm"></div>
+    <ul class="small">
+      <li>4,870 fictitious résumés; names randomly signal race. Callback rates: 9.65% for white-sounding names, 6.45% for Black-sounding names: a gap of <b>−3.2 points</b>.</li>
+      <li>The sharp null: the name changed <i>no</i> employer's decision. Shuffle the names 20,000 times: a gap as large as 3.2 points almost never appears (zero or one time), so <b>p &lt; 0.001</b>, the same verdict as the \(t\)-test. With thousands of units, the shuffled gaps spread out exactly as the regression's standard error says (0.78 points).</li>
+      <li>On a random 200 résumés the two <i>p</i>-values can differ noticeably. Neither rejects, but the shuffle one is the exact one.</li>
+    </ul>
+    <p class="src">Data: Bertrand &amp; Mullainathan (2004), "Are Emily and Greg More Employable than Lakisha and Jamal?" <i>American Economic Review</i>.</p>
+  </div>
+  <aside class="script">
+    <p>Now the same test on a real experiment: the résumé audit from class. Researchers sent about forty-nine hundred fictitious résumés to employers, with names randomly chosen to sound white or Black. White-sounding names got callbacks nine point six five percent of the time, Black-sounding names six point four five percent. A gap of three point two percentage points.</p>
+    <p>The sharp null here is that the name changed no employer's decision. If that were true, the names would be arbitrary labels, so let's shuffle them. Press shuffle twenty thousand times. The grey histogram shows the gaps we get by chance. They cluster around zero and rarely go beyond about two points. The real gap, the orange line, is far out in the tail: in twenty thousand shuffles, a gap that large appears once at most, often not at all. So the p-value is below one in a thousand, the same verdict as the regression.</p>
+    <p>Notice also that the spread of the shuffled gaps matches the regression's standard error. With thousands of units, the two approaches agree. Now switch to a random two hundred résumés and shuffle again. With a small sample, the two p-values can differ, and the shuffle one is the exact one.</p>
+  </aside>
+</section>
+
+<section class="slide" id="when-matters" data-part="5 · Inference">
+  <div class="slide-card">
+    <h2>When it matters</h2>
+    <table class="t">
+      <tr><th class="l">How often a 5% test rejects when the treatment does nothing</th><th>\(t\)-test</th><th>Shuffle test</th></tr>
+      <tr><td class="l">Normal outcomes, 10 units per arm</td><td>4.5%</td><td>4.4%</td></tr>
+      <tr><td class="l">Heavily skewed outcomes (like spending), 10 units per arm</td><td>2.0%</td><td>5.1%</td></tr>
+    </table>
+    <p class="small">3,000 simulated null experiments each.</p>
+    <ul>
+      <li>With well-behaved outcomes, both tests do what they claim. With skewed outcomes and few units, the \(t\)-test is <b>miscalibrated</b>: its <i>p</i>-values don't mean what they say. The shuffle test is right on 5%.</li>
+      <li><b>Use the shuffle test</b> when \(n\) is small, outcomes are skewed or have outliers, you want a statistic with no standard-error formula (a median difference, a ratio), or there are few <b>clusters</b>.</li>
+      <li><b>Use regression</b> when \(n\) is large and you need covariates, interactions, or many arms. Run both; if they disagree, trust the shuffle test and ask why.</li>
+      <li class="small">Rejecting the sharp null says the treatment did something to someone, not that the average effect is nonzero. For most purposes that is the question.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>So when does the choice of test matter? This simulation runs thousands of experiments where the treatment does nothing, and counts how often each test wrongly rejects at five percent.</p>
+    <p>With nicely bell-shaped outcomes and ten units per arm, both tests reject about five percent of the time, as they should. With heavily skewed outcomes, like spending or revenue per user, the t-test rejects only two percent of the time. Its p-values don't mean what they claim. The shuffle test is right on five percent.</p>
+    <p>So use the shuffle test when the sample is small, the outcomes are skewed, you want to test something like a median that has no standard-error formula, or there are only a few clusters. Use regression when the sample is large and you need controls or many groups. And when in doubt, run both. If they disagree, trust the shuffle test, and figure out why.</p>
+  </aside>
+</section>
+
+<section class="slide" id="clusters" data-part="5 · Inference">
+  <div class="slide-card">
+    <h2>Cluster randomization: shuffle what the coin was flipped for</h2>
+    <ul class="lead">
+      <li>If treatment was assigned to <b>clusters</b> (stores, cities, schools, weeks), the coin was flipped once per cluster, not once per row.</li>
+      <li>With 20 stores and a million transactions, there were <b>20 coin flips</b>. A regression that treats each transaction as independent wildly overstates the precision.</li>
+      <li>The shuffle test handles this naturally: <b>re-assign the stores, not the transactions</b>, then recompute the difference. It works with as few as five clusters per arm.</li>
+      <li>The regression version: standard errors <b>clustered</b> by the unit of randomization. It needs enough clusters (say 30–50) to be reliable.</li>
+    </ul>
+    <div class="box key"><p><b>Rule:</b> analyze at the level at which the treatment was assigned.</p></div>
+  </div>
+  <aside class="script">
+    <p>One last point, and the shuffle idea makes it obvious. Often treatment is assigned to whole groups: stores, cities, schools, or weeks. Then the coin was flipped once per group, not once per row of data.</p>
+    <p>Suppose twenty stores were randomized and you have a million transactions. There were only twenty coin flips. A regression that treats each transaction as independent thinks it has a million pieces of evidence, and it will report standard errors that are far too small.</p>
+    <p>The shuffle test handles this naturally: shuffle the stores, not the transactions, because that's what the coin decided. In regressions, the fix is to cluster the standard errors at the level of randomization, which you'll use in the homework on difference-in-differences. The rule is simple: analyze at the level at which the treatment was assigned.</p>
+  </aside>
+</section>
+
+<section class="slide" id="py-ri" data-part="5 · Inference" data-pause>
+  <div class="slide-card">
+    <h2>In Python: shuffling labels</h2>
+    <div class="pycell" data-colab="randomization-inference"><textarea>
+import numpy as np
+from itertools import combinations
+
+# eight units: all 70 ways to pick the four treated
+Y = np.array([12, 4, 6, 10, 6, 0, 1, 1.])
+actual = Y[:4].mean() - Y[4:].mean()                       # 6
+diffs = []
+for treated in combinations(range(8), 4):
+    t = np.zeros(8, bool); t[list(treated)] = True
+    diffs.append(Y[t].mean() - Y[~t].mean())
+diffs = np.array(diffs)
+print(f"eight units: {np.sum(np.abs(diffs) >= actual)} of 70 shuffles as large -> p = {np.mean(np.abs(diffs) >= actual):.3f}")
+
+# the resume audit: 157 of 2,435 Black-sounding and 235 of 2,435 white-sounding names got a callback
+black = np.r_[np.ones(2435), np.zeros(2435)].astype(bool)
+call = np.r_[np.ones(157), np.zeros(2435 - 157), np.ones(235), np.zeros(2435 - 235)]
+gap = call[black].mean() - call[~black].mean()             # -0.032
+rng = np.random.default_rng(1)
+shuffled = []
+for _ in range(20_000):
+    b = rng.permutation(black)                              # shuffle the names
+    shuffled.append(call[b].mean() - call[~b].mean())
+shuffled = np.array(shuffled)
+print(f"resume audit: gap {100 * gap:.2f} points; shuffles at least as large: {np.sum(np.abs(shuffled) >= abs(gap))} of 20,000")
+print(f"spread of the shuffled gaps: {100 * shuffled.std():.2f} points")
+</textarea></div>
+    <p class="small">The résumé loop takes a few seconds in the browser. Your turn: test the <i>median</i> difference for the eight units instead of the mean (no formula needed!).</p>
+  </div>
+  <aside class="script">
+    <p>And here it is in code. The first part loops over all seventy assignments of the eight units and counts how many give a difference as large as six. The second part rebuilds the résumé data from the callback counts, shuffles the names twenty thousand times, and counts how often a gap as large as three point two points appears.</p>
+    <p>A nice feature of shuffling is that it works for any statistic. Try replacing the mean with the median: there's no simple standard-error formula for a median difference, but the shuffle test doesn't care.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-5" data-part="5 · Inference" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="b">
+      <div class="q">1. Which is the sharp null for the résumé audit?</div>
+      <button class="opt" data-k="a">On average, the name doesn't change callbacks.</button>
+      <button class="opt" data-k="b">For every résumé, the employer's decision would have been the same with either name.</button>
+      <button class="opt" data-k="c">The callback rates are exactly equal in the sample.</button>
+      <div class="explain">Rejecting it means the name changed at least some decisions. The gap of −3.2 points and its standard error describe the average.</div>
+    </div>
+    <div class="quiz" data-answer="c">
+      <div class="q">2. A chain randomizes a new layout to 8 of its 16 stores and has daily sales for 90 days in each. What should you shuffle?</div>
+      <button class="opt" data-k="a">The 1,440 store-days</button><button class="opt" data-k="b">The days</button>
+      <button class="opt" data-k="c">The 8 treated stores among the 16 (12,870 possible assignments)</button>
+      <div class="explain">Only 16 coins were flipped. A regression on store-days with plain standard errors pretends there were 1,440.</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">3. When does the shuffle test matter most?</div>
+      <button class="opt" data-k="a">Small samples, skewed outcomes, unusual statistics, or few clusters</button>
+      <button class="opt" data-k="b">Large balanced experiments with normal outcomes</button>
+      <div class="explain">In large, well-behaved experiments the shuffle test and the regression agree, as in the résumé audit.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Three final questions on randomization inference.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= WRAP-UP -->
+<section class="slide" id="summary" data-part="Wrap-up">
+  <div class="slide-card">
+    <h2>Summary: each threat, what the naive estimate gives, and the fix</h2>
+    <table class="t formula-table" style="font-size:15px">
+      <tr><th class="l">Threat</th><th class="l">The naive difference in means gives</th><th class="l">The fix</th></tr>
+      <tr><td>Subverted or conditional randomization</td><td>ATE + selection bias from the overrides or the strata</td><td>Analyze by <i>assigned</i> treatment; control for the stratification variables</td></tr>
+      <tr><td>Non-compliance</td><td>By assignment: the ITT (diluted). By receipt: an observational comparison</td><td>Report the ITT; LATE = ITT / first stage under monotonicity and exclusion</td></tr>
+      <tr><td>External validity</td><td>The effect for these persons, this treatment, this setting, this horizon</td><td>State them; re-weight on observables; holdouts; staged roll-outs</td></tr>
+      <tr><td>Is it luck?</td><td>The right estimate, but maybe the wrong <i>p</i>-value</td><td>Shuffle the labels when \(n\) or the number of clusters is small; analyze at the level of assignment</td></tr>
+    </table>
+  </div>
+  <aside class="script">
+    <p>Let's wrap up with the one-slide version of the module.</p>
+    <p>If randomization was overridden or stratified, the naive comparison mixes the effect with selection bias. The fix: analyze by the assigned treatment, and control for the strata.</p>
+    <p>With non-compliance, comparing by assignment gives the intention-to-treat effect, diluted by take-up, while comparing by receipt is just an observational comparison. Report the ITT, and divide by the first stage to get the effect on compliers.</p>
+    <p>External validity: the experiment measures the effect for these people, this version of the treatment, this setting, and this horizon. Say so, re-weight where you can, and use holdouts and staged roll-outs.</p>
+    <p>And to judge whether a difference is luck, shuffle the labels, especially when the sample or the number of clusters is small, and always analyze at the level at which the treatment was assigned.</p>
+  </aside>
+</section>
+
+<section class="slide" id="next" data-part="Wrap-up">
+  <div class="slide-card">
+    <h2>Practice, and what comes next</h2>
+    <div class="cols">
+      <div>
+        <h3>Practice notebook</h3>
+        <p>The code from this module, the balance and stratification simulations, the non-compliance estimators with regressions, and randomization inference on the full résumé data.</p>
+        <div class="btn-row" data-notebook-links></div>
+        <p class="small">In Colab: <i>File → Save a copy in Drive</i> to keep your own version.</p>
+      </div>
+      <div>
+        <h3>Next</h3>
+        <p>The live sessions move from experiments to settings where no one flipped a coin, starting with regression discontinuity.</p>
+      </div>
+    </div>
+    <p class="small">Thanks to Paul Ellickson, whose lecture notes on randomized experiments are the backbone of this module, and to Eric Zou, Elena Prager, and Avery Haviv for sharing their teaching materials.</p>
+    <p class="src">Further reading: Angrist &amp; Pischke, <i>Mastering 'Metrics</i> ch. 1 and 3; Athey &amp; Imbens (2017), "The Econometrics of Randomized Experiments"; Shadish, Cook &amp; Campbell (2002), <i>Experimental and Quasi-Experimental Designs</i>; Kohavi, Tang &amp; Xu (2020), <i>Trustworthy Online Controlled Experiments</i>.</p>
+  </div>
+  <aside class="script">
+    <p>That's the end of this module. The practice notebook has all the code, plus the simulations and the full résumé data, if you want to explore further.</p>
+    <p>Next, the live sessions leave the world of coin flips and turn to situations where nobody randomized, starting with regression discontinuity. Thanks for watching.</p>
+  </aside>
+</section>
+
+</div>
+</body>
+</html>
