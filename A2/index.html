@@ -1,0 +1,1023 @@
+<!doctype html>
+<!--
+  Asynchronous module 2 (GBA 436, Fall B 2026, posted after Lecture 4; written so it can be reused in other
+  courses and years): the potential-outcomes framework. Web version of A2_potential_outcomes.tex (same
+  content, narration rewritten as a read-aloud script, lecture and homework numbers removed).
+  Sources: P. Ellickson (AEC 520 handouts 1 and 3), E. Zou (EC 425/525 week 2 part 2), E. Prager (Kellogg L7),
+  A. Haviv (GBA436R async "Logic of Randomization"); Cunningham's Mixtape ch. 4. Numbers: code/A2_examples.py.
+
+  How this page works: see ../A1_LLN_CLT_regression_math/README.md (same player). Each <section class="slide">
+  is a slide; its <aside class="script"> is the narration (transcript, computer voice, recording teleprompter).
+  Audio: audio/<slide id>.m4a. Rule for student-facing text (slides AND scripts): no course numbers, terms,
+  lecture or homework numbers.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Potential Outcomes Framework</title>
+<meta name="description" content="Self-paced module: potential outcomes, the fundamental problem of causal inference, ATE/ATT/ATU, the two selection-bias decompositions, random assignment, regression, SUTVA, and the assignment mechanism.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="assets/player.css">
+<style>
+  .parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin-top: 12px; }
+  .parts button { text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 10px 12px; cursor: pointer; font-size: 15px; line-height: 1.35; }
+  .parts button:hover { border-color: var(--brand); }
+  .parts button b { display: block; color: var(--brand); font-size: 13px; text-transform: uppercase; letter-spacing: .05em; }
+  .feature { display: grid; grid-template-columns: 36px 1fr; gap: 6px 10px; align-items: start; margin: 8px 0; }
+  .feature .ic { width: 32px; height: 32px; border-radius: 8px; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  .formula-table td { text-align: left; vertical-align: middle; }
+  .formula-table td:first-child { color: var(--muted); }
+  /* the four-unit table */
+  table.four td, table.four th { min-width: 3.2em; }
+  table.four td.cf, .four-out .cf { color: var(--bad); font-weight: 600; }
+  table.four tr.avg td { color: var(--muted); font-size: 14px; border-top: 2px solid var(--line); }
+  .dbtn { min-width: 2.2em; border: 1px solid var(--line); border-radius: 6px; background: var(--card); cursor: pointer; font-weight: 700; padding: 2px 8px; }
+  .dbtn.on { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+  .four-out { margin-top: 8px; font-size: 15.5px; }
+  .four-out .eq { margin: 4px 0; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
+  .four-out .lab { color: var(--muted); }
+  svg.plot .bar-good { fill: var(--good); opacity: .85; }
+  svg.plot .bar-bad { fill: var(--bad); opacity: .8; }
+  .ladder td { text-align: left; }
+</style>
+<script>
+  window.MODULE_CONFIG = {
+    moduleId: "A2-potential-outcomes",
+    title: "The potential-outcomes framework",
+    subtitle: "Causal Analytics · Asynchronous module",
+    // Colab buttons: publish_site.py writes the GitHub location into the published copy.
+    colabUrl: "",
+    github: "tx58/causal-analytics/A2",
+    notebook: "A2_notebook.ipynb",
+  };
+</script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script defer src="assets/charts.js"></script>
+<script defer src="assets/widgets.js"></script>
+<script defer src="assets/player.js"></script>
+</head>
+<body>
+<div id="deck">
+
+<!-- ======================================================================= START -->
+<section class="slide title-slide" id="title" data-part="Start" data-title="Welcome">
+  <div class="slide-card">
+    <div class="eyebrow">Causal Analytics · Asynchronous module</div>
+    <h1>The potential-outcomes framework</h1>
+    <p class="lead" style="color:var(--muted);margin:0 0 10px">What a causal effect is, why a naive comparison misses it, and why a coin flip fixes it</p>
+    <div class="who">Tianli Xia · Simon Business School, University of Rochester</div>
+    <div class="start-row">
+      <button class="btn primary" data-action="play-all">▶ Watch from the start (auto-advance)</button>
+      <button class="btn" data-action="next">Go at my own pace →</button>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Welcome to this module on the potential-outcomes framework. In the live sessions we told the causal story with pictures and tables: two versions of the same customer, one treated and one not. Here we write the same story in symbols.</p>
+    <p>Why bother with symbols? Because every method in the rest of the course, from matching to regression discontinuity to instrumental variables, is stated as an assumption about potential outcomes. Once you can read that language, those methods become much easier to follow.</p>
+    <p>We will go slowly, with a four-unit example you can check by hand and a simulation you can play with.</p>
+  </aside>
+</section>
+
+<section class="slide" id="how-to" data-part="Start">
+  <div class="slide-card">
+    <h2>How to use this page</h2>
+    <div class="cols">
+      <div>
+        <div class="feature"><span class="ic">▶</span><div><b>Listen.</b> Each slide has its own short voice-over. Press <kbd>Space</kbd> or the play button; change the speed at the bottom right.</div></div>
+        <div class="feature"><span class="ic">⇄</span><div><b>Your pace.</b> Use <kbd>←</kbd> <kbd>→</kbd> or the contents. Turn on <i>Auto-advance</i> to watch it like a video.</div></div>
+        <div class="feature"><span class="ic">≡</span><div><b>Read.</b> The transcript is under each slide (<kbd>T</kbd> hides it).</div></div>
+      </div>
+      <div>
+        <div class="feature"><span class="ic">✦</span><div><b>Try it.</b> Slides marked <i>try it</i> have simulations. The four-unit table is clickable.</div></div>
+        <div class="feature"><span class="ic">{ }</span><div><b>Code.</b> Python cells run in the page; the same code is in a Colab notebook.</div></div>
+        <div class="feature"><span class="ic">✓</span><div><b>Check.</b> Short self-checks end each part. Not graded.</div></div>
+      </div>
+    </div>
+    <p>Notation follows <i>Mastering 'Metrics</i>: \(D_i\), \(Y_{1i}\), \(Y_{0i}\). Other books write \(Y_i(1)\), \(Y_i(0)\), or \(W_i\) for the treatment: same objects.</p>
+    <div class="box key">
+      <div class="label">What you need for the exam</div>
+      <p>The definitions, the two decompositions, and what random assignment does to them. The proofs are there so that you believe the claims; you will not need to reproduce them.</p>
+    </div>
+  </div>
+  <aside class="script">
+    <p>A quick word on how to use this page. Every slide has its own short voice-over, and you can go at your own pace or turn on auto-advance and watch it like a video. The transcript is under each slide.</p>
+    <p>Several slides have something to try. The most important one is a table of four units that you can click on to decide who gets treated. Please do click. The ideas in this module stick much better once you have broken them yourself.</p>
+    <p>On notation: I follow Mastering 'Metrics. Other books write the same objects differently, so don't be thrown when you see Y of one and Y of zero elsewhere.</p>
+    <p>For the exam, you need the definitions, the two decompositions, and what random assignment does to them. The proofs are here so you can see why the claims are true. You will not have to reproduce them.</p>
+  </aside>
+</section>
+
+<section class="slide" id="roadmap" data-part="Start">
+  <div class="slide-card">
+    <h2>Four parts</h2>
+    <div class="parts">
+      <button data-goto="program-eval"><b>Part 1</b>Potential outcomes and the fundamental problem</button>
+      <button data-goto="estimands"><b>Part 2</b>Estimands and the two selection-bias decompositions</button>
+      <button data-goto="independence"><b>Part 3</b>Random assignment and the regression implementation</button>
+      <button data-goto="sutva"><b>Part 4</b>SUTVA, the assignment mechanism, and a map of the course</button>
+      <button data-goto="summary"><b>Wrap-up</b>Summary, optional reading, practice notebook</button>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The module has four parts. Part one defines potential outcomes and explains why individual causal effects can never be observed. Part two defines the averages we aim for instead, and shows exactly what a naive comparison of treated and untreated units measures. Part three shows why random assignment solves the problem and how it connects to running a regression. Part four covers the assumption hidden in the notation, and gives a map of every method in the rest of the course.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 1 -->
+<section class="slide" id="program-eval" data-part="1 · Potential outcomes">
+  <div class="slide-card">
+    <h2>Causal questions as program evaluation</h2>
+    <ul>
+      <li>Causal questions in economics and business are usually framed as <b>program evaluation</b>: the effect of exposing units to a program, treatment, or intervention.</li>
+      <li>The object of interest compares two outcomes for the <b>same</b> unit: when exposed, and when not exposed.</li>
+    </ul>
+    <div class="cols">
+      <div class="box"><div class="label">Classic examples</div><p>Job training → earnings · class size → test scores · minimum wage → employment · military service → earnings</p></div>
+      <div class="box"><div class="label">Business examples</div><p>Advertising → purchases · a price change → demand · a grace period → loan default · a new feed algorithm → engagement</p></div>
+    </div>
+    <p>We focus on <b>binary</b> treatments: a unit is either treated or not. Everything extends to doses and multiple arms, but the binary case carries all the ideas.</p>
+  </div>
+  <aside class="script">
+    <p>Let's start with the kind of question we are asking. In economics and business, causal questions are usually framed as program evaluation. There is a program, a treatment, or an intervention, and we want to know its effect on some outcome.</p>
+    <p>The classic examples come from labor economics: job training and earnings, class size and test scores, the minimum wage and employment. The business versions have exactly the same structure: does advertising raise purchases, does a price change move demand, does a grace period change loan default, does a new feed algorithm change engagement?</p>
+    <p>In every case, the question compares two outcomes for the same unit: what happens with the treatment, and what happens without it. We will stick to binary treatments, treated or not. More complicated treatments follow the same logic.</p>
+  </aside>
+</section>
+
+<section class="slide" id="rcm" data-part="1 · Potential outcomes">
+  <div class="slide-card">
+    <h2>The Rubin causal model</h2>
+    <p>The dominant framework in statistics, epidemiology, and economics, after Donald Rubin's papers in the 1970s, with roots in Neyman (1923) and Fisher. Some call it the Neyman–Rubin model. Three ingredients:</p>
+    <ol class="lead">
+      <li><b>Potential outcomes.</b> A causal effect is a comparison of potential outcomes for the same unit.</li>
+      <li><b>Multiple units.</b> We never see all the potential outcomes of one unit, so other units must stand in for the missing ones.</li>
+      <li><b>The assignment mechanism.</b> How treatment is assigned decides whether those stand-ins are any good.</li>
+    </ol>
+    <p class="small">The live sessions covered ingredient 1 and the beginning of 3 (random assignment). This module does all three carefully. Most of the rest of the course is about assignment mechanisms that are <i>not</i> random.</p>
+  </div>
+  <aside class="script">
+    <p>The framework we use is called the Rubin causal model, after the statistician Donald Rubin, with roots going back to Jerzy Neyman in the 1920s. It has three ingredients.</p>
+    <p>First, potential outcomes: we define a causal effect as a comparison of two potential outcomes for the same unit.</p>
+    <p>Second, multiple units: since we can never see both potential outcomes of one unit, we need other units to stand in for the missing one.</p>
+    <p>Third, the assignment mechanism: how the treatment got assigned is what decides whether those stand-ins are any good.</p>
+    <p>Keep the third ingredient in mind. Most of the rest of this course is about situations where assignment was not random, and what we can still do.</p>
+  </aside>
+</section>
+
+<section class="slide" id="notation" data-part="1 · Potential outcomes">
+  <div class="slide-card">
+    <h2>Notation</h2>
+    <ul>
+      <li><b>Treatment</b>: \(D_i\in\{0,1\}\), equal to 1 if unit \(i\) receives the treatment and 0 otherwise.</li>
+      <li><b>Potential outcomes</b>: two numbers that exist for every unit, <i>before</i> we know \(D_i\):
+        <ul>
+          <li>\(Y_{1i}\): the outcome of unit \(i\) <i>if</i> it is treated</li>
+          <li>\(Y_{0i}\): the outcome of unit \(i\) <i>if</i> it is not treated</li>
+        </ul>
+      </li>
+      <li><b>Observed outcome</b>: \(Y_i\), the one number we actually see.</li>
+    </ul>
+    <div class="box">
+      <p><b>Example.</b> Unit = a store; treatment = running a promotion; outcome = weekly sales. \(Y_{1i}\) is store \(i\)'s sales with the promotion, \(Y_{0i}\) its sales without. Both are well defined whether or not the store ran it.</p>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Now the notation. D i is the treatment indicator: one if unit i is treated, zero if not.</p>
+    <p>Each unit has two potential outcomes. Y one i is the outcome unit i would have if treated. Y zero i is the outcome it would have if not treated. The key word is would. Both numbers exist for every unit before we know whether it gets treated. Think of them as attributes of the unit, like its size or its location.</p>
+    <p>Then there is Y i, the outcome we actually observe, just one number.</p>
+    <p>A concrete example. The unit is a store, the treatment is running a promotion, and the outcome is weekly sales. Y one is the store's sales with the promotion, and Y zero its sales without. Both numbers are meaningful for every store, whether or not it actually ran the promotion. The treatment doesn't create them. It only decides which one we get to see.</p>
+  </aside>
+</section>
+
+<section class="slide" id="switching" data-part="1 · Potential outcomes">
+  <div class="slide-card">
+    <h2>The individual treatment effect and the switching equation</h2>
+    <p>The <b>individual treatment effect</b> of the treatment on unit \(i\):</p>
+    $$\tau_i = Y_{1i}-Y_{0i}$$
+    <p>The observed outcome is whichever potential outcome the treatment "switches on":</p>
+    $$Y_i = D_i\,Y_{1i} + (1-D_i)\,Y_{0i} = \begin{cases} Y_{1i} & \text{if } D_i=1\\ Y_{0i} & \text{if } D_i=0\end{cases}\qquad\text{(the switching equation)}$$
+    <ul>
+      <li>This is the only link between what exists (\(Y_{1i},Y_{0i}\)) and what we see (\(Y_i\)). Every result in this module is a rewriting of it.</li>
+      <li>Rearranged: \(Y_i = Y_{0i}+\tau_i D_i\). The observed outcome is the untreated outcome, plus the effect if treated.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>The causal effect of the treatment on unit i is simply the difference between its two potential outcomes. We call it tau i. For a store, tau i is how much the promotion would raise that store's sales.</p>
+    <p>How does the observed outcome relate to the potential outcomes? Through the switching equation. If the unit is treated, we see Y one. If not, we see Y zero. Written compactly, Y i equals D i times Y one i, plus one minus D i times Y zero i.</p>
+    <p>This little equation is the only bridge between what exists and what we see. Everything in this module is just a rewriting of it. One useful rearrangement: the observed outcome equals the untreated outcome, plus the effect if the unit is treated.</p>
+  </aside>
+</section>
+
+<section class="slide" id="fundamental" data-part="1 · Potential outcomes">
+  <div class="slide-card">
+    <h2>The fundamental problem of causal inference</h2>
+    <ul>
+      <li>Holland (1986): for any unit we observe \(Y_{1i}\) <b>or</b> \(Y_{0i}\), never both. So \(\tau_i\) can never be computed: not with more data, not with better data.</li>
+      <li>Causal inference is a <b>missing-data problem</b>: half of the potential outcomes are missing by construction, and <i>which</i> half depends on the treatment.</li>
+    </ul>
+    <div class="cols">
+      <div class="box optional"><div class="label">The "scientific solution"</div><p>Assume homogeneity: every unit (or the same unit over time) responds alike, so one treated and one untreated observation suffice. Fine for a chemistry experiment; not for people, stores, or users.</p></div>
+      <div class="box"><div class="label">The "statistical solution"</div><p>Give up on \(\tau_i\) and aim for <b>averages</b> of \(\tau_i\) over many units. Heterogeneous effects are allowed, not assumed away.</p></div>
+    </div>
+    <p>The rest of this module is the statistical solution.</p>
+  </div>
+  <aside class="script">
+    <p>Here is the central difficulty, which Paul Holland called the fundamental problem of causal inference. For any unit, we see Y one or Y zero, never both. A store either ran the promotion or it didn't. So tau i, the individual effect, can never be computed. And note: this is not a data-quality problem. More data, or better data, won't fix it.</p>
+    <p>That makes causal inference a missing-data problem. Half of the potential outcomes are missing by construction, and which half is missing depends on who got treated.</p>
+    <p>There are two ways out. The scientific solution assumes everyone responds the same way, so one treated and one untreated unit are enough. That works for chemistry, but not for customers or stores, which differ a lot. The statistical solution gives up on individual effects and aims for averages over many units. That is the route we take.</p>
+  </aside>
+</section>
+
+<section class="slide" id="four-exist" data-part="1 · Potential outcomes" data-pause>
+  <div class="slide-card">
+    <h2>A population of four units: what exists</h2>
+    <div class="cols c-60">
+      <div class="widget" data-widget="fourUnits" data-assign="1,1,0,0" data-view="truth" data-views="none" data-lock></div>
+      <div>
+        <ul>
+          <li>Imagine we could see everything: both potential outcomes of all four units.</li>
+          <li>Unit 1 responds strongly (\(\tau_1=3\)); units 2 and 4 don't respond at all; unit 3 responds a little.</li>
+          <li>The average effect over the four units:
+            $$E[\tau_i]=\tfrac14(3+0+1+0)=1$$</li>
+          <li>This is the number we would like to know.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="small">\(E[\cdot]\) is the population average. The population here has four units, so it is a plain average of four numbers. Red numbers are ones nobody will ever observe.</p>
+  </div>
+  <aside class="script">
+    <p>To make all this concrete, here is a population of just four units. For a moment, imagine we have God's view: we can see both potential outcomes for every unit.</p>
+    <p>Unit one would have an outcome of three if treated and zero if not, so its effect is three. Units two and four have the same outcome either way: their effect is zero. Unit three's effect is one.</p>
+    <p>The average effect across the four units is three plus zero plus one plus zero, divided by four, which is one. That is the number we would like to know.</p>
+    <p>The example is tiny on purpose. Every average in the next several slides is a calculation you can do in your head on this table.</p>
+  </aside>
+</section>
+
+<section class="slide" id="four-see" data-part="1 · Potential outcomes" data-pause>
+  <div class="slide-card">
+    <h2>A population of four units: what we see</h2>
+    <div class="cols c-60">
+      <div class="widget" data-widget="fourUnits" data-assign="1,1,0,0" data-view="see" data-lock></div>
+      <div>
+        <ul>
+          <li>Assignment A: units 1 and 2 are treated, units 3 and 4 are not.</li>
+          <li>The switching equation picks one number per row: observed \(Y_i=(3,1,0,1)\).</li>
+          <li>The <span class="hl">?</span> cells are <b>counterfactuals</b>: they exist, but we will never see them. Neither will any \(\tau_i\).</li>
+          <li>From the black numbers alone, what can we learn about \(E[\tau_i]=1\)?</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Now the real world. Suppose units one and two are treated and units three and four are not. We'll call this assignment A.</p>
+    <p>The switching equation picks one number per row. For the treated units we see Y one, for the untreated units we see Y zero. So the observed outcomes are three, one, zero, and one. Everything else is a question mark: it exists, but we will never see it. That includes every individual effect.</p>
+    <p>Use the toggle at the top to flip between what we see and what exists. Half the table disappears. That is the fundamental problem, in one picture. The question for part two is what the black numbers alone can tell us about the average effect of one.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-1" data-part="1 · Potential outcomes" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="b">
+      <div class="q">1. Under assignment A, unit 3 is untreated. Which of its potential outcomes do we observe, and what is it?</div>
+      <button class="opt" data-k="a">\(Y_{13}=1\)</button><button class="opt" data-k="b">\(Y_{03}=0\)</button><button class="opt" data-k="c">\(\tau_3=1\)</button>
+      <div class="explain">\(Y_3=D_3Y_{13}+(1-D_3)Y_{03}=0\cdot1+1\cdot0=0\). We see \(Y_{03}\); \(Y_{13}=1\) is a counterfactual, so \(\tau_3\) is never observed.</div>
+    </div>
+    <div class="quiz" data-answer="c">
+      <div class="q">2. A colleague says: "with a large enough dataset we can estimate every \(\tau_i\)." What's wrong?</div>
+      <button class="opt" data-k="a">Nothing, if the dataset is big enough.</button>
+      <button class="opt" data-k="b">It only fails when there is measurement error.</button>
+      <button class="opt" data-k="c">Each unit reveals one potential outcome, never both. More data means more units, not the second outcome of any unit.</button>
+      <div class="explain">Averages of \(\tau_i\) can become estimable; an individual \(\tau_i\) never does.</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">3. A store never ran the promotion. Does its \(Y_{1i}\) exist?</div>
+      <button class="opt" data-k="a">Yes: it is what its sales <i>would</i> be with the promotion, a feature of the store. Observing it is a separate question.</button>
+      <button class="opt" data-k="b">No: only outcomes that happened exist.</button>
+      <div class="explain">Potential outcomes are defined by the hypothetical. The treatment only decides which of the two numbers we get to see.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Three quick questions to end part one. Click an answer to see the explanation.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 2 -->
+<section class="slide" id="estimands" data-part="2 · Estimands and selection bias">
+  <div class="slide-card">
+    <h2>Estimands: three averages of \(\tau_i\)</h2>
+    <p>An <b>estimand</b> is the quantity we want to know; an <b>estimator</b> is a recipe for guessing it from data.</p>
+    $$\tau_{\text{ATE}}=E[\tau_i]=E[Y_{1i}]-E[Y_{0i}]\qquad\text{average treatment effect: everyone}$$
+    $$\tau_{\text{ATT}}=E[\tau_i\mid D_i=1]=E[Y_{1i}\mid D_i=1]-E[Y_{0i}\mid D_i=1]\qquad\text{on the treated}$$
+    $$\tau_{\text{ATU}}=E[\tau_i\mid D_i=0]=E[Y_{1i}\mid D_i=0]-E[Y_{0i}\mid D_i=0]\qquad\text{on the untreated}$$
+    <p>Every unit is treated or not, so with \(\pi=\Pr(D_i=1)\) the share treated:</p>
+    $$\tau_{\text{ATE}}=\pi\,\tau_{\text{ATT}}+(1-\pi)\,\tau_{\text{ATU}}$$
+  </div>
+  <aside class="script">
+    <p>Since individual effects are out of reach, we aim for averages. A word first: an estimand is the quantity we want to know, and an estimator is a recipe for guessing it from data. Keep them apart.</p>
+    <p>Three estimands matter. The average treatment effect, or ATE, averages tau i over everyone. The average treatment effect on the treated, the ATT, averages it over the units that actually got treated. And the average treatment effect on the untreated, the ATU, averages it over the units that did not.</p>
+    <p>These three are linked. Everyone is either treated or not, so the ATE is a weighted average of the ATT and the ATU, with weights equal to the share treated, pi, and one minus pi. We will use that identity in a few slides.</p>
+  </aside>
+</section>
+
+<section class="slide" id="four-estimands" data-part="2 · Estimands and selection bias" data-pause>
+  <div class="slide-card">
+    <h2>The four units again: ATE, ATT, ATU</h2>
+    <div class="widget" data-widget="fourUnits" data-assign="1,1,0,0" data-view="truth" data-show="estimands"></div>
+    <ul>
+      <li>Under assignment A: ATE \(=1\), ATT \(=\tfrac12(3+0)=1.5\), ATU \(=\tfrac12(1+0)=0.5\), and \(\tfrac12\cdot1.5+\tfrac12\cdot0.5=1\) ✓.</li>
+      <li>The treated happen to be the units that respond more: ATT \(>\) ATE \(>\) ATU. Nothing is wrong with that; it is heterogeneity. But the "effect" depends on <i>whose</i> effect we ask about.</li>
+    </ul>
+    <p class="small">Try assignment B, or click the \(D\) buttons: the ATE never changes (it doesn't depend on who is treated), but the ATT and ATU do.</p>
+  </div>
+  <aside class="script">
+    <p>Let's compute the three estimands for our four units under assignment A, where units one and two are treated.</p>
+    <p>The ATE is one, as before. The ATT averages the effects of units one and two: three and zero, so one and a half. The ATU averages the effects of units three and four: one and zero, so one half. And one half times one and a half, plus one half times one half, is one. The identity checks out.</p>
+    <p>Notice that the treated units happen to be the ones that respond more. That's not a problem, it's just heterogeneity, but it means the answer depends on whose effect you are asking about.</p>
+    <p>Now play with the table. Switch to assignment B, or click the D buttons. The ATE never moves, because it doesn't depend on who is treated. The ATT and ATU move around a lot.</p>
+  </aside>
+</section>
+
+<section class="slide" id="which-estimand" data-part="2 · Estimands and selection bias">
+  <div class="slide-card">
+    <h2>Which estimand do you want? It depends on the decision</h2>
+    <div class="cols">
+      <div class="box"><div class="label">Policy exposes everyone (or no one): the ATE</div><p>A new checkout page for all users; a nationwide price change; mandatory insurance.</p></div>
+      <div class="box"><div class="label">Policy is targeted or voluntary: the ATT</div><p>A training program for people who enroll; a loyalty program for customers who sign up; a grace period for borrowers who ask. The effect on people who would never take it matters less.</p></div>
+    </div>
+    <ul>
+      <li>The ATT is often easier to learn: we only need a counterfactual for the treated. The ATE needs one for both groups.</li>
+      <li>Randomized experiments deliver the ATE for the experimental population; most observational designs (matching, difference-in-differences) deliver the ATT; instrumental variables deliver something narrower still.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Which of these averages should you care about? It depends on the decision you are making.</p>
+    <p>If the policy will apply to everyone, like a new checkout page for all users or a nationwide price change, you want the ATE.</p>
+    <p>If the policy is targeted or voluntary, like a loyalty program that customers choose to join, you mostly want the ATT, the effect on the people who actually take it up. The effect on customers who would never sign up matters much less.</p>
+    <p>The ATT is often easier to learn, because we only need a stand-in for the treated group's missing outcomes. As we go through the course, notice which estimand each method delivers. Experiments give the ATE for the people in the experiment. Most observational designs give the ATT. And instrumental variables, near the end of the course, give something narrower still.</p>
+  </aside>
+</section>
+
+<section class="slide" id="sdo" data-part="2 · Estimands and selection bias">
+  <div class="slide-card">
+    <h2>What a naive comparison measures</h2>
+    <p>The <b>simple difference in outcomes</b> (SDO): the average observed outcome of the treated minus that of the untreated.</p>
+    $$\text{SDO}=E[Y_i\mid D_i=1]-E[Y_i\mid D_i=0]$$
+    <p class="small">In a sample, the difference in group means: exactly the slope from regressing \(Y_i\) on \(D_i\).</p>
+    <p>By the switching equation, the treated reveal their \(Y_{1i}\) and the untreated their \(Y_{0i}\):</p>
+    $$\text{SDO}=E[Y_{1i}\mid D_i=1]-E[Y_{0i}\mid D_i=0]$$
+    <ul>
+      <li>Compare with the ATT \(=E[Y_{1i}\mid D_i=1]-E[Y_{0i}\mid D_i=1]\): the first terms agree; the second terms average \(Y_{0i}\) over <b>different groups of units</b>.</li>
+      <li>Four units, assignment A: SDO \(=\tfrac12(3+1)-\tfrac12(0+1)=1.5\). It equals the ATT (1.5) but not the ATE (1).</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Now, what does the data actually give us? The natural thing to compute is the simple difference in outcomes, or SDO: the average outcome of the treated minus the average outcome of the untreated. In a sample, that's the difference in group means, which is also what you get from regressing the outcome on a treatment dummy.</p>
+    <p>Using the switching equation, the treated show us their Y one and the untreated show us their Y zero. So the SDO compares the average Y one of the treated with the average Y zero of the untreated.</p>
+    <p>Compare that with the ATT. The first terms are the same. But the second terms differ. The ATT needs the treated units' own Y zero, which we never see. The SDO uses the untreated units' Y zero instead, a different group of units.</p>
+    <p>For our four units under assignment A, the SDO is two minus one half, which is one and a half. That equals the ATT, but not the ATE. The next slide explains why.</p>
+  </aside>
+</section>
+
+<section class="slide" id="decomp1" data-part="2 · Estimands and selection bias">
+  <div class="slide-card">
+    <h2>Decomposition 1: around the ATT</h2>
+    <div class="steps">
+      <div class="step"><p>Add and subtract the counterfactual mean of the treated, \(E[Y_{0i}\mid D_i=1]\):</p>
+        $$\text{SDO}=E[Y_{1i}\mid D_i=1]-E[Y_{0i}\mid D_i=1]+E[Y_{0i}\mid D_i=1]-E[Y_{0i}\mid D_i=0]$$</div>
+      <div class="step">$$\text{SDO}=\underbrace{E[Y_{1i}-Y_{0i}\mid D_i=1]}_{\tau_{\text{ATT}}}+\underbrace{E[Y_{0i}\mid D_i=1]-E[Y_{0i}\mid D_i=0]}_{\text{selection bias}}$$</div>
+      <div class="step"><ul>
+        <li><b>Selection bias</b> is the difference in the <i>untreated</i> potential outcome between the units that got treated and those that didn't. It is about <i>who gets treated</i>, not about what the treatment does.</li>
+        <li>Four units, assignment A: \(E[Y_{0i}\mid D_i=1]=\tfrac12(0+1)=0.5=E[Y_{0i}\mid D_i=0]\), so selection bias \(=0\) and SDO \(=\) ATT \(=1.5\).</li>
+        <li>This is an <b>identity</b>: no assumptions were used. Assumptions are needed to make the bias zero, not to write the equation.</li>
+      </ul></div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Here is the first decomposition. Click through the steps with me.</p>
+    <p>Start from the SDO and add and subtract the same thing: the average untreated outcome of the treated units, the counterfactual we never see.</p>
+    <p>Now group the terms. The first two make the ATT. The last two make what we call selection bias: the difference in untreated outcomes between the units that got treated and the units that didn't.</p>
+    <p>Read that carefully. Selection bias is not about what the treatment does. It is about who gets treated. Would the treated have looked different from the untreated even without the treatment? If so, the SDO is contaminated.</p>
+    <p>In our example, the treated and untreated units have the same average Y zero, one half, so the selection bias is zero, and the SDO equals the ATT. And remember, this decomposition is an identity. It is always true. Assumptions only come in when we want to argue that the bias term is zero.</p>
+  </aside>
+</section>
+
+<section class="slide" id="signing" data-part="2 · Estimands and selection bias">
+  <div class="slide-card">
+    <h2>Signing the bias: three examples</h2>
+    <ul>
+      <li><b>Hospitals.</b> Treated = hospitalized. The hospitalized would have been sicker <i>even without</i> a hospital stay: \(E[Y_{0i}\mid D_i=1]&lt;E[Y_{0i}\mid D_i=0]\) for health. Negative selection bias: hospitals look harmful.</li>
+      <li><b>Job training.</b> Participants in a 1964 US program earned far less than non-participants <i>before</i> the program, and their earnings dipped just before enrolling (next slide). Negative selection bias on earnings: a naive comparison understates the program's effect.</li>
+      <li><b>Grace periods.</b> Borrowers who <i>asked</i> for a grace period had bigger households and less financial control: they would default more <i>anyway</i>. Positive selection bias: the naive +24.8 percentage points overstated the effect (the experiment found about zero).</li>
+    </ul>
+    <div class="box key"><p><b>Rule of thumb.</b> Ask: would the treated have looked different from the untreated <i>without</i> the treatment? If yes, which way? That is the sign of the selection bias.</p></div>
+  </div>
+  <aside class="script">
+    <p>Signing the selection bias is a skill you will use all the time, so let's practice on three examples.</p>
+    <p>Hospitals. People who go to the hospital would be sicker than others even without a hospital stay. So their untreated health is worse, the selection bias is negative, and a naive comparison makes hospitals look harmful.</p>
+    <p>Job training. People who joined a 1964 training program earned much less than non-participants before the program even started. Again the bias is negative, so a naive comparison understates the program's benefit. We'll look at the data next.</p>
+    <p>Grace periods, the microfinance example from class. Borrowers who asked for a grace period would have defaulted more anyway. That's positive selection bias, so the naive comparison of plus 25 percentage points overstated the effect. The randomized experiment found essentially zero.</p>
+    <p>The rule of thumb: ask whether the treated would have looked different without the treatment, and in which direction. That direction is the sign of the bias.</p>
+  </aside>
+</section>
+
+<section class="slide" id="ashenfelter" data-part="2 · Estimands and selection bias" data-pause>
+  <div class="slide-card">
+    <h2>The Ashenfelter dip</h2>
+    <div class="widget" data-widget="ashenfelter"></div>
+    <ul>
+      <li>Trainees earned less than the comparison group in every year, and their earnings fell in 1964, just before training.</li>
+      <li>Comparing trainees with non-trainees after 1964 mixes the program's effect with this pre-existing gap: a large, negative selection-bias term.</li>
+    </ul>
+    <p class="src">Data: Ashenfelter (1978), "Estimating the Effect of Training Programs on Earnings," <i>Review of Economics and Statistics</i>, Table 1 (1964 Manpower Development and Training Act classroom trainees).</p>
+  </div>
+  <aside class="script">
+    <p>Here is the job-training example in data, from a classic study by Orley Ashenfelter. The lines show the mean annual earnings of men who entered a government training program in 1964, and of a comparison group, from 1959 to 1969.</p>
+    <p>Two things stand out. First, the trainees earned much less than the comparison group in every year before the program. That's selection bias in plain sight: their untreated earnings were lower. Second, their earnings dipped in the year right before training. People tend to enroll in training after a bad year. Economists call this the Ashenfelter dip.</p>
+    <p>After training, the gap narrows, which is encouraging. But a naive comparison of trainees and non-trainees mixes the program's effect with the pre-existing gap. And a before-and-after comparison of the trainees alone would be fooled by the dip. That second problem is exactly what difference-in-differences is designed for, later in the course. Toggle between the two groups of men. The pattern is the same.</p>
+  </aside>
+</section>
+
+<section class="slide" id="decomp2" data-part="2 · Estimands and selection bias">
+  <div class="slide-card">
+    <h2>Decomposition 2: around the ATE</h2>
+    <p>Decomposition 1 targets the ATT. If we want the ATE, there is a second gap: the treated may respond differently from the untreated.</p>
+    <div class="steps">
+      <div class="step"><p>From \(\tau_{\text{ATE}}=\pi\,\tau_{\text{ATT}}+(1-\pi)\,\tau_{\text{ATU}}\): \(\;\tau_{\text{ATT}}=\tau_{\text{ATE}}+(1-\pi)(\tau_{\text{ATT}}-\tau_{\text{ATU}})\). Substitute into decomposition 1:</p></div>
+      <div class="step">$$\text{SDO}=\underbrace{\tau_{\text{ATE}}}_{\text{average effect}}+\underbrace{E[Y_{0i}\mid D_i=1]-E[Y_{0i}\mid D_i=0]}_{\text{selection bias}}+\underbrace{(1-\pi)(\tau_{\text{ATT}}-\tau_{\text{ATU}})}_{\text{heterogeneous-effect bias}}$$</div>
+      <div class="step"><ul>
+        <li>The third term is zero if everyone has the same effect (then ATT = ATU = ATE), or if the treated and untreated respond the same on average.</li>
+        <li>Four units, assignment A: \(1.5=\underbrace{1}_{\text{ATE}}+\underbrace{0}_{\text{selection}}+\underbrace{\tfrac12(1.5-0.5)}_{0.5}\) ✓</li>
+        <li class="small"><i>Mastering 'Metrics</i> assumes a constant effect, so it never shows the third term; you'll see it in <i>Mostly Harmless</i> and in Cunningham's <i>Mixtape</i>.</li>
+      </ul></div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The first decomposition was built around the ATT. If what you want is the ATE, there's a second source of bias.</p>
+    <p>Use the identity linking the three estimands to write the ATT as the ATE plus one minus pi times the gap between the ATT and the ATU. Substitute that into decomposition one, and you get the second decomposition: the SDO equals the ATE, plus selection bias, plus a heterogeneous-effect bias.</p>
+    <p>That third term is zero when everyone has the same effect, or when the treated and untreated respond the same way on average. Otherwise it's there.</p>
+    <p>For our four units under assignment A: the SDO of one and a half equals the ATE of one, plus zero selection bias, plus one half times one, the heterogeneity term. It checks out. Mastering 'Metrics assumes constant effects, so you won't see this third term there. It's worth knowing it exists.</p>
+  </aside>
+</section>
+
+<section class="slide" id="two-rules" data-part="2 · Estimands and selection bias" data-pause>
+  <div class="slide-card">
+    <h2>Try it: the four units under any assignment</h2>
+    <div class="widget" data-widget="fourUnits" data-assign="0,1,0,1" data-view="truth" data-show="decomp"></div>
+    <ul class="small">
+      <li><b>Assignment B</b> is self-selection: units 2 and 4, whose untreated outcome is high (\(Y_{0i}=1\)), take the treatment. SDO \(=1\) equals the ATE only by coincidence: ATT \(0\) + bias \(1\), or ATE \(1\) + bias \(1\) − heterogeneity \(1\).</li>
+      <li>The treated units are exactly the ones the treatment does nothing for. A naive comparison can land on the right number for the wrong reasons, and you would never know.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Now it's your turn. This table starts at assignment B, which is self-selection: units two and four, whose untreated outcome is high, are the ones who take the treatment.</p>
+    <p>Look at the numbers. The SDO is one, which happens to equal the ATE. But it's right for the wrong reasons. The treated units are exactly the ones for whom the treatment does nothing: the ATT is zero. The SDO of one is pure selection bias. Or, in decomposition two, the ATE of one, plus selection bias of one, minus a heterogeneity term of one.</p>
+    <p>A naive comparison can land on the right number by luck, and you would never know. Click the D buttons to try other assignments. Both decompositions always hold. Then switch to what we see: all you get is the SDO, and nothing tells you which story produced it.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-2" data-part="2 · Estimands and selection bias" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="b">
+      <div class="q">1. Assignment C, \(D=(1,0,1,0)\). Use the clickable table if you like. What are the SDO, the ATT, and the selection bias?</div>
+      <button class="opt" data-k="a">SDO 1.5, ATT 1.5, selection bias 0</button>
+      <button class="opt" data-k="b">SDO 1, ATT 2, selection bias −1</button>
+      <button class="opt" data-k="c">SDO 1, ATT 1, selection bias 0</button>
+      <div class="explain">Observed \(Y=(3,1,1,1)\): SDO \(=2-1=1\). ATT \(=\tfrac12(3+1)=2\). Selection bias \(=\tfrac12(0+0)-\tfrac12(1+1)=-1\). Check: \(2+(-1)=1\). Heterogeneity term \(=\tfrac12(2-0)=1\), and \(1-1+1=1\).</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">2. Insured husbands rate their health 0.31 points higher than uninsured husbands. The insured are richer and more educated. What does this imply about the ATT of insurance?</div>
+      <button class="opt" data-k="a">Selection bias is positive, so the ATT is smaller than 0.31 (possibly zero).</button>
+      <button class="opt" data-k="b">Selection bias is negative, so the ATT is larger than 0.31.</button>
+      <button class="opt" data-k="c">The ATT is 0.31.</button>
+      <div class="explain">0.31 = ATT + (E[health without insurance | insured] − E[health without insurance | uninsured]). The insured would be healthier anyway, so the bias is positive.</div>
+    </div>
+    <div class="quiz" data-answer="c">
+      <div class="q">3. When is the ATT equal to the ATE?</div>
+      <button class="opt" data-k="a">Only in very large samples</button>
+      <button class="opt" data-k="b">Only when there is no selection bias</button>
+      <button class="opt" data-k="c">When the effect is the same for everyone, or when \(\tau_i\) is independent of \(D_i\) (e.g., random assignment)</button>
+      <div class="explain">Sample size is irrelevant (these are population quantities). Assignment A had zero selection bias and still ATT ≠ ATE.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Three questions on part two. For the first one, go back to the clickable table if you want to check your answer.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 3 -->
+<section class="slide" id="independence" data-part="3 · Random assignment and regression">
+  <div class="slide-card">
+    <h2>The independence assumption</h2>
+    <div class="box"><div class="label">Independence</div><p>Treatment is independent of potential outcomes: \((Y_{0i},Y_{1i})\perp\!\!\!\perp D_i\)</p></div>
+    <ul>
+      <li>In words: <b>who gets treated carries no information</b> about how units would do with or without treatment. The treated are not healthier, richer, more motivated, or more responsive, on average or in any other way.</li>
+      <li>All we need is the consequence for means ("mean independence"):
+        $$E[Y_{0i}\mid D_i=1]=E[Y_{0i}\mid D_i=0]=E[Y_{0i}],\qquad E[Y_{1i}\mid D_i=1]=E[Y_{1i}\mid D_i=0]=E[Y_{1i}]$$</li>
+      <li><b>Random assignment</b> delivers independence by construction: a coin flip knows nothing about \(Y_{0i}\) or \(Y_{1i}\). Nothing else guarantees it.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Part three is about the cure. The key assumption is called independence: the treatment is independent of the potential outcomes.</p>
+    <p>In words, knowing who got treated tells you nothing about how units would do with or without the treatment. The treated are not healthier, richer, or more motivated than the untreated, on average or in any other way.</p>
+    <p>For our purposes we only need the implication for averages: the average Y zero is the same in the treated and untreated groups, and so is the average Y one.</p>
+    <p>And here is the crucial point. Random assignment delivers independence by construction. A coin flip knows nothing about anyone's potential outcomes. Nothing else guarantees it. Independence is a property of how treatment was assigned, so you cannot test it from the outcomes. But you can make it true by design.</p>
+  </aside>
+</section>
+
+<section class="slide" id="random-removes" data-part="3 · Random assignment and regression">
+  <div class="slide-card">
+    <h2>Random assignment removes both bias terms</h2>
+    <div class="steps">
+      <div class="step"><p><b>Selection bias.</b> Under independence \(E[Y_{0i}\mid D_i=1]=E[Y_{0i}\mid D_i=0]\), so the selection bias is 0.</p></div>
+      <div class="step"><p><b>Heterogeneity term.</b> Under independence the treated and untreated respond the same on average:</p>
+        $$\tau_{\text{ATT}}-\tau_{\text{ATU}}=\big(E[Y_{1i}]-E[Y_{0i}]\big)-\big(E[Y_{1i}]-E[Y_{0i}]\big)=0$$</div>
+      <div class="step"><p>Therefore, with random assignment,</p>
+        $$\text{SDO}=E[Y_i\mid D_i=1]-E[Y_i\mid D_i=0]=E[Y_{1i}]-E[Y_{0i}]=\tau_{\text{ATE}}\;(=\tau_{\text{ATT}}=\tau_{\text{ATU}})$$
+        <p>The naive comparison is no longer naive. Correlation <i>is</i> causation when the correlation was created by a coin flip.</p></div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Now watch what independence does to the two bias terms. Click through.</p>
+    <p>Selection bias first. Under independence, the treated and untreated have the same average Y zero, so the selection bias is exactly zero.</p>
+    <p>The heterogeneity term next. Under independence, the ATT and the ATU are both equal to average Y one minus average Y zero, so their difference is zero, and the heterogeneity term vanishes too.</p>
+    <p>So with random assignment, the simple difference in means equals the average treatment effect, which also equals the ATT and the ATU. The naive comparison is no longer naive. Correlation is causation, when the correlation was created by a coin flip.</p>
+  </aside>
+</section>
+
+<section class="slide" id="selection-dial" data-part="3 · Random assignment and regression" data-pause>
+  <div class="slide-card">
+    <h2>Try it: from self-selection to a coin flip</h2>
+    <div class="widget" data-widget="selectionDial"></div>
+    <p class="small">100,000 simulated stores. \(Y_{0i}\) = weekly sales without a promotion; the promotion's effect \(\tau_i\) is larger for stores with a bigger customer base (ATE ≈ 5). The dial sets how much the decision to run the promotion depends on the customer base. At 0 it's a coin flip.</p>
+  </div>
+  <aside class="script">
+    <p>Let's see both bias terms in a bigger population: one hundred thousand simulated stores. Each store has sales without the promotion and an effect of the promotion, and stores with a bigger customer base respond more. The true average effect is about five.</p>
+    <p>The dial controls how stores end up running the promotion. Start where it is now, which matches the numbers in the original slides: big stores are much more likely to opt in. The difference in means comes out around twenty-one, four times the true effect. The bars take it apart. Most of the gap is selection bias, because the stores that opted in would have sold more anyway. A smaller part is the heterogeneity term, because they also respond more.</p>
+    <p>Now turn the dial down slowly. Both red and orange bars shrink. At zero, assignment is a coin flip, both bias terms disappear, and the difference in means lands on the true effect. That is the previous slide's proof, in action.</p>
+  </aside>
+</section>
+
+<section class="slide" id="lln-sdo" data-part="3 · Random assignment and regression" data-pause>
+  <div class="slide-card">
+    <h2>From populations to samples: the law of large numbers</h2>
+    <div class="widget" data-widget="llnSdo"></div>
+    <ul>
+      <li>So far we talked about population averages \(E[\cdot]\). Data give sample averages. By the <b>law of large numbers</b>, with enough randomly sampled units, sample means approach population means.</li>
+      <li>With random assignment <b>and</b> a large sample, the difference in sample means \(\approx\tau_{\text{ATE}}\). Without random assignment, more data only makes the <i>biased</i> number more precise.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Everything so far was about population averages. Real data give us sample averages. The law of large numbers connects the two: with enough randomly sampled units, sample means get close to population means.</p>
+    <p>The chart shows the difference in means computed from the first n stores, as n grows. The blue path is random assignment. For small samples it wobbles a lot, but as the sample grows it settles on the true effect of about five. The red path is self-selection. It settles too, but on about twenty-one, and no amount of data moves it.</p>
+    <p>That's an important lesson. A bigger sample cures noise, not bias. With self-selection, more data only gives you a more precise wrong answer. Press the button to draw the stores in a new order. The blue path wobbles differently each time, but it always ends up at five.</p>
+  </aside>
+</section>
+
+<section class="slide" id="po-regression" data-part="3 · Random assignment and regression">
+  <div class="slide-card">
+    <h2>Potential outcomes as a regression</h2>
+    <p>Start from the switching equation \(Y_i=Y_{0i}+\tau_iD_i\). Define \(\alpha=E[Y_{0i}]\) and \(u_i=Y_{0i}-E[Y_{0i}]\), the unit-specific part of the untreated outcome:</p>
+    $$Y_i=\underbrace{E[Y_{0i}]}_{\alpha}+\underbrace{\tau_i}_{\text{effect}}D_i+\underbrace{Y_{0i}-E[Y_{0i}]}_{u_i}\qquad\Longrightarrow\qquad Y_i=\alpha+\tau_iD_i+u_i$$
+    <ul>
+      <li>This <i>looks like</i> a regression of \(Y_i\) on \(D_i\), with two features worth noticing:
+        <ul>
+          <li>the "slope" \(\tau_i\) varies across units (heterogeneous effects);</li>
+          <li>the "error" \(u_i\) is not a nuisance: it is the untreated potential outcome, de-meaned.</li>
+        </ul>
+      </li>
+      <li>With a constant effect \(\tau_i=\tau\), it is exactly the textbook regression \(Y_i=\alpha+\tau D_i+u_i\).</li>
+      <li>No assumption has been made yet. The question is what OLS on this equation delivers.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Now let's connect potential outcomes to regression, the tool we use every day.</p>
+    <p>Start from the switching equation: the observed outcome equals Y zero plus tau i times D i. Now split Y zero into its average, which we'll call alpha, and the part specific to unit i, which we'll call u i.</p>
+    <p>Then the outcome equals alpha, plus tau i times D i, plus u i. That looks just like a regression of the outcome on the treatment dummy. But notice two things. The slope tau i can differ across units. And the error term u i is not some mysterious noise. It's each unit's untreated outcome, measured from the average.</p>
+    <p>If the effect is the same for everyone, this is exactly the textbook regression. So far this is just algebra, with no assumptions. The question is what OLS on this equation actually estimates.</p>
+  </aside>
+</section>
+
+<section class="slide" id="ols-ate" data-part="3 · Random assignment and regression">
+  <div class="slide-card">
+    <h2>Why OLS recovers the ATE under random assignment</h2>
+    <div class="steps">
+      <div class="step"><p>The OLS slope converges to \(\operatorname{Cov}(Y_i,D_i)/\operatorname{Var}(D_i)\). Substitute \(Y_i=\alpha+\tau_iD_i+u_i\):</p>
+        $$\hat\tau\;\to\;\frac{\operatorname{Cov}(\tau_iD_i,D_i)}{\operatorname{Var}(D_i)}+\frac{\operatorname{Cov}(u_i,D_i)}{\operatorname{Var}(D_i)}$$</div>
+      <div class="step"><p><b>Second term.</b> \(u_i\) is de-meaned \(Y_{0i}\). Under independence \(\operatorname{Cov}(u_i,D_i)=0\). This is the selection-bias term again.</p></div>
+      <div class="step"><p><b>First term.</b> For a binary \(D_i\) with \(\Pr(D_i=1)=\pi\): \(\operatorname{Var}(D_i)=\pi(1-\pi)\) and \(\operatorname{Cov}(\tau_iD_i,D_i)=\pi(1-\pi)\,E[\tau_i\mid D_i=1]\). Under independence \(E[\tau_i\mid D_i=1]=E[\tau_i]\). This is the heterogeneity term again.</p></div>
+      <div class="step"><p>So with random assignment \(\hat\tau\to E[\tau_i]=\tau_{\text{ATE}}\), <b>even though every unit has its own \(\tau_i\)</b>.</p>
+        <p class="small">Simulation (a random sample of 2,000 randomized stores): OLS slope 4.50 = difference in means 4.50, standard error 0.61. The ATE in that sample is 4.99, within one standard error.</p></div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Here's why OLS recovers the average effect under random assignment. Click through the steps.</p>
+    <p>The OLS slope converges to the covariance of Y and D divided by the variance of D. Substitute our equation for Y, and the slope splits into two pieces.</p>
+    <p>The second piece involves the covariance between u i and D i. Since u i is just the untreated outcome, under independence that covariance is zero. This is our old friend, the selection bias.</p>
+    <p>The first piece, for a binary treatment, simplifies to the average effect among the treated. Under independence, that's the same as the average effect for everyone. This is the heterogeneity term again.</p>
+    <p>So with random assignment, OLS estimates the ATE, even though every unit has its own effect. In the simulation, with two thousand stores, the slope is four point five, identical to the difference in means, with a standard error of point six. The true average effect in that sample is five, within one standard error. That's what sampling error looks like.</p>
+  </aside>
+</section>
+
+<section class="slide" id="constant-effect" data-part="3 · Random assignment and regression">
+  <div class="slide-card">
+    <h2>The constant-effect case: no selection bias is the OLS assumption</h2>
+    <p>With a constant effect, \(Y_i=\alpha+\tau D_i+u_i\). Take conditional expectations:</p>
+    $$E[Y_i\mid D_i=1]-E[Y_i\mid D_i=0]=\underbrace{\tau}_{\text{treatment effect}}+\underbrace{E[u_i\mid D_i=1]-E[u_i\mid D_i=0]}_{\text{selection bias}}$$
+    <ul>
+      <li>Since \(u_i=Y_{0i}-E[Y_{0i}]\), the second term is exactly \(E[Y_{0i}\mid D_i=1]-E[Y_{0i}\mid D_i=0]\).</li>
+      <li>The condition for OLS to be unbiased, \(E[u_i\mid D_i]=0\) ("exogeneity"), is therefore the statement that <b>there is no selection bias</b>. Randomization delivers it; in observational data it is an assumption about who selects into treatment.</li>
+      <li>With a dummy regressor, \(\hat\alpha\) is the mean of the untreated group and \(\hat\tau\) is the difference in means.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>One more connection. Suppose the effect is the same for everyone. Then the difference in group means equals tau, plus the difference in average u between treated and untreated.</p>
+    <p>Since u is just the untreated outcome minus its mean, that second term is exactly the selection bias.</p>
+    <p>Here's why this matters. In the regression sessions, the key condition for OLS to be unbiased was that the error has mean zero given the regressor, often called exogeneity. You can now read that condition in plain words: there is no selection bias. Randomization makes it true. In observational data, it's an assumption about who chooses the treatment, and you have to argue for it.</p>
+  </aside>
+</section>
+
+<section class="slide" id="controls" data-part="3 · Random assignment and regression">
+  <div class="slide-card">
+    <h2>Controls in a randomized experiment</h2>
+    $$Y_i=\alpha+\tau D_i+\beta' W_i+u_i,\qquad W_i=\text{pre-treatment characteristics}$$
+    <p>With random assignment we don't <i>need</i> \(W_i\): \(\hat\tau\) is already unbiased. Three reasons to add controls anyway:</p>
+    <ol>
+      <li><b>Efficiency.</b> A \(W_i\) that predicts \(Y_i\) reduces the residual variance, hence the standard error of \(\hat\tau\).</li>
+      <li><b>A randomization check.</b> If \(\hat\tau\) moves a lot when \(W_i\) is added, \(D_i\) was correlated with \(W_i\): not randomly assigned.</li>
+      <li><b>Conditional randomization.</b> If assignment probabilities differed across strata (schools, cities, loan officers), include the strata dummies.</li>
+    </ol>
+    <p class="small">What keeps \(\hat\tau\) unbiased is <b>conditional mean independence</b>, \(E[u_i\mid D_i,W_i]=E[u_i\mid W_i]\): the controls may be correlated with \(u_i\); the treatment may not, given the controls. The coefficients on \(W_i\) then have no causal meaning, and that's fine.</p>
+  </div>
+  <aside class="script">
+    <p>What about adding control variables to the regression in an experiment? Strictly speaking, with random assignment we don't need them: the estimate is already unbiased. But there are three good reasons to add them anyway.</p>
+    <p>First, efficiency. A control that predicts the outcome soaks up some of the noise, so the standard error of the treatment effect gets smaller.</p>
+    <p>Second, a check on the randomization. If the treatment estimate jumps when you add controls, treatment was probably correlated with them, which shouldn't happen in a real experiment.</p>
+    <p>Third, if the probability of treatment differed across groups, like different schools or cities, you need to control for those groups.</p>
+    <p>The condition we need is weaker than before. The controls themselves can be correlated with the error. We only need the treatment to be unrelated to it, once we account for the controls. That also means the coefficients on the controls have no causal meaning. And we don't care.</p>
+  </aside>
+</section>
+
+<section class="slide" id="bad-controls" data-part="3 · Random assignment and regression" data-pause>
+  <div class="slide-card">
+    <h2>Try it: good and bad controls</h2>
+    <div class="widget" data-widget="badControls"></div>
+    <div class="cols">
+      <p class="small">(2) adds a noisy measure of the customer base, fixed <b>before</b> the promotion. (3) adds foot traffic, which the promotion itself raises: a <b>post-treatment</b> variable. Holding it fixed compares treated and untreated stores with the same traffic despite the promotion, which are different kinds of stores.</p>
+      <div class="box key"><p><b>Rule.</b> Controls must be fixed before the treatment. When in doubt, report the result without controls first.</p></div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Let's see good and bad controls in action. Each experiment draws two thousand stores, flips a coin for each, and runs three regressions. The first has no controls. The second adds a noisy measure of the store's customer base, measured before the promotion. The third adds foot traffic, which is measured after the promotion and is itself raised by it.</p>
+    <p>Run one experiment and look at the table. Then run three hundred and look at the histograms.</p>
+    <p>The blue histogram, no controls, is centered on the true effect of five. The green one, with the pre-treatment control, is also centered on five, but it's narrower: the control removed noise, so the estimate is more precise. The red one, with foot traffic, is centered far below five, around one. It is badly biased, even though the treatment was randomized.</p>
+    <p>Why? Foot traffic is an outcome of the promotion. Holding it fixed compares treated and untreated stores with the same traffic, and those are different kinds of stores. You've reintroduced selection. The rule: only control for things fixed before the treatment.</p>
+  </aside>
+</section>
+
+<section class="slide" id="py-po" data-part="3 · Random assignment and regression" data-pause>
+  <div class="slide-card">
+    <h2>In Python: the four units and the store simulation</h2>
+    <div class="pycell" data-colab="four-units"><textarea>
+import numpy as np
+
+def decompose(D, Y1, Y0):
+    """Every term of both decompositions; possible only because we know Y1 and Y0."""
+    D, Y1, Y0 = map(np.asarray, (D, Y1, Y0))
+    tau, pi = Y1 - Y0, D.mean()
+    Y = D * Y1 + (1 - D) * Y0                     # the switching equation
+    att, atu = tau[D == 1].mean(), tau[D == 0].mean()
+    return dict(SDO=Y[D == 1].mean() - Y[D == 0].mean(), ATE=tau.mean(), ATT=att, ATU=atu,
+                SB=Y0[D == 1].mean() - Y0[D == 0].mean(), HTE=(1 - pi) * (att - atu))
+
+Y1, Y0 = [3, 1, 1, 1], [0, 1, 0, 1]
+for name, D in [("A", [1, 1, 0, 0]), ("B", [0, 1, 0, 1]), ("C", [1, 0, 1, 0])]:
+    print(name, {k: round(v, 2) for k, v in decompose(D, Y1, Y0).items()})
+
+# 100,000 stores: self-selection vs. a coin flip
+rng = np.random.default_rng(436)
+N = 100_000
+base = rng.normal(50, 10, N)                              # customer base
+y0 = base + rng.normal(0, 8, N)                           # sales without the promotion
+tau = 5 + 0.2 * (base - 50) + rng.normal(0, 3, N)         # bigger stores respond more
+d_self = (base + rng.normal(0, 6, N) > 55).astype(int)    # big stores opt in
+d_coin = rng.integers(0, 2, N)                            # random assignment
+for name, d in [("self-selection", d_self), ("coin flip", d_coin)]:
+    print(name, {k: round(v, 2) for k, v in decompose(d, y0 + tau, y0).items()})
+</textarea></div>
+    <p class="small">Your turn: make selection weaker (replace <code>rng.normal(0, 6, N)</code> with a bigger noise, say 30). What happens to the selection bias?</p>
+  </div>
+  <aside class="script">
+    <p>Here is everything we've done so far, in code. The decompose function computes every term of both decompositions. We can only do that because we made up the potential outcomes ourselves; with real data, half of them would be missing.</p>
+    <p>The first loop checks the four units under assignments A, B, and C. The second part builds the hundred thousand stores and compares self-selection with a coin flip. Run it and you'll see a difference in means of about twenty-one under self-selection, and about five with the coin flip.</p>
+    <p>Then try making the selection weaker by adding more noise to the opt-in rule, and watch the selection bias shrink.</p>
+  </aside>
+</section>
+
+<section class="slide" id="py-reg" data-part="3 · Random assignment and regression" data-pause>
+  <div class="slide-card">
+    <h2>In Python: one experiment, three regressions</h2>
+    <div class="pycell" data-colab="good-bad-controls"><textarea>
+import numpy as np
+rng = np.random.default_rng(20)
+
+def ols(y, *xs):
+    """OLS with a constant; returns coefficients and classical standard errors."""
+    X = np.column_stack([np.ones_like(y)] + list(xs))
+    b, *_ = np.linalg.lstsq(X, y, rcond=None)
+    e = y - X @ b
+    s2 = e @ e / (len(y) - X.shape[1])
+    return b, np.sqrt(np.diag(s2 * np.linalg.inv(X.T @ X)))
+
+n = 2_000                                          # one randomized experiment
+base = rng.normal(50, 10, n)
+y0 = base + rng.normal(0, 8, n)
+tau = 5 + 0.2 * (base - 50) + rng.normal(0, 3, n)
+d = rng.integers(0, 2, n).astype(float)            # the coin flip
+y = y0 + tau * d
+x_pre = base + rng.normal(0, 2, n)                 # measured before the promotion
+m_post = 0.6 * y + rng.normal(0, 4, n)             # foot traffic: moved by the promotion
+
+print(f"true ATE in this sample: {tau.mean():.2f}")
+print(f"difference in means:     {y[d == 1].mean() - y[d == 0].mean():.2f}")
+for label, xs in [("no controls", ()), ("pre-treatment control", (x_pre,)), ("post-treatment control", (m_post,))]:
+    b, se = ols(y, d, *xs)
+    print(f"{label:24s} effect {b[1]:6.2f}   SE {se[1]:.2f}")
+</textarea></div>
+    <p class="small">Your turn: change the seed a few times. Which estimate stays near the true ATE, which one is most precise, and which one is always off?</p>
+  </div>
+  <aside class="script">
+    <p>And here is one experiment with the three regressions, written with plain numpy. The first line printed is the true average effect in this sample. Then come the difference in means and the three regressions.</p>
+    <p>Notice that the regression without controls gives exactly the difference in means. The pre-treatment control keeps the estimate close to the truth and shrinks the standard error. The post-treatment control is way off.</p>
+    <p>Change the seed a few times to convince yourself it isn't luck. In the Colab notebook you'll find the same regressions with statsmodels, and an exercise that repeats the experiment five hundred times.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-3" data-part="3 · Random assignment and regression" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="b">
+      <div class="q">1. Why does a coin flip satisfy independence, while a customer's own choice usually doesn't?</div>
+      <button class="opt" data-k="a">Coin flips create larger samples.</button>
+      <button class="opt" data-k="b">The coin is generated without reference to the unit, so it can't carry information about its outcomes. A customer chooses <i>because of</i> needs and expectations that also move the outcomes.</button>
+      <button class="opt" data-k="c">Customers' choices are random too, just less often.</button>
+      <div class="explain">Independence is a property of how treatment was assigned. Choices are made for reasons, and those reasons usually affect \(Y_{0i}\) or \(Y_{1i}\).</div>
+    </div>
+    <div class="quiz" data-answer="c">
+      <div class="q">2. In \(Y_i=\alpha+\tau_iD_i+u_i\), what is \(u_i\)?</div>
+      <button class="opt" data-k="a">Measurement error in \(Y_i\)</button>
+      <button class="opt" data-k="b">The OLS residual</button>
+      <button class="opt" data-k="c">How unit \(i\)'s untreated outcome differs from the average untreated outcome</button>
+      <div class="explain">\(u_i=Y_{0i}-E[Y_{0i}]\). So "\(\operatorname{Cov}(u_i,D_i)=0\)" says the treated don't have systematically different \(Y_{0i}\): no selection bias.</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">3. An A/B test of a new checkout page controls for "number of items in the cart at checkout." Good or bad control?</div>
+      <button class="opt" data-k="a">Bad: the cart is measured after the new page could have changed it. Conditioning on it compares different kinds of users.</button>
+      <button class="opt" data-k="b">Good: it reduces noise.</button>
+      <div class="explain">Use pre-treatment characteristics instead (past purchases, device, location).</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Three questions on part three. The last one is a classic mistake in A B testing, so think about when the variable is measured.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 4 -->
+<section class="slide" id="sutva" data-part="4 · SUTVA and the assignment mechanism">
+  <div class="slide-card">
+    <h2>SUTVA: the assumption hidden in \(Y_{1i}\) and \(Y_{0i}\)</h2>
+    <p>Writing unit \(i\)'s potential outcomes as just <i>two</i> numbers already assumes the <b>stable unit treatment value assumption</b>:</p>
+    <div class="cols">
+      <div class="box"><div class="label">1. Same dose</div><p>"Treated" means the same thing for every unit. If the promotion is 10% off in some stores and 30% off in others, there is no single "the promotion." Fix: define the treatment precisely, or model doses.</p></div>
+      <div class="box"><div class="label">2. No interference</div><p>Unit \(i\)'s outcome depends only on \(i\)'s own treatment, not on who else is treated. Otherwise \(Y_{0i}\) is not one number but many: one for each pattern of everybody else's treatment.</p></div>
+    </div>
+    <p>Neither is innocuous. The first is about measurement and design; the second is about the <b>economics</b> of the setting.</p>
+  </div>
+  <aside class="script">
+    <p>Part four starts with an assumption that's been hiding in the notation all along. When we wrote two potential outcomes per unit, Y one and Y zero, we assumed something called SUTVA, the stable unit treatment value assumption. It has two parts.</p>
+    <p>First, same dose: treated means the same thing for every unit. If some stores ran a ten percent discount and others thirty percent, there's no single promotion whose effect we can talk about.</p>
+    <p>Second, no interference: a unit's outcome depends only on its own treatment, not on who else is treated. If my outcome depends on whether my neighbor was treated, then I don't have just one Y zero. I have a different one for every pattern of treatment around me.</p>
+    <p>The first part is about measurement and design. The second is about the economics of the setting, and it fails more often than people think.</p>
+  </aside>
+</section>
+
+<section class="slide" id="interference" data-part="4 · SUTVA and the assignment mechanism">
+  <div class="slide-card">
+    <h2>Interference: when my treatment changes your outcome</h2>
+    <ul>
+      <li><b>Vaccines.</b> If \(i\) is vaccinated, \(j\)'s outcome <i>without</i> a vaccine improves (herd immunity). Comparing vaccinated and unvaccinated understates the total effect.</li>
+      <li><b>Peer effects.</b> A tutoring program for some students changes what their classmates learn.</li>
+      <li><b>Two-sided platforms.</b> A program that helps some <i>creators</i> make better videos changes what <i>every</i> viewer sees, including viewers in the control group.</li>
+      <li><b>Marketplaces.</b> Showing a discount to half the buyers of a scarce good changes prices and availability for the other half.</li>
+    </ul>
+    <div class="box key"><p><b>What SUTVA buys.</b> Without interference, \(\tau_i\) is well defined regardless of who else is treated, and a randomized comparison measures it. With interference, the <b>design</b> must change: randomize clusters, markets, time blocks, or both sides of the market.</p></div>
+  </div>
+  <aside class="script">
+    <p>Here are some settings where interference is a real problem.</p>
+    <p>Vaccines: if you get vaccinated, my risk of infection goes down even if I'm not vaccinated. So a simple comparison of vaccinated and unvaccinated people understates what the vaccine does.</p>
+    <p>Peer effects: tutoring some students in a class changes what their classmates learn.</p>
+    <p>Two-sided platforms, like the short-video case in the live sessions: helping some creators make better videos changes what every viewer sees, including viewers in the control group.</p>
+    <p>And marketplaces: giving a discount to half the buyers of a scarce product changes prices and availability for the other half.</p>
+    <p>When there's interference, randomizing individuals doesn't solve the problem. You have to change the design: randomize whole clusters, markets, or time periods, so that treated and control units don't affect each other.</p>
+  </aside>
+</section>
+
+<section class="slide" id="partial-eq" data-part="4 · SUTVA and the assignment mechanism">
+  <div class="slide-card">
+    <h2>Partial equilibrium only</h2>
+    <ul class="lead">
+      <li>A technology lowers costs for firms in a competitive market. In the short run, profits rise. In the long run, entry pushes prices down until profits are back to normal.</li>
+      <li>An experiment that gives the technology to <i>some</i> firms measures the <b>short-run, partial-equilibrium</b> effect: treated vs. untreated firms in the <i>same</i> market. It can't tell what happens when everyone has it, because then the market itself changes.</li>
+      <li>Same logic: a training program scaled to a whole city (wages adjust); a discount for all customers (competitors respond); a creator program for every creator (the feed re-equilibrates).</li>
+      <li>This is the <b>scale-up</b> problem: an experiment identifies the effect of treating <i>a few</i> in a world where most are untreated. Extrapolating to <i>all</i> needs a model of the market.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>A related limit: experiments measure partial-equilibrium effects. Suppose a new technology lowers costs. If we give it to a few firms, their profits go up relative to the others. But if every firm gets it, prices fall as competition kicks in, and profits return to normal.</p>
+    <p>An experiment that treats some firms only measures the first effect: the treated against the untreated, in a market where most firms are untreated. It can't tell you what happens when everyone is treated, because then the market itself changes.</p>
+    <p>The same is true for a job-training program rolled out to a whole city, a discount given to every customer, or a program given to every creator on a platform. This is often called the scale-up problem. To go from treating a few to treating everyone, you need a model of how the market responds, not just an experiment.</p>
+  </aside>
+</section>
+
+<section class="slide" id="assignment" data-part="4 · SUTVA and the assignment mechanism">
+  <div class="slide-card">
+    <h2>The assignment mechanism</h2>
+    <ul>
+      <li>The third ingredient of the Rubin causal model: to understand selection bias, and to remove it, model <b>how treatment gets assigned</b>.</li>
+      <li>Formally, the probability of being treated as a function of the unit's characteristics <i>and</i> its potential outcomes:
+        $$\Pr(D_i=1\mid X_i,\,Y_{0i},\,Y_{1i})$$</li>
+      <li>If \(D_i\) depends on \(Y_{0i}\) or \(Y_{1i}\) (sick people seek hospitals; big stores adopt promotions; worried borrowers ask for grace periods), there is selection bias. If it doesn't, there isn't.</li>
+      <li>As a function of \(X_i\) alone, this is the <b>propensity score</b>, a central object later in the course.</li>
+      <li>Every causal design is a restriction on the assignment mechanism. Three classes:</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Now back to the third ingredient of the Rubin causal model: the assignment mechanism.</p>
+    <p>Formally, the assignment mechanism is the probability that a unit is treated, as a function of its characteristics and its potential outcomes. If that probability depends on the potential outcomes, like sick people going to the hospital or big stores adopting promotions, there is selection bias. If it doesn't, there isn't.</p>
+    <p>When this probability depends only on observed characteristics, it's called the propensity score. You'll meet it again later in the course.</p>
+    <p>Here's the big idea: every causal research design is a restriction on the assignment mechanism. There are three broad classes, on the next slide.</p>
+  </aside>
+</section>
+
+<section class="slide" id="three-classes" data-part="4 · SUTVA and the assignment mechanism">
+  <div class="slide-card">
+    <h2>Three classes of assignment mechanism, and the rest of the course</h2>
+    <table class="t" style="font-size:15px">
+      <tr><th class="l">Class</th><th class="l">Assumption</th><th class="l">What we can do</th></tr>
+      <tr><td class="l"><b>Randomized</b></td><td class="l">\(\Pr(D_i=1\mid X_i,Y_{0i},Y_{1i})=\Pr(D_i=1\mid X_i)\), a <i>known</i> function (a coin, a lottery, stratified randomization)</td><td class="l">Difference in means; regression on \(D_i\) with or without controls. The live sessions on experiments.</td></tr>
+      <tr><td class="l"><b>Unconfounded</b> ("selection on observables")</td><td class="l">The same, but the function is <i>unknown</i>. Equivalently \((Y_{0i},Y_{1i})\perp\!\!\!\perp D_i\mid X_i\)</td><td class="l">Regression with controls, matching, propensity-score weighting. The session on matching and the module on propensity scores.</td></tr>
+      <tr><td class="l"><b>Confounded</b> (everything else)</td><td class="l">Assignment depends on potential outcomes even given \(X_i\)</td><td class="l">No general method. Special cases: a threshold rule (regression discontinuity); before/after data with a comparison group (difference-in-differences, event studies, synthetic control); an outside nudge to treatment (instrumental variables).</td></tr>
+    </table>
+    <p>Random assignment is the only case where the assumption is <b>true by construction</b>. Every other row is an assumption about the world, to be argued for.</p>
+  </div>
+  <aside class="script">
+    <p>This table is, in effect, the syllabus for the rest of the course.</p>
+    <p>First row: randomized assignment. The probability of treatment doesn't depend on potential outcomes, and we know it, because we set it with a coin or a lottery. Then a difference in means, or a regression on the treatment dummy, gives the causal effect. That's what we did in the sessions on experiments.</p>
+    <p>Second row: unconfounded assignment, also called selection on observables. Once we condition on observed characteristics, treatment is as good as random, but we don't know the assignment probabilities. Here we use regression with controls, matching, and propensity scores.</p>
+    <p>Third row: confounded assignment, everything else. There's no general fix, but there are important special cases: treatment assigned by a threshold, which leads to regression discontinuity; before-and-after data with a comparison group, which leads to difference-in-differences and synthetic control; and an outside nudge to treatment, which leads to instrumental variables.</p>
+    <p>Only the first row is true by design. Every other row is an assumption about the world that you have to argue for. Come back to this table as we go.</p>
+  </aside>
+</section>
+
+<section class="slide" id="key-ideas" data-part="4 · SUTVA and the assignment mechanism">
+  <div class="slide-card">
+    <h2>Key ideas of the Rubin causal model</h2>
+    <ol class="lead">
+      <li>Causality is defined by <b>potential outcomes</b>, not by observed outcomes.</li>
+      <li>Observed association is <b>neither necessary nor sufficient</b> for causation (assignment B: a zero effect on the treated, yet a difference in means of one).</li>
+      <li>We measure the <b>effects of causes</b> (what does a grace period do?), not the causes of effects (why did this borrower default?).</li>
+      <li><b>No causation without manipulation</b>: a treatment is something that could, at least in principle, be assigned. "The effect of gender on wages" is ill-defined as stated; "the effect of a female name on a résumé" is a well-defined manipulation.</li>
+      <li>Estimating a causal effect starts with the <b>assignment mechanism</b>: who got treated, and why.</li>
+    </ol>
+  </div>
+  <aside class="script">
+    <p>Let me sum up the Rubin causal model in five ideas.</p>
+    <p>One: causality is defined by potential outcomes, not by what we observe.</p>
+    <p>Two: an observed association is neither necessary nor sufficient for causation. Remember assignment B: the treatment did nothing for the treated, yet the difference in means was one.</p>
+    <p>Three: we study the effects of causes, like what a grace period does, not the causes of effects, like why a particular borrower defaulted.</p>
+    <p>Four: no causation without manipulation. A treatment has to be something that could, at least in principle, be assigned. The effect of gender on wages is not well defined as stated. The effect of putting a female name on a résumé is. That's why the résumé experiment randomized names, not people.</p>
+    <p>Five: estimating a causal effect starts with the assignment mechanism. Always ask who got treated, and why.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-4" data-part="4 · SUTVA and the assignment mechanism" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="b">
+      <div class="q">1. A ride-hailing company tests surge pricing by randomizing <i>riders</i> in the same city into surge and no-surge groups. Which SUTVA condition fails?</div>
+      <button class="opt" data-k="a">Same dose</button><button class="opt" data-k="b">No interference: surge riders who decline leave more cars for the no-surge group</button><button class="opt" data-k="c">Neither</button>
+      <div class="explain">Each group's wait times depend on the other group's treatment. Randomize cities or time blocks ("switchbacks") instead.</div>
+    </div>
+    <div class="quiz" data-answer="c">
+      <div class="q">2. A scholarship goes to every applicant with an SAT score above 1400. Which class of assignment mechanism?</div>
+      <button class="opt" data-k="a">Randomized</button><button class="opt" data-k="b">Unconfounded, with an unknown rule</button><button class="opt" data-k="c">Confounded, but with a known threshold rule: regression discontinuity</button>
+      <div class="explain">Near the cutoff, who lands just above or below is close to luck. That's the idea behind regression discontinuity.</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">3. A loyalty program is rolled out zip code by zip code, in a random order. And a promotion that store managers could opt into?</div>
+      <button class="opt" data-k="a">The first is randomized (at the zip-code level); the second is confounded (managers select on what they expect)</button>
+      <button class="opt" data-k="b">Both are randomized</button><button class="opt" data-k="c">Both are confounded</button>
+      <div class="explain">Random order by zip code is a cluster-randomized experiment. Opt-in by managers depends on their expectations about \(Y_{1i}\) and \(Y_{0i}\).</div>
+    </div>
+    <div class="quiz" data-answer="b">
+      <div class="q">4. "The effect of being tall on earnings": a well-posed causal question in this framework?</div>
+      <button class="opt" data-k="a">Yes, compare tall and short workers</button>
+      <button class="opt" data-k="b">Not as stated: height can't be assigned. A manipulation (e.g., a résumé or video audit that varies perceived height) makes it well-posed.</button>
+      <div class="explain">No causation without manipulation. A childhood-nutrition policy that changes height is a different, well-posed question.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Four last questions, on SUTVA and the assignment mechanism.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= WRAP-UP -->
+<section class="slide" id="summary" data-part="Wrap-up">
+  <div class="slide-card">
+    <h2>Summary</h2>
+    <table class="t formula-table">
+      <tr><td>Potential outcomes</td><td>\(Y_{1i},Y_{0i}\) exist for every unit; the switching equation \(Y_i=Y_{0i}+\tau_iD_i\) reveals one of them. Individual effects are unknowable; we aim at averages: ATE, ATT, ATU.</td></tr>
+      <tr><td>Decomposition 1</td><td>SDO \(=\tau_{\text{ATT}}\) + selection bias</td></tr>
+      <tr><td>Decomposition 2</td><td>SDO \(=\tau_{\text{ATE}}\) + selection bias + \((1-\pi)(\tau_{\text{ATT}}-\tau_{\text{ATU}})\)</td></tr>
+      <tr><td>Selection bias</td><td>\(E[Y_{0i}\mid D_i=1]-E[Y_{0i}\mid D_i=0]\): who gets treated, not what the treatment does</td></tr>
+      <tr><td>Random assignment</td><td>\((Y_{0i},Y_{1i})\perp\!\!\!\perp D_i\) zeroes both bias terms; the LLN turns population means into sample means; OLS on \(D_i\) estimates the ATE</td></tr>
+      <tr><td>Controls</td><td>Pre-treatment controls for precision; never post-treatment ones</td></tr>
+      <tr><td>SUTVA</td><td>Same dose, no interference: what makes \(\tau_i\) one number. When it fails, change the design.</td></tr>
+      <tr><td>Assignment mechanism</td><td>\(\Pr(D_i=1\mid X_i,Y_{0i},Y_{1i})\) classifies every method: randomized, unconfounded, confounded</td></tr>
+    </table>
+  </div>
+  <aside class="script">
+    <p>Let's wrap up. Every unit has two potential outcomes, and the switching equation reveals one of them. Individual effects can never be observed, so we aim for averages: the ATE, the ATT, and the ATU.</p>
+    <p>Two identities are always true. The simple difference in means equals the ATT plus selection bias. And it equals the ATE plus selection bias plus a heterogeneity term. Selection bias is about who gets treated, not what the treatment does.</p>
+    <p>Random assignment makes treatment independent of potential outcomes, which wipes out both bias terms. The law of large numbers takes us from populations to samples, and a regression on the treatment dummy estimates the average effect. Add pre-treatment controls for precision, never post-treatment ones.</p>
+    <p>SUTVA is what makes the effect a single number for each unit. And the assignment mechanism is how we classify every method in the rest of the course.</p>
+  </aside>
+</section>
+
+<section class="slide" id="optional" data-part="Wrap-up">
+  <div class="slide-card">
+    <h2>Optional reading: why potential outcomes, and seeing vs. doing</h2>
+    <div class="cols">
+      <div>
+        <p><b>Why economists like the framework</b> (Imbens &amp; Wooldridge, 2009):</p>
+        <ol class="small" style="font-size:15px">
+          <li>Causal effects are defined <i>before</i> any model of assignment, with no functional-form assumptions.</li>
+          <li>It ties causal effects to explicit <b>manipulations</b>.</li>
+          <li>It separates the model of outcomes from the model of assignment.</li>
+          <li>Assumptions are stated in terms of potentially observable quantities, not unobserved error terms.</li>
+          <li>It shows where uncertainty comes from even when the whole population is observed: the missing potential outcomes.</li>
+        </ol>
+      </div>
+      <div>
+        <p><b>Seeing vs. doing</b> (Judea Pearl's "ladder of causation"):</p>
+        <table class="t ladder" style="font-size:15px">
+          <tr><th class="l">Rung</th><th class="l">Question</th></tr>
+          <tr><td class="l">Seeing (association)</td><td class="l">What does \(Y\) look like when \(D=1\)? \(E[Y_i\mid D_i=1]\)</td></tr>
+          <tr><td class="l">Doing (intervention)</td><td class="l">What happens to \(Y\) if we <i>set</i> \(D=1\)? \(E[Y_{1i}]\)</td></tr>
+          <tr><td class="l">Imagining (counterfactual)</td><td class="l">What would this unit's \(Y\) have been had \(D\) been 0?</td></tr>
+        </table>
+        <p class="small">Selection bias is the gap between seeing and doing. In a randomized experiment, seeing <i>is</i> doing.</p>
+      </div>
+    </div>
+    <p class="src">Imbens &amp; Wooldridge (2009), "Recent Developments in the Econometrics of Program Evaluation," <i>Journal of Economic Literature</i>; Pearl &amp; Mackenzie (2018), <i>The Book of Why</i>, ch. 1.</p>
+  </div>
+  <aside class="script">
+    <p>Two pieces of optional reading. On the left, five reasons economists like the potential-outcomes framework, from a well-known survey by Guido Imbens and Jeffrey Wooldridge. My favorite is the fourth: assumptions are stated in terms of things that could be observed, rather than mysterious error terms, which makes them much easier to argue about.</p>
+    <p>On the right, the computer scientist Judea Pearl's ladder of causation. Seeing is association: what outcomes look like among the treated. Doing is intervention: what happens if we set the treatment. Imagining is the counterfactual for a specific unit. In our language, selection bias is exactly the gap between seeing and doing. And in a randomized experiment, seeing is doing.</p>
+  </aside>
+</section>
+
+<section class="slide" id="next" data-part="Wrap-up">
+  <div class="slide-card">
+    <h2>Practice, and what comes next</h2>
+    <div class="cols">
+      <div>
+        <h3>Practice notebook</h3>
+        <p>The code from this module, with <code>statsmodels</code> versions of the regressions and short exercises (including 500 repeated experiments).</p>
+        <div class="btn-row" data-notebook-links></div>
+        <p class="small">In Colab: <i>File → Save a copy in Drive</i> to keep your own version.</p>
+      </div>
+      <div>
+        <h3>Next</h3>
+        <p>In the live sessions we turn to designing experiments: how big they need to be, what to randomize, and what can go wrong.</p>
+      </div>
+    </div>
+    <p class="small">Thanks to Paul Ellickson, whose lecture notes on the Rubin causal model are the backbone of this module, and to Eric Zou, Elena Prager, and Avery Haviv for sharing their teaching materials.</p>
+    <p class="src">Further reading: Angrist &amp; Pischke, <i>Mastering 'Metrics</i> ch. 1 and <i>Mostly Harmless Econometrics</i> ch. 2; Cunningham, <i>Causal Inference: The Mixtape</i>, ch. 4 (the four-unit example); Holland (1986), "Statistics and Causal Inference," <i>JASA</i>; Ashenfelter (1978), <i>REStat</i>.</p>
+  </div>
+  <aside class="script">
+    <p>That's the end of this module. If you want to keep the code, open the practice notebook. It has everything from these slides, the same regressions in statsmodels, and a few short exercises, including one that repeats an experiment five hundred times.</p>
+    <p>Next, the live sessions turn to designing experiments: how large they need to be, what to randomize, and what can go wrong. Thanks for watching, and see you in class.</p>
+  </aside>
+</section>
+
+</div>
+</body>
+</html>
