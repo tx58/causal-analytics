@@ -383,3 +383,9 @@ svg.plot text.halo, svg.plot .truth-label, svg.plot .est-label { paint-order: st
   .player .icon-btn { width: 32px; }
   .player .play { width: 42px; height: 42px; }
 }
+/* recording mode: recorder above the slide, transcript hidden (the recorder shows the script) */
+body.recording .transcript { display: none; }
+body.recording .recorder { margin: 0 0 16px; }
+body.recording .recorder .prompter { font-size: 21px; max-height: 46vh; }
+.toc a.has-take .seen::after { content: " ●"; color: var(--bad); }
+.btn kbd { background: transparent; color: inherit; border-color: currentColor; opacity: .75; margin-left: 4px; }

@@ -57,7 +57,7 @@
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
 <script defer src="assets/boston.js"></script>
-<script defer src="assets/transcript_2024.js"></script>
+<script defer src="assets/transcripts.js"></script>
 <script defer src="assets/widgets.js"></script>
 <script defer src="assets/player.js"></script>
 </head>
@@ -607,7 +607,7 @@ x.corr(y)    # sample correlation</code></pre>
   </div>
   <aside class="script">
     <p>A real example of why intervals matter. This chart shows a 2016 election forecast. The lines are the forecast number of electoral votes for each candidate over the campaign, and the shaded bands show the range each candidate had an 80 percent chance of falling in.</p>
-    <p>On election day, the average forecast was about 302 electoral votes for Clinton and 235 for Trump. Many people read that as "Clinton wins." But look at the bands: they overlap a lot. Trump won 304 electoral votes, inside his band. The forecast gave him roughly a 30 percent chance, which is about the chance of a good basketball player missing a free throw.</p>
+    <p>On election day, the average forecast was about 302 electoral votes for Clinton and 235 for Trump. Many people read that as "Clinton wins." But look at the bands: they overlap a lot. Trump won 304 electoral votes, inside his band. The forecast gave him roughly a 30 percent chance, close to one in three. Things with a one-in-three chance happen all the time.</p>
     <p>The lesson for business is the same. Report the interval, not only the point estimate, and remember that an unlikely outcome is not an impossible one.</p>
   </aside>
 </section>
@@ -935,7 +935,7 @@ print(f"R-squared:            {1 - np.sum(e**2) / np.sum((y - y.mean())**2):.3f}
     <p>Assumption two: a random sample, so observations are independent draws. That is what lets the law of large numbers and the central limit theorem work.</p>
     <p>Assumption three: no extreme outliers, so that no single observation drives the result.</p>
     <p>Assumption four, homoskedasticity: the spread of the errors is the same at every value of X. It is needed only for the simple standard-error formula.</p>
-    <p>And the Boston data show it can matter. Prices are far more spread out among large homes. The simple formula says 0.42. The robust formula, which drops assumption four, says 0.66. And if you actually resample the data thousands of times, the slope's spread comes out around 0.65 to 0.68. The robust number is the honest one. In software it is a single option, and you may remember the slider widget a few slides back showing more spread than the formula. This is why.</p>
+    <p>And the Boston data show it can matter. Prices are far more spread out among large homes. The simple formula says 0.42. The robust formula, which drops assumption four, says 0.66. And if you actually resample the data thousands of times, the slope's spread comes out around 0.65 to 0.68. The robust number is the honest one, and in software it is a single option. Remember the resampling simulation a few slides back, where the slopes varied more than the reported standard error suggested? This is why.</p>
   </aside>
 </section>
 

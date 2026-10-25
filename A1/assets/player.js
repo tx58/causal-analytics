@@ -201,6 +201,7 @@
     opts = opts || {};
     k = Math.max(0, Math.min(N - 1, k));
     if (k === state.i && !opts.force) return;
+    if (RECORD && Recorder.recording()) Recorder.stop();   // keep the take for the slide it was recorded on
     stopAll();
     hideHint();
     if (state.i >= 0) slides[state.i].classList.remove("active");
@@ -384,14 +385,19 @@
     return text.replace(/\s+/g, " ").trim().split(/(?<=[.!?])\s+(?=[A-Z0-9"“(])/).filter(Boolean);
   }
   function renderTranscript(s) {
+    // timed lines: the archived clip's transcript, or (assets/transcripts.js) the transcript of the
+    // recording now playing; a fresh take in recording mode has none yet, so it shows the script
     const arch = state.archive && window.ARCHIVE_TRANSCRIPTS && window.ARCHIVE_TRANSCRIPTS[s.id];
+    const own = !state.archive && state.mode === "audio" && !(RECORD && Recorder.takeFor(s.id)) && window.TRANSCRIPTS && window.TRANSCRIPTS[s.id];
+    const timed = arch || own;
+    state.timed = !!timed;
     ui.tTag.hidden = true;
-    if (arch) {
+    if (timed) {
       ui.tLabel.textContent = "Transcript";
       ui.tTag.hidden = false;
-      ui.tTag.textContent = `${CFG.archiveLabel}, auto-generated`;
-      ui.tBody.innerHTML = "<p>" + arch.map(([t, txt]) =>
-        `<span class="line" data-t="${t}"><span class="ts">${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}</span>${escapeHtml(txt)}</span> `).join("") + "</p>";
+      ui.tTag.textContent = arch ? `${CFG.archiveLabel}, auto-generated` : "auto-generated from the recording";
+      const stamp = (t) => (arch ? `<span class="ts">${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}</span>` : "");
+      ui.tBody.innerHTML = "<p>" + timed.map(([t, txt]) => `<span class="line" data-t="${t}">${stamp(t)}${escapeHtml(txt)}</span> `).join("") + "</p>";
       ui.tBody.querySelectorAll(".line").forEach((el) => el.addEventListener("click", () => {
         audio.currentTime = +el.dataset.t; if (audio.paused) audio.play().catch(() => {});
       }));
@@ -409,7 +415,7 @@
     }));
   }
   function syncLines(t) {
-    if (!state.archive) return;
+    if (!state.timed) return;
     const lines = ui.tBody.querySelectorAll(".line[data-t]");
     let cur = -1;
     lines.forEach((el, k) => { if (+el.dataset.t <= t + 0.2) cur = k; });
@@ -459,6 +465,7 @@
     else if (k === "a" || k === "A") setAuto(!state.auto);
     else if (k === "s" || k === "S") ui.speed.click();
     else if (k === "m" || k === "M") $("tocBtn").click();
+    else if ((k === "r" || k === "R") && RECORD) { e.preventDefault(); Recorder.toggle(); }
     else if (k === "?") $("help").classList.add("show");
     else if (k === "Escape") { $("help").classList.remove("show"); document.body.classList.remove("toc-open"); }
   });
@@ -629,55 +636,67 @@
     function download(blob, name) {
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
     }
+    function markToc() {
+      tocLinks.forEach((a, k) => a.classList.toggle("has-take", !!takes[slides[k].id]));
+    }
     function show(s) {
       const slot = $("recSlot");
-      const n = Object.keys(takes).length;
+      const n = Object.keys(takes).length, k = slides.indexOf(s);
       const script = s.querySelector("aside.script");
+      markToc();
       slot.innerHTML = `
         <section class="recorder">
-          <h4>Recording mode · slide “${slideTitle(s)}” → file <code>${s.id}.${takes[s.id] ? ext(takes[s.id].mime) : "webm"}</code></h4>
+          <h4>Recording · slide ${k + 1} of ${N}: ${slideTitle(s)} <span class="small">→ <code>${s.id}.${takes[s.id] ? ext(takes[s.id].mime) : "webm"}</code></span></h4>
           <div class="btn-row">
-            <button class="btn primary" id="recStart">● Record</button>
-            <button class="btn" id="recStop" disabled>■ Stop</button>
-            <span id="recState" class="small"></span>
+            <button class="btn primary" id="recStart">● Record <kbd>R</kbd></button>
+            <button class="btn" id="recStop" disabled>■ Stop <kbd>R</kbd></button>
+            <button class="btn" id="recNext" ${k === N - 1 ? "disabled" : ""}>Next slide <kbd>→</kbd></button>
+            <span id="recState" class="small">${takes[s.id] ? "This slide has a take: press play below to check it, or record again to replace it." : "No take yet for this slide."}</span>
           </div>
+          <div class="prompter">${script ? script.innerHTML : "<p><i>No script for this slide.</i></p>"}</div>
           <div class="btn-row">
+            <span class="small"><b>${n}</b> of ${N} slides recorded (red dots in the contents).</span>
             <button class="btn small" id="recSave" ${takes[s.id] ? "" : "disabled"}>Download this take</button>
             <button class="btn small" id="recDel" ${takes[s.id] ? "" : "disabled"}>Delete this take</button>
-            <button class="btn small" id="recAll" ${n ? "" : "disabled"}>Download all takes (.zip, ${n})</button>
+            <button class="btn small primary" id="recAll" ${n ? "" : "disabled"}>Download all takes (.zip)</button>
           </div>
-          <p class="small">Takes are kept in this browser and play on this page right away. When you are done, download them and put the files in <code>web/audio/</code>. Read from the script below or speak freely.</p>
-          <div class="prompter">${script ? script.innerHTML : "<p><i>No script for this slide.</i></p>"}</div>
+          <p class="small">Takes stay in this browser (also after closing it) until you delete them. Read the script or speak freely; small slips are fine. When you're done, download the zip.</p>
         </section>`;
       box = slot.firstElementChild;
       box.querySelector("#recStart").addEventListener("click", () => start(s));
       box.querySelector("#recStop").addEventListener("click", stop);
+      box.querySelector("#recNext").addEventListener("click", () => next());
       box.querySelector("#recSave").addEventListener("click", () => { const t = takes[s.id]; if (t) download(t.blob, `${s.id}.${ext(t.mime)}`); });
       box.querySelector("#recDel").addEventListener("click", () => { drop(s.id); go(state.i, { force: true, noScroll: true }); });
       box.querySelector("#recAll").addEventListener("click", zipAll);
     }
     async function start(s) {
+      if (rec && rec.state !== "inactive") return;
       stopAll();
       try { media = media || await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
       catch (e) { box.querySelector("#recState").textContent = "Microphone not available: " + e.message; return; }
       const mime = ["audio/webm;codecs=opus", "audio/mp4", "audio/ogg;codecs=opus", ""].find((m) => !m || (window.MediaRecorder && MediaRecorder.isTypeSupported(m)));
       rec = new MediaRecorder(media, mime ? { mimeType: mime, audioBitsPerSecond: 64000 } : undefined);
       chunks = [];
-      rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-      rec.onstop = () => {
-        const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+      const r = rec;
+      r.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+      r.onstop = () => {
+        const blob = new Blob(chunks, { type: r.mimeType || "audio/webm" });
         save(s.id, { blob, mime: blob.type });
         clearInterval(timer);
-        go(state.i, { force: true, noScroll: true });
+        if (slides[state.i] === s) go(state.i, { force: true, noScroll: true });   // reload to play the new take
+        else markToc();                                                          // stopped by moving on
       };
-      rec.start();
+      r.start();
       t0 = Date.now();
       box.querySelector("#recStart").disabled = true;
       box.querySelector("#recStop").disabled = false;
       const st = box.querySelector("#recState");
-      timer = setInterval(() => { st.innerHTML = `<span class="rec-dot"></span> recording ${Math.round((Date.now() - t0) / 1000)} s`; }, 250);
+      timer = setInterval(() => { st.innerHTML = `<span class="rec-dot"></span> recording ${Math.round((Date.now() - t0) / 1000)} s · press R to stop`; }, 250);
     }
     function stop() { if (rec && rec.state !== "inactive") rec.stop(); }
+    const recording = () => !!(rec && rec.state === "recording");
+    function toggle() { if (recording()) stop(); else start(slides[state.i]); }
     async function zipAll() {
       const btn = box.querySelector("#recAll");
       btn.disabled = true; btn.textContent = "Preparing…";
@@ -689,9 +708,9 @@
       } catch (e) {
         Object.entries(takes).forEach(([id, t]) => download(t.blob, `${id}.${ext(t.mime)}`));
       }
-      btn.disabled = false; btn.textContent = `Download all takes (.zip, ${Object.keys(takes).length})`;
+      btn.disabled = false; btn.textContent = "Download all takes (.zip)";
     }
-    return { init, show, takeFor: (id) => takes[id] };
+    return { init, show, toggle, stop, recording, takeFor: (id) => takes[id] };
   })();
 
   /* ---------------- start ---------------- */
@@ -701,7 +720,11 @@
     setSpeed(state.speed);
     setAuto(state.auto);
     setTranscript(state.showT);
-    if (RECORD) { await Recorder.init(); document.body.classList.add("recording"); }
+    if (RECORD) {                   // the recorder sits above the slide; the transcript is its teleprompter
+      await Recorder.init();
+      document.body.classList.add("recording");
+      deck.parentNode.insertBefore($("recSlot"), deck);
+    }
     const fromHash = slides.findIndex((s) => "#" + s.id === location.hash);
     const last = slides.findIndex((s) => s.id === store.get("last", ""));
     if (fromHash >= 0) go(fromHash, { noScroll: true });
