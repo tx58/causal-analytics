@@ -1,0 +1,636 @@
+<!doctype html>
+<!--
+  Asynchronous module 5 (GBA 436, Fall B 2026, posted after Lecture 10; written so it can be reused):
+  difference-in-differences with staggered rollouts. Web version, rebuilt per Tianli (2026-10-25): no math
+  (no Goodman-Bacon decomposition, no Callaway-Sant'Anna formulas, no regression weights); why rollouts are
+  staggered, which comparisons are fair or forbidden, why the one-number regression can mislead, what
+  Callaway & Sant'Anna do in words; the green-plate paper (Xia & Zheng: rollout maps, CS-DiD event study) and
+  the drug-negotiation paper (Barwick, Swanson & Xia, NBER WP 33832; NBER Digest Sept 2025: price and quantity
+  CS-DiD event studies). Sources: P. Ellickson (AEC 520 handout 5), E. Zou (EC 425/525 week 8).
+  Numbers: code/A5_web_data.py (same computations as code/A5_examples.py) -> assets/a5data.js.
+  Player and editing: see ../A1_LLN_CLT_regression_math/README.md.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Staggered Rollouts</title>
+<meta name="description" content="Self-paced module: difference-in-differences when a change reaches different places at different times. Fair and forbidden comparisons, why the one-number regression can mislead, and what modern estimators do, with two published examples.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="assets/player.css">
+<style>
+  .parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin-top: 12px; }
+  .parts button { text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 10px 12px; cursor: pointer; font-size: 15px; line-height: 1.35; }
+  .parts button:hover { border-color: var(--brand); }
+  .parts button b { display: block; color: var(--brand); font-size: 13px; text-transform: uppercase; letter-spacing: .05em; }
+  .feature { display: grid; grid-template-columns: 36px 1fr; gap: 6px 10px; align-items: start; margin: 8px 0; }
+  .feature .ic { width: 32px; height: 32px; border-radius: 8px; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  .formula-table td { text-align: left; vertical-align: top; }
+  .formula-table td:first-child { color: var(--muted); }
+  table.t td.hi { color: var(--accent); font-weight: 650; }
+  figure { margin: 0; }
+  figure img { width: 100%; height: auto; display: block; border-radius: 8px; background: #fff; }
+  figure figcaption { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  svg.plot .bar-v { fill: var(--c-est); opacity: .85; }
+  svg.plot .bar-u { fill: var(--c-sample); opacity: .75; }
+  svg.plot .line-v { fill: none; stroke: var(--c-est); stroke-width: 2.5; }
+  svg.plot .line-u { fill: none; stroke: var(--c-sample); stroke-width: 2.5; }
+  svg.plot .line-cf { fill: none; stroke-width: 1.6; stroke-dasharray: 5 4; opacity: .7; }
+  svg.plot .faded { opacity: .18; }
+  svg.plot .dot-v { fill: var(--c-est); } svg.plot .dot-u { fill: var(--c-sample); }
+  svg.plot .dot-g { fill: var(--good); } svg.plot .dot-b { fill: var(--bad); }
+  svg.plot .truth-thick { fill: none; stroke: var(--faint); stroke-width: 7; opacity: .45; }
+  svg.plot .hl-good { stroke: var(--good); stroke-width: 2.4; stroke-dasharray: 6 4; }
+  svg.plot .hl-bad { stroke: var(--bad); stroke-width: 2.4; stroke-dasharray: 6 4; }
+  svg.plot .cell-off { fill: var(--line); }
+  svg.plot .cell-on { fill: var(--c-est); opacity: .55; }
+  svg.plot .cell-wave { fill: var(--c-est); }
+  svg.plot .cell-ok { fill: none; stroke: var(--good); stroke-width: 2.6; }
+  svg.plot .cell-bad { fill: none; stroke: var(--bad); stroke-width: 2.6; }
+  svg.plot .col-now { fill: var(--brand); opacity: .08; }
+  .plates { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+  @media (max-width: 760px) { .plates { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<script>
+  window.MODULE_CONFIG = {
+    moduleId: "A5-staggered-rollouts",
+    title: "Staggered rollouts",
+    subtitle: "Causal Analytics · Asynchronous module",
+    // Colab buttons: publish_site.py writes the GitHub location into the published copy.
+    colabUrl: "",
+    github: "tx58/causal-analytics/A5",
+    notebook: "A5_notebook.ipynb",
+    pySetup: async (py) => {
+      const r = await fetch("data/greenplate_simulated.csv");
+      py.FS.writeFile("greenplate_simulated.csv", await r.text());
+    },
+  };
+</script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script defer src="assets/charts.js"></script>
+<script defer src="assets/a5data.js"></script>
+<script defer src="assets/widgets.js"></script>
+<script defer src="assets/transcripts.js"></script>
+<script defer src="assets/player.js"></script>
+</head>
+<body>
+<div id="deck">
+
+<!-- ======================================================================= START -->
+<section class="slide title-slide" id="title" data-part="Start" data-title="Welcome">
+  <div class="slide-card">
+    <div class="eyebrow">Causal Analytics · Asynchronous module</div>
+    <h1>Staggered rollouts</h1>
+    <p class="lead" style="color:var(--muted);margin:0 0 10px">Difference-in-differences when a change reaches different places at different times: which comparisons are fair, why the one-number regression can mislead, and what to use instead</p>
+    <div class="who">Tianli Xia · Simon Business School, University of Rochester</div>
+    <div class="start-row">
+      <button class="btn primary" data-action="play-all">▶ Watch from the start (auto-advance)</button>
+      <button class="btn" data-action="next">Go at my own pace →</button>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Welcome to this module on staggered rollouts. In the live sessions on difference-in-differences and event studies, a change hit some units and not others, and we compared their paths. In practice, most changes don't arrive everywhere on the same date. They roll out: a few cities first, then more, then the rest.</p>
+    <p>This module is about how to analyze such rollouts. We'll see which comparisons are fair, why the familiar regression can give a misleading answer, and what modern tools do instead. There is no math here: just pictures, a simulation, and two of my own research projects.</p>
+  </aside>
+</section>
+
+<section class="slide" id="how-to" data-part="Start">
+  <div class="slide-card">
+    <h2>How to use this page</h2>
+    <div class="cols">
+      <div>
+        <div class="feature"><span class="ic">▶</span><div><b>Listen.</b> Each slide has its own short voice-over. Press <kbd>Space</kbd>; change the speed at the bottom right.</div></div>
+        <div class="feature"><span class="ic">⇄</span><div><b>Your pace.</b> Use <kbd>←</kbd> <kbd>→</kbd> or the contents. <i>Auto-advance</i> plays it like a video.</div></div>
+        <div class="feature"><span class="ic">≡</span><div><b>Read.</b> The transcript is under each slide (<kbd>T</kbd> hides it).</div></div>
+      </div>
+      <div>
+        <div class="feature"><span class="ic">✦</span><div><b>Try it.</b> Pick a wave and a month to see who is a fair comparison; make an effect grow and watch the one-number regression fail.</div></div>
+        <div class="feature"><span class="ic">{ }</span><div><b>Code.</b> A Python cell runs in the page; the same code is in a Colab notebook.</div></div>
+        <div class="feature"><span class="ic">✓</span><div><b>Check.</b> Short self-checks. Not graded.</div></div>
+      </div>
+    </div>
+    <div class="box key">
+      <div class="label">What you need for the exam</div>
+      <p>Why changes roll out in waves; which comparisons are fair and which are forbidden; why the one-number regression can mislead when effects grow or differ by wave; what the Callaway–Sant'Anna approach does, in words; how to read an event study from a staggered rollout. No formulas.</p>
+    </div>
+  </div>
+  <aside class="script">
+    <p>A quick word on how to use this page. As before, every slide has its own voice-over, you can go at your own pace, and the transcript is under each slide. On the try-it slides you'll pick a wave and a month to see who counts as a fair comparison, and you'll make an effect grow over time and watch the usual regression go wrong.</p>
+    <p>For the exam, focus on the ideas: why changes roll out in waves, which comparisons are fair and which are forbidden, why the one-number regression can mislead, and what the modern approach does, in words. No formulas.</p>
+  </aside>
+</section>
+
+<section class="slide" id="roadmap" data-part="Start">
+  <div class="slide-card">
+    <h2>Four parts</h2>
+    <div class="parts">
+      <button data-goto="did-recap"><b>Part 1</b>Difference-in-differences in one picture, and the one-number regression</button>
+      <button data-goto="everywhere"><b>Part 2</b>Rollouts are everywhere: green plates, drug prices, and who can serve as a comparison</button>
+      <button data-goto="trap"><b>Part 3</b>The trap: forbidden comparisons</button>
+      <button data-goto="cs-idea"><b>Part 4</b>Modern tools, and two published examples</button>
+      <button data-goto="summary"><b>Wrap-up</b>Summary and practice notebook</button>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The module has four parts. Part one recalls difference-in-differences in one picture, and the regression we usually use to run it. Part two shows that most changes roll out in waves, with two examples, and asks who can serve as a fair comparison. Part three is the trap: how the usual regression ends up making comparisons it shouldn't. And part four shows the modern tools that avoid the trap, with results from two published studies.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 1 -->
+<section class="slide" id="did-recap" data-part="1 · DiD in one picture">
+  <div class="slide-card">
+    <h2>Difference-in-differences in one picture</h2>
+    <div class="widget" data-widget="didPicture"></div>
+    <ul>
+      <li>Two groups, before and after. The comparison group's change stands in for what would have happened to the treated group <b>without</b> the change (the dashed line).</li>
+      <li>DiD = (treated after − treated before) − (comparison after − comparison before).</li>
+      <li>The assumption: <b>parallel trends</b>. Without the change, the two groups would have moved together. Levels can differ; trends cannot.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Let's start with the picture from the live session. Two groups, two periods. The treated group's outcome rises from before to after, but part of that rise would have happened anyway. The comparison group tells us how much: its change stands in for what the treated group would have done without the change. That's the dashed line.</p>
+    <p>The effect is the difference between the two changes. And the assumption is parallel trends: without the change, the two groups would have moved together. Their levels can differ; their trends cannot. Click the second button to see what happens when the comparison group's trend is different: the estimate absorbs the gap.</p>
+  </aside>
+</section>
+
+<section class="slide" id="one-number" data-part="1 · DiD in one picture">
+  <div class="slide-card">
+    <h2>The one-number regression</h2>
+    <div class="box"><p style="font-size:18px;margin:6px 0">outcome = (a separate constant for each unit) + (a separate constant for each period) + <b>β</b> × (treated, and the change has started)</p></div>
+    <ul>
+      <li>The unit constants absorb permanent differences between units; the period constants absorb shocks that hit everyone at once (seasons, the economy).</li>
+      <li>With two groups and two periods, <b>β</b> is exactly the difference-in-differences of the picture.</li>
+      <li>With many units and many periods, this is how DiD is usually run: often called a <b>two-way fixed effects</b> regression. One line of code, one number.</li>
+      <li>Keep a question in mind for the rest of the module: when units start treatment on <i>different</i> dates, which comparisons is this one number made of?</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>In practice we run difference-in-differences as a regression. The outcome equals a constant for each unit, plus a constant for each period, plus beta times a dummy for being treated after the change has started. The unit constants absorb permanent differences between units; the period constants absorb shocks that hit everyone at once, like seasons or the economy.</p>
+    <p>With two groups and two periods, beta is exactly the difference-in-differences from the picture. With many units and periods, this is the standard way to run DiD, often called a two-way fixed effects regression: one line of code, one number.</p>
+    <p>Keep one question in mind for the rest of the module: when units start treatment on different dates, which comparisons is that one number made of?</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 2 -->
+<section class="slide" id="everywhere" data-part="2 · Rollouts are everywhere">
+  <div class="slide-card">
+    <h2>Most changes arrive at different dates</h2>
+    <div class="cols">
+      <div class="box"><div class="label">Policy</div>
+        <ul>
+          <li>US states expanded Medicaid in different years</li>
+          <li>Minimum wages rise state by state</li>
+          <li>China gave electric cars green license plates, city by city, 2016–18</li>
+          <li>China's insurance list adds new drugs in yearly negotiation rounds</li>
+        </ul>
+      </div>
+      <div class="box"><div class="label">Business</div>
+        <ul>
+          <li>Ride-hailing and delivery apps launch city by city</li>
+          <li>Remodels, self-checkout, new store formats reach stores in waves</li>
+          <li>A feature ships country by country; a new pay plan reaches one sales region at a time</li>
+        </ul>
+      </div>
+    </div>
+    <p>Each wave is a small difference-in-differences of its own. The question of this module: what happens when we pool them all into one regression?</p>
+  </div>
+  <aside class="script">
+    <p>Most changes don't arrive everywhere on the same date. In policy, US states expanded Medicaid in different years, and minimum wages rise state by state. China gave electric cars green license plates city by city, and China's public insurance adds new drugs in yearly negotiation rounds. We'll study those last two in detail.</p>
+    <p>In business it's the norm. Ride-hailing and delivery apps launch city by city. Remodels and new store formats reach stores in waves. A new feature ships country by country, and a new pay plan reaches one sales region at a time.</p>
+    <p>Each wave is a small difference-in-differences of its own. The question for this module is what happens when we pool all the waves into one regression.</p>
+  </aside>
+</section>
+
+<section class="slide" id="why-waves" data-part="2 · Rollouts are everywhere">
+  <div class="slide-card">
+    <h2>Why organizations roll things out in waves</h2>
+    <div class="cols">
+      <div class="box"><div class="label">Because they have to</div>
+        <ul>
+          <li><b>Capacity</b>: training staff, installing equipment, hiring drivers take time</li>
+          <li><b>Risk</b>: launch small, fix what breaks, then expand</li>
+          <li><b>Permission</b>: regulators, franchisees, and local governments approve one at a time</li>
+        </ul>
+      </div>
+      <div class="box"><div class="label">What it gives the analyst</div>
+        <ul>
+          <li>Every wave is a comparison group for the waves still waiting</li>
+          <li>A national shock (a season, a subsidy, a recession) cannot line up with every launch date</li>
+          <li>You can check whether early and late waves respond alike</li>
+        </ul>
+      </div>
+    </div>
+    <div class="box key"><p><b>If you must roll out gradually anyway, randomize the order.</b> A staggered rollout with a random order is an experiment, for free.</p></div>
+  </div>
+  <aside class="script">
+    <p>Why do organizations roll things out in waves? Usually because they have to. Capacity: training staff or hiring drivers takes time. Risk: launch small, fix what breaks, then expand. And permission: regulators, franchisees, and local governments approve one at a time.</p>
+    <p>For the analyst, waves are a gift. Every wave serves as a comparison for the waves still waiting. A national shock, like a season or a recession, can't line up with every launch date. And you can check whether early and late waves respond the same way.</p>
+    <p>One piece of advice for managers: if you have to roll out gradually anyway, randomize the order. Then the comparison of launched and not-yet-launched markets is an experiment, for free.</p>
+  </aside>
+</section>
+
+<section class="slide" id="green-plates" data-part="2 · Rollouts are everywhere">
+  <div class="slide-card">
+    <h2>Example 1: green license plates for electric cars</h2>
+    <div class="plates">
+      <div>
+        <ul>
+          <li>China, 2016: electric vehicles (EVs) are under 2% of new-car sales, despite generous subsidies.</li>
+          <li><b>December 2016</b>: new EVs get a <b>green</b> plate instead of the standard blue one, in 5 pilot cities.</li>
+          <li><b>Late 2017</b>: about 80 more cities. <b>2018</b>: provinces add cities month by month, until nearly the whole country by December.</li>
+          <li>The plate costs almost nothing and carries no perk. It only makes EVs <i>visible</i>. Does visibility sell cars?</li>
+        </ul>
+        <figure><img src="img/gp_plates_green.jpg" alt="Green license plates for electric cars" style="max-width:300px"><figcaption>The new plates (D: battery EV; F: plug-in hybrid)</figcaption></figure>
+      </div>
+      <div class="widget" data-widget="mapTabs"></div>
+    </div>
+    <p class="src">Xia &amp; Zheng, "Seeing Innovation: Green Plate Policy and Electric Vehicle Adoption," working paper.</p>
+  </div>
+  <aside class="script">
+    <p>Here's the first example, from a project of mine with Jinyang Zheng. In 2016, electric vehicles were under two percent of new-car sales in China, despite generous subsidies. In December 2016, new electric cars started getting a green license plate instead of the standard blue one, first in five pilot cities.</p>
+    <p>Click through the maps. By late 2017, about eighty more cities had joined. In 2018, provinces added cities month by month, until nearly the whole country had green plates by December.</p>
+    <p>The plate costs almost nothing and comes with no perk. It only makes electric cars visible on the street. The question: does visibility sell cars? And notice the design: every city has its own adoption date.</p>
+  </aside>
+</section>
+
+<section class="slide" id="clocks" data-part="2 · Rollouts are everywhere">
+  <div class="slide-card">
+    <h2>Every city has its own clock</h2>
+    <div class="widget" data-widget="rolloutChart"></div>
+    <ul>
+      <li>Line the cities up by <b>months since adoption</b> instead of the calendar, as in the live session on event studies: month 0 is each city's own adoption month.</li>
+      <li>Almost every city is <b>eventually treated</b>. By the end of 2018, very few cities are left to compare with.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>This chart shows the rollout's shape in a simulated panel built to look like the real one: a handful of pilot cities in December 2016, a big wave at the end of 2017, then a steady stream through 2018.</p>
+    <p>As in the live session on event studies, we line cities up by their own clock: months since adoption, where month zero is each city's adoption month.</p>
+    <p>And notice the cumulative line: almost every city is eventually treated. By the end of 2018 there are very few cities left that haven't adopted. Keep that in mind; it will matter.</p>
+  </aside>
+</section>
+
+<section class="slide" id="drugs" data-part="2 · Rollouts are everywhere">
+  <div class="slide-card">
+    <h2>Example 2: negotiating drug prices, one batch a year</h2>
+    <ul>
+      <li>Before 2016, China's public health insurance did not cover most innovative drugs, such as new cancer therapies. Patients paid the full price.</li>
+      <li>The <b>National Reimbursement Drug List reform</b>: each year since 2017, the government negotiates prices with drug makers for a batch of new drugs. A drug whose negotiation succeeds gets a lower price <i>and</i> insurance coverage.</li>
+      <li>A staggered rollout across <b>drugs</b> instead of places: drugs enter in yearly waves, 2017 to 2022, and some never do (the negotiation fails).</li>
+      <li>Comparison group: drugs that were eligible but not (yet) successfully negotiated.</li>
+      <li>Outcomes: each drug's retail <b>price</b> and the <b>quantity</b> sold, quarter by quarter.</li>
+    </ul>
+    <p class="src">Barwick, Swanson &amp; Xia, "A Double Dose of Reform: Insurance and Centralized Negotiation in Drug Markets," NBER Working Paper 33832; summarized in the <i>NBER Digest</i>, September 2025.</p>
+  </div>
+  <aside class="script">
+    <p>The second example is from my work with Panle Jia Barwick and Ashley Swanson. Before 2016, China's public health insurance didn't cover most innovative drugs, like new cancer therapies, so patients paid the full price.</p>
+    <p>Then came the National Reimbursement Drug List reform. Each year since 2017, the government negotiates prices with drug makers for a batch of new drugs. If the negotiation succeeds, the drug gets a lower price and insurance coverage.</p>
+    <p>That's a staggered rollout across drugs instead of places. Drugs enter in yearly waves from 2017 to 2022, and some never enter because the negotiation fails. The comparison group is drugs that were eligible but not yet, or never, successfully negotiated. And the outcomes are each drug's price and the quantity sold.</p>
+  </aside>
+</section>
+
+<section class="slide" id="controls" data-part="2 · Rollouts are everywhere" data-pause>
+  <div class="slide-card">
+    <h2>Who can serve as the comparison?</h2>
+    <div class="widget" data-widget="controlsGrid"></div>
+    <ul class="small">
+      <li><b>Fair</b>: units not yet treated in that month (including the never treated). Their paths show what happens without the change.</li>
+      <li><b>Forbidden</b>: units treated earlier. Their outcomes are already moved by the treatment, and may keep moving.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>So in a rollout, who can serve as the comparison? Here are twelve stylized cities. Each row is a city, each column a month, and orange cells are treated. Pick a wave and a month after it started.</p>
+    <p>The cities outlined in green are fair comparisons: in that month they haven't been treated yet, or never will be, so their paths show what happens without the change. The cities outlined in red were treated earlier. Their outcomes are already being moved by the treatment, and may keep moving. They are forbidden as a comparison.</p>
+    <p>Move the month to the right and watch the fair group shrink. Late in a rollout, almost everyone is treated, and there is little left to compare with.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 3 -->
+<section class="slide" id="trap" data-part="3 · The trap">
+  <div class="slide-card">
+    <h2>What the one-number regression does with a rollout</h2>
+    <ul>
+      <li>The regression doesn't know which comparisons are fair. It uses <b>every</b> unit whose treatment status changes at a different time than another's, in both directions:
+        <ul>
+          <li>early wave vs. units not yet treated: <b>fair</b></li>
+          <li>late wave vs. the early wave, <i>after the early wave was treated</i>: <b>forbidden</b></li>
+        </ul>
+      </li>
+      <li>If the effect is <b>immediate and the same everywhere</b>, the early wave's outcome just shifts once; the shift cancels out and the forbidden comparison does no harm.</li>
+      <li>If the effect <b>builds up over time</b>, the early wave keeps rising <i>because of the treatment</i>. Used as a comparison, that rise looks like a trend everyone shares, and it is subtracted from the late wave's effect.</li>
+      <li>The one number can then be far too small, or even have the wrong sign.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Here's the trap. The one-number regression doesn't know which comparisons are fair. Behind the scenes, it compares every unit with every other unit whose treatment started at a different time, in both directions. Some of those comparisons are fair: the early wave against units not yet treated. But some are forbidden: the late wave against the early wave, after the early wave was already treated.</p>
+    <p>Does that matter? If the effect is immediate and the same everywhere, the early wave just shifts up once, the shift cancels out, and no harm is done. But if the effect builds up over time, the early wave keeps rising because of the treatment. Used as a comparison, that rise looks like a common trend, and it gets subtracted from the late wave's effect. The one number can then be far too small, or even have the wrong sign. Let's see it.</p>
+  </aside>
+</section>
+
+<section class="slide" id="two-waves" data-part="3 · The trap" data-pause>
+  <div class="slide-card">
+    <h2>Try it: two waves and an effect that grows</h2>
+    <div class="widget" data-widget="twoWaves"></div>
+  </div>
+  <aside class="script">
+    <p>Two waves of units. The early wave starts in period four, the late wave in period nine. Without treatment, both would rise along the dashed lines. The effect starts at one, and with the slider at one, it grows by one more each period after a wave starts.</p>
+    <p>The true average effect is about four. The one-number regression says almost zero. Click "A fair comparison": the early wave against the late wave before the late wave starts. That gives three, close to the early wave's true effect. Now click "A forbidden comparison": the late wave against the early wave, which is already treated and still rising. That says minus two, when the late wave's true effect is plus two and a half. The regression averages the two.</p>
+    <p>Now move the slider to zero, so the effect doesn't grow. Everything agrees again.</p>
+  </aside>
+</section>
+
+<section class="slide" id="when-worry" data-part="3 · The trap">
+  <div class="slide-card">
+    <h2>When to worry</h2>
+    <div class="cols">
+      <div class="box"><div class="label">Worry when</div>
+        <ul>
+          <li>the effect <b>builds up or fades</b> over time (habits, word of mouth, learning, novelty)</li>
+          <li>the effect <b>differs by wave</b> (pilot markets are often special)</li>
+          <li>few units are <b>never treated</b> (everyone gets it eventually)</li>
+        </ul>
+      </div>
+      <div class="box"><div class="label">Relax when</div>
+        <ul>
+          <li>the effect is <b>immediate and the same</b> in every wave</li>
+          <li>there is a large group that is <b>never treated</b>, so most comparisons are fair</li>
+        </ul>
+        <p class="small">You rarely know this in advance, which is why the modern tools in Part 4 are now the default.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>When should you worry? When the effect builds up or fades over time, which is common: habits form, word of mouth spreads, people learn, novelty wears off. When the effect differs by wave, because pilot markets are often special. And when few units are never treated, because then the regression leans heavily on the forbidden comparisons.</p>
+    <p>You can relax when the effect is immediate and the same in every wave, or when a large group is never treated. But you rarely know that in advance. That's why the modern tools in part four have become the default.</p>
+  </aside>
+</section>
+
+<section class="slide" id="gp-sim" data-part="3 · The trap">
+  <div class="slide-card">
+    <h2>What would the one-number regression have said about green plates?</h2>
+    <div class="widget" data-widget="gpSim"></div>
+    <p class="small">A <b>simulated</b> panel shaped like the rollout (the real sales data are licensed): 300 cities, 48 months; the effect on log EV sales starts at 0.2 and grows for eight months. Because we made up the data, we know the truth.</p>
+  </div>
+  <aside class="script">
+    <p>Back to green plates, on a simulated panel shaped like the real rollout: three hundred cities, four years of monthly sales, and an effect that starts at point two log points and grows for eight months. Because we made the data up, we know the truth.</p>
+    <p>The grey line is the true effect by months since adoption. The green dots compare each wave only with cities not yet treated, and they track the truth. The red dashed line is the one-number regression: point three four, when the true average is point four three. It understates the effect by a fifth, because it uses already-treated cities as comparisons while their effects are still growing. Exactly the trap, in a realistic setting.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-3" data-part="3 · The trap" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="b">
+      <div class="q">1. A delivery app launched in city A in March and in city B in September. Which comparison estimates B's effect in October fairly?</div>
+      <button class="opt" data-k="a">B against A, from August to October.</button>
+      <button class="opt" data-k="b">B against cities that had not launched by October, from August to October.</button>
+      <button class="opt" data-k="c">B in October against B in August, without a comparison.</button>
+      <div class="explain">A was already treated, and its effect may still be growing in the fall. Cities not yet launched show what happens without the app; B alone mixes the effect with seasonal trends.</div>
+    </div>
+    <div class="quiz" data-answer="c">
+      <div class="q">2. In which case is the one-number regression least likely to mislead?</div>
+      <button class="opt" data-k="a">A loyalty program whose effect builds up as members earn rewards.</button>
+      <button class="opt" data-k="b">A new store format that works much better in the pilot stores than later ones.</button>
+      <button class="opt" data-k="c">A price-display change whose effect is immediate and the same in every wave, with many stores never treated.</button>
+      <div class="explain">The forbidden comparisons only hurt when effects change over time or differ by wave, and matter less when many units are never treated.</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">3. In the two-wave example, why did the forbidden comparison give a <i>negative</i> number?</div>
+      <button class="opt" data-k="a">The early wave kept rising because its effect was still growing; used as a comparison, that rise was subtracted from the late wave's effect.</button>
+      <button class="opt" data-k="b">The late wave was hurt by the treatment.</button>
+      <button class="opt" data-k="c">The sample was too small.</button>
+      <div class="explain">The early wave's growing effect looked like a common trend. Subtracting it pushed the late wave's estimate below zero.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Three questions on fair and forbidden comparisons. Click an answer to see the explanation.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 4 -->
+<section class="slide" id="cs-idea" data-part="4 · Modern tools">
+  <div class="slide-card">
+    <h2>The fix: only fair comparisons, then average (Callaway &amp; Sant'Anna)</h2>
+    <div class="steps">
+      <div class="step"><p><b>1. One wave, one month at a time.</b> Take the cities that adopted in, say, December 2017, and one month after that, say March 2018. Compare their change since November 2017 (the month before they adopted) with the change of cities <b>not yet treated</b> in March 2018 (or never treated). That is one clean 2×2: a "building block".</p></div>
+      <div class="step"><p><b>2. Repeat</b> for every wave and every month after it started. Already-treated cities never serve as a comparison.</p></div>
+      <div class="step"><p><b>3. Average the building blocks</b> the way you want, with weights you can state:</p>
+        <ul>
+          <li>by <b>months since adoption</b>: the event study (month 0, 1, 2, …)</li>
+          <li>by <b>wave</b>: did the pilot cities respond differently?</li>
+          <li>overall: one number, built only from fair comparisons</li>
+        </ul>
+        <p class="small">Months <i>before</i> adoption, computed the same way, give the event study's left side: a check on parallel trends.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The fix is simple in words: make only fair comparisons, then average. That's the idea of the method by Callaway and Sant'Anna, often called C S D I D.</p>
+    <p>Step one: take one wave and one month at a time. Say the cities that adopted in December 2017, and the month of March 2018. Compare their change since November 2017, the month before they adopted, with the change of cities not yet treated in March 2018. That's one clean two-by-two, a building block.</p>
+    <p>Step two: repeat for every wave and every month after it started. An already-treated city never serves as a comparison.</p>
+    <p>Step three: average the building blocks the way you want. By months since adoption, which gives the event study. By wave, to see whether the pilots were special. Or overall, as one number, but now built only from fair comparisons.</p>
+  </aside>
+</section>
+
+<section class="slide" id="tools" data-part="4 · Modern tools">
+  <div class="slide-card">
+    <h2>A family of modern tools</h2>
+    <table class="t formula-table">
+      <tr><td>Callaway &amp; Sant'Anna</td><td>each wave vs. not-yet-treated (or never-treated) units; average the building blocks</td></tr>
+      <tr><td>Imputation (Borusyak, Jaravel &amp; Spiess)</td><td>learn the untreated trend from untreated observations only; predict what treated units would have done; average the gaps</td></tr>
+      <tr><td>Sun &amp; Abraham</td><td>an event study run separately for each wave, then averaged</td></tr>
+      <tr><td>Stacked DiD</td><td>one clean dataset per wave (the wave plus units not treated around it), stacked into one regression</td></tr>
+    </table>
+    <ul>
+      <li>They share one rule: <b>an already-treated unit never serves as a comparison</b>. On the same data they usually agree with each other, and disagree with the one-number regression when effects grow or differ by wave.</li>
+      <li>Software: <code>did</code> in R, <code>csdid</code> in Stata, and Python ports. The Python cell later in this part does it by hand in a few lines.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Callaway and Sant'Anna's method has relatives. The imputation approach learns the untreated trend from untreated observations only, predicts what treated units would have done, and averages the gaps. Sun and Abraham run the event study separately for each wave and then average. A stacked design builds one clean dataset per wave and stacks them.</p>
+    <p>The details differ, but they share one rule: an already-treated unit never serves as a comparison. On the same data they usually agree with each other, and disagree with the one-number regression exactly when effects grow or differ by wave. They're available in R, Stata, and Python, and the Python cell later in this part does it by hand.</p>
+  </aside>
+</section>
+
+<section class="slide" id="gp-results" data-part="4 · Modern tools">
+  <div class="slide-card">
+    <h2>Green plates: the published event study</h2>
+    <div class="cols c-60">
+      <figure><img src="img/gp_csdid_sales.png" alt="CS-DiD event study of log EV sales by months since a city adopted green plates"><figcaption>Effect on log EV sales, by months since a city adopted green plates (Callaway–Sant'Anna, not-yet-treated cities as comparisons; 95% intervals).</figcaption></figure>
+      <div>
+        <ul>
+          <li><b>Before</b>: flat, near zero. Adopting cities were not already on a different path.</li>
+          <li><b>After</b>: a jump of about 0.25 log points in the adoption month, rising toward 0.5–0.6 by month six. An effect that <b>builds up</b>: exactly where the one-number regression goes wrong.</li>
+          <li>Overall: <b>0.48</b> log points (SE 0.17), about 60% more EV sales. Without the pilot cities: 0.49.</li>
+          <li>Why only six months? By the end of 2018 nearly every city had green plates: the fair comparisons <b>run out</b>.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="src">Xia &amp; Zheng, "Seeing Innovation: Green Plate Policy and Electric Vehicle Adoption," working paper.</p>
+  </div>
+  <aside class="script">
+    <p>Here are the published results for green plates, using the Callaway and Sant'Anna approach with not-yet-treated cities as comparisons.</p>
+    <p>Before adoption, the estimates are flat and close to zero: adopting cities weren't already on a different path. After adoption, EV sales jump by about a quarter of a log point in the adoption month, and keep rising toward half a log point or more by month six. An effect that builds up: exactly the setting where the one-number regression goes wrong.</p>
+    <p>Overall, the effect is about point four eight log points, roughly sixty percent more electric car sales, and it's the same without the pilot cities. Why does the figure stop at six months? Because by the end of 2018 nearly every city had green plates: the fair comparisons run out.</p>
+  </aside>
+</section>
+
+<section class="slide" id="nrdl-results" data-part="4 · Modern tools">
+  <div class="slide-card">
+    <h2>Drug negotiations: price and quantity</h2>
+    <div class="cols">
+      <figure><img src="img/nrdl_csdid_price.png" alt="Event study of log retail price of negotiated cancer drugs"><figcaption>Log retail price, by quarters relative to a successful negotiation</figcaption></figure>
+      <figure><img src="img/nrdl_csdid_quantity.png" alt="Event study of log quantity of negotiated cancer drugs"><figcaption>Log quantity sold</figcaption></figure>
+    </div>
+    <ul>
+      <li>Innovative cancer drugs, 2017–2023; comparison: eligible drugs not yet (or never) successfully negotiated. Callaway–Sant'Anna, 95% intervals.</li>
+      <li><b>Price</b> drops at once, by about 0.8 log points, and stays down: retail prices fell 57%; out-of-pocket costs fell 86%.</li>
+      <li><b>Quantity</b> jumps and keeps rising for six quarters, to more than ten times its old level: patients and doctors take time to switch. Again an effect that <b>builds up</b>.</li>
+      <li>Before negotiation, prices and quantities are mostly flat, which makes the effects after the negotiation more convincing.</li>
+    </ul>
+    <p class="src">Barwick, Swanson &amp; Xia, NBER Working Paper 33832; <i>NBER Digest</i>, September 2025, "China's Expansion of Drug Insurance Increased Access While Containing Costs."</p>
+  </div>
+  <aside class="script">
+    <p>Now the drug negotiations. These two event studies are for innovative cancer drugs, comparing successfully negotiated drugs with eligible drugs not yet, or never, negotiated, again with the Callaway and Sant'Anna approach. Time is in quarters relative to the negotiation.</p>
+    <p>On the left, price drops at once by about point eight log points and stays down. Retail prices fell about fifty-seven percent, and out-of-pocket costs about eighty-six percent. On the right, quantity jumps and keeps rising for six quarters, to more than ten times its old level. Patients and doctors take time to switch. So again, an effect that builds up.</p>
+    <p>And look at the left side too: before the negotiation, prices and quantities are mostly flat, which makes the estimates after the negotiation more convincing.</p>
+  </aside>
+</section>
+
+<section class="slide" id="reading" data-part="4 · Modern tools">
+  <div class="slide-card">
+    <h2>Reading an event study from a rollout</h2>
+    <ol>
+      <li><b>The left side</b>: flat before adoption? Necessary, but not proof: small pre-trends can hide in wide intervals, and a pre-trend test has little power.</li>
+      <li><b>The shape after</b>: a jump, a build-up, or a fade? A build-up or a fade is your warning that a one-number regression would mislead.</li>
+      <li><b>Where it stops</b>: the horizon ends when the fair comparisons run out. Don't extrapolate beyond it.</li>
+      <li><b>By wave</b>: do early and late waves agree? Drop special pilots as a check.</li>
+      <li><b>One number</b>: if you report one, build it from the fair comparisons, and say how it was averaged.</li>
+    </ol>
+  </div>
+  <aside class="script">
+    <p>So when you read an event study from a rollout, check five things. First, the left side: is it flat before adoption? That's necessary but not proof, because small pre-trends can hide inside wide intervals. Second, the shape after: a jump, a build-up, or a fade? A build-up or a fade warns you that a one-number regression would mislead. Third, where it stops: the horizon ends when the fair comparisons run out, so don't extrapolate beyond it. Fourth, by wave: do early and late waves agree? And fifth, if you report one number, build it from fair comparisons and say how you averaged.</p>
+  </aside>
+</section>
+
+<section class="slide" id="py-cs" data-part="4 · Modern tools" data-pause>
+  <div class="slide-card">
+    <h2>In Python: the one-number regression vs. fair comparisons</h2>
+    <div class="pycell" data-colab="staggered"><textarea>
+import numpy as np
+d = np.genfromtxt("greenplate_simulated.csv", delimiter=",", skip_header=1, usecols=(0, 2, 5, 6))
+city, t, D, sales = d.T                       # simulated: 300 cities x 48 months
+N, T = int(city.max()), int(t.max()) + 1
+Y = np.log(sales + 1).reshape(N, T)          # one row per city, one column per month
+D = D.reshape(N, T)
+g = np.where(D.any(1), D.argmax(1), np.inf)  # each city's adoption month (inf = not treated by the end)
+
+# 1. the one-number regression (city and month constants), by subtracting city and month means
+dm = lambda A: A - A.mean(1, keepdims=True) - A.mean(0, keepdims=True) + A.mean()
+print(f"one-number regression:      {(dm(Y) * dm(D)).sum() / (dm(D) ** 2).sum():.3f}")
+
+# 2. fair comparisons: each wave vs. cities not yet treated, from the month before the wave adopted
+blocks = []                                   # (months since adoption, estimate, cities in the wave)
+for gg in np.unique(g[np.isfinite(g)]).astype(int):
+    wave = g == gg
+    for e in range(0, 13):
+        tt = gg + e
+        if tt >= T:
+            break
+        fair = g > tt                         # not yet treated in month tt (or never)
+        if fair.sum() == 0:
+            continue
+        att = (Y[wave, tt] - Y[wave, gg - 1]).mean() - (Y[fair, tt] - Y[fair, gg - 1]).mean()
+        blocks.append((e, att, wave.sum()))
+b = np.array(blocks)
+print(f"fair comparisons, averaged: {np.average(b[:, 1], weights=b[:, 2]):.3f}")
+for e in (0, 3, 6, 12):
+    s = b[b[:, 0] == e]
+    print(f"  {e:2d} months after adoption: {np.average(s[:, 1], weights=s[:, 2]):.2f}")
+print("truth (we simulated the data): 0.43 on average; 0.20, 0.36, 0.52, 0.62 at 0, 3, 6, 12 months")
+</textarea></div>
+    <p class="small">Your turn: use only never-treated cities as comparisons (<code>fair = ~np.isfinite(g)</code>). Same answer? Why are there only 12 such cities?</p>
+  </div>
+  <aside class="script">
+    <p>Here's the whole idea in code, on the simulated rollout. The first part runs the one-number regression, which gives point three four. The second part loops over waves and months, compares each wave only with cities not yet treated, from the month before the wave adopted, and averages the building blocks. That gives point four three, the truth, and the event study rises month by month as it should. Then try using only never-treated cities as comparisons.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-4" data-part="4 · Modern tools" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="b">
+      <div class="q">1. What does the Callaway–Sant'Anna approach do differently from the one-number regression?</div>
+      <button class="opt" data-k="a">It adds more control variables.</button>
+      <button class="opt" data-k="b">It builds the estimate only from fair comparisons (each wave vs. units not yet or never treated) and then averages them with stated weights.</button>
+      <button class="opt" data-k="c">It drops the pre-period.</button>
+      <div class="explain">The building blocks are clean 2×2s; already-treated units never serve as comparisons.</div>
+    </div>
+    <div class="quiz" data-answer="c">
+      <div class="q">2. Why does the green-plate event study stop six months after adoption?</div>
+      <button class="opt" data-k="a">The effect disappears after six months.</button>
+      <button class="opt" data-k="b">The authors chose a short window to look better.</button>
+      <button class="opt" data-k="c">By the end of 2018 nearly every city had adopted, so there were no not-yet-treated cities left to compare with.</button>
+      <div class="explain">The horizon of a rollout study ends when the fair comparisons run out.</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">3. In the drug-negotiation study, the quantity effect keeps rising for six quarters. Why does that matter for the choice of method?</div>
+      <button class="opt" data-k="a">A growing effect is exactly when the one-number regression's forbidden comparisons bias it; the modern estimator avoids them.</button>
+      <button class="opt" data-k="b">It doesn't: any method gives the same answer.</button>
+      <button class="opt" data-k="c">Growing effects violate parallel trends.</button>
+      <div class="explain">Growth in the effect is not a parallel-trends violation; it is heterogeneity over time, which the one-number regression mishandles.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>And three final questions on the modern tools and the two studies.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= WRAP-UP -->
+<section class="slide" id="summary" data-part="Wrap-up">
+  <div class="slide-card">
+    <h2>Summary</h2>
+    <table class="t formula-table" style="font-size:15px">
+      <tr><td>Rollouts</td><td>Most changes reach units at different dates. Each wave is its own difference-in-differences; waves still waiting are natural comparisons. If you control the order, randomize it.</td></tr>
+      <tr><td>Fair vs. forbidden</td><td>Fair comparisons use units not yet (or never) treated. Units treated earlier are forbidden: their outcomes are already moved by the treatment.</td></tr>
+      <tr><td>The trap</td><td>The one-number regression mixes in forbidden comparisons. When effects build up, fade, or differ by wave, it can be far too small or have the wrong sign.</td></tr>
+      <tr><td>The fix</td><td>Callaway–Sant'Anna and its relatives: only fair building blocks, averaged into an event study, by wave, or overall.</td></tr>
+      <tr><td>Two studies</td><td>Green plates: EV sales build up to about +60%. Drug negotiations: prices fall at once, quantities build up more than tenfold. In both, the fair comparisons run out late in the rollout.</td></tr>
+    </table>
+  </div>
+  <aside class="script">
+    <p>Let's wrap up. Most changes reach units at different dates, and each wave is its own difference-in-differences, with the waves still waiting as natural comparisons. If you control the order, randomize it.</p>
+    <p>Fair comparisons use units not yet treated, or never treated. Units treated earlier are forbidden, because their outcomes are already moved by the treatment. The one-number regression mixes those forbidden comparisons in, and when effects build up, fade, or differ by wave, it can be badly wrong. The fix is to build the estimate only from fair comparisons and then average, as Callaway and Sant'Anna do.</p>
+    <p>And we saw it in two studies: green plates, where electric car sales built up over months, and drug negotiations, where prices fell at once and quantities built up over quarters.</p>
+  </aside>
+</section>
+
+<section class="slide" id="next" data-part="Wrap-up">
+  <div class="slide-card">
+    <h2>Practice, and thanks</h2>
+    <div class="cols">
+      <div>
+        <h3>Practice notebook</h3>
+        <p>The two-wave example, the simulated green-plate rollout: the one-number regression, fair comparisons by hand, the event study, and an exercise with never-treated cities only.</p>
+        <div class="btn-row" data-notebook-links></div>
+        <p class="small">In Colab: <i>File → Save a copy in Drive</i> to keep your own version.</p>
+      </div>
+      <div>
+        <h3>Further reading</h3>
+        <p class="small">Baker, Larcker &amp; Wang (2022), "How Much Should We Trust Staggered Difference-in-Differences Estimates?" <i>Journal of Financial Economics</i> (a readable start); Callaway &amp; Sant'Anna (2021), <i>Journal of Econometrics</i>; Roth, Sant'Anna, Bilinski &amp; Poe (2023), "What's Trending in Difference-in-Differences?" <i>Journal of Econometrics</i>.</p>
+      </div>
+    </div>
+    <p class="small">Thanks to Paul Ellickson and Eric Zou for sharing their teaching materials, and to my coauthors Jinyang Zheng, Panle Jia Barwick, and Ashley Swanson.</p>
+  </div>
+  <aside class="script">
+    <p>That's the end of this module. The practice notebook has the two-wave example and the simulated green-plate rollout, with the fair comparisons done by hand. Thanks for watching.</p>
+  </aside>
+</section>
+
+</div>
+</body>
+</html>
