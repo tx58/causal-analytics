@@ -385,14 +385,19 @@
     return text.replace(/\s+/g, " ").trim().split(/(?<=[.!?])\s+(?=[A-Z0-9"“(])/).filter(Boolean);
   }
   function renderTranscript(s) {
+    // timed lines: the archived clip's transcript, or (assets/transcripts.js) the transcript of the
+    // recording now playing; a fresh take in recording mode has none yet, so it shows the script
     const arch = state.archive && window.ARCHIVE_TRANSCRIPTS && window.ARCHIVE_TRANSCRIPTS[s.id];
+    const own = !state.archive && state.mode === "audio" && !(RECORD && Recorder.takeFor(s.id)) && window.TRANSCRIPTS && window.TRANSCRIPTS[s.id];
+    const timed = arch || own;
+    state.timed = !!timed;
     ui.tTag.hidden = true;
-    if (arch) {
+    if (timed) {
       ui.tLabel.textContent = "Transcript";
       ui.tTag.hidden = false;
-      ui.tTag.textContent = `${CFG.archiveLabel}, auto-generated`;
-      ui.tBody.innerHTML = "<p>" + arch.map(([t, txt]) =>
-        `<span class="line" data-t="${t}"><span class="ts">${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}</span>${escapeHtml(txt)}</span> `).join("") + "</p>";
+      ui.tTag.textContent = arch ? `${CFG.archiveLabel}, auto-generated` : "auto-generated from the recording";
+      const stamp = (t) => (arch ? `<span class="ts">${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}</span>` : "");
+      ui.tBody.innerHTML = "<p>" + timed.map(([t, txt]) => `<span class="line" data-t="${t}">${stamp(t)}${escapeHtml(txt)}</span> `).join("") + "</p>";
       ui.tBody.querySelectorAll(".line").forEach((el) => el.addEventListener("click", () => {
         audio.currentTime = +el.dataset.t; if (audio.paused) audio.play().catch(() => {});
       }));
@@ -410,7 +415,7 @@
     }));
   }
   function syncLines(t) {
-    if (!state.archive) return;
+    if (!state.timed) return;
     const lines = ui.tBody.querySelectorAll(".line[data-t]");
     let cur = -1;
     lines.forEach((el, k) => { if (+el.dataset.t <= t + 0.2) cur = k; });

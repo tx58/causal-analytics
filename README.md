@@ -1,6 +1,6 @@
-# Causal Analytics: self-paced modules
+# Causal Analytics: asynchronous materials
 
-Self-paced web modules (slides with voice-over, simulations, and Python that runs in the browser).
+Asynchronous materials as web pages (slides with voice-over, simulations, and Python that runs in the browser).
 
 Site: https://tianlixia.com/causal-analytics/
 
