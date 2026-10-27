@@ -1,0 +1,957 @@
+<!doctype html>
+<!--
+  Asynchronous module 6 (GBA 436, Fall B 2026, posted after Lecture 12; written so it can be reused):
+  synthetic control and instrumental variables in the potential-outcomes framework. Web module built per
+  Tianli (2026-10-25: "build the synthetic control method and IV in PO framework for async 6 ... use the
+  AEC520 material ... roughly 40 mins"). Backbone: P. Ellickson, AEC 520 handouts 6 (synthetic controls)
+  and 7 (IV and LATE); MHE 4.4; Abadie (2021, JEL). Data: the live sessions' Prop 99 replication
+  (L11, own figures), JTPA (Bloom et al. 1997; MHE/MM data), Illinois Workplace Wellness (L12, public).
+  Numbers: code/A6_web_data.py -> assets/a6data.js. Player and editing: ../A1_LLN_CLT_regression_math/README.md.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Synthetic Control and IV</title>
+<meta name="description" content="Self-paced module: synthetic control and instrumental variables in the potential-outcomes framework: the missing potential outcome, synthetic weights, factor models, placebo inference, compliance types, the LATE theorem, and whose effect IV estimates.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="assets/player.css">
+<style>
+  .parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin-top: 12px; }
+  .parts button { text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 10px 12px; cursor: pointer; font-size: 15px; line-height: 1.35; }
+  .parts button:hover { border-color: var(--brand); }
+  .parts button b { display: block; color: var(--brand); font-size: 13px; text-transform: uppercase; letter-spacing: .05em; }
+  .feature { display: grid; grid-template-columns: 36px 1fr; gap: 6px 10px; align-items: start; margin: 8px 0; }
+  .feature .ic { width: 32px; height: 32px; border-radius: 8px; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  .formula-table td { text-align: left; vertical-align: top; }
+  .formula-table td:first-child { color: var(--muted); }
+  table.t td.hi, table.t th.hi { color: var(--accent); font-weight: 650; }
+  table.types td, table.types th { text-align: center; }
+  figure { margin: 0; }
+  figure img { width: 100%; height: auto; display: block; border-radius: 8px; background: #fff; }
+  figure figcaption { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  svg.plot .line-v { fill: none; stroke: var(--c-est); stroke-width: 2.5; }
+  svg.plot .line-u { fill: none; stroke: var(--c-sample); stroke-width: 2.5; }
+  svg.plot .line-g { fill: none; stroke: var(--good); stroke-width: 2.5; }
+  svg.plot .line-m { fill: none; stroke: var(--faint); stroke-width: 1.2; opacity: .55; }
+  svg.plot .line-cf { fill: none; stroke-width: 2; stroke-dasharray: 6 4; }
+  svg.plot .hull { fill: var(--c-band); stroke: var(--c-sample); stroke-width: 1.2; stroke-dasharray: 4 3; }
+  svg.plot .dot-v { fill: var(--c-est); } svg.plot .dot-u { fill: var(--c-sample); } svg.plot .dot-g { fill: var(--good); } svg.plot .dot-m { fill: var(--faint); }
+  svg.plot .wline { stroke: var(--good); stroke-width: 1.5; opacity: .8; }
+  svg.plot .bar-v { fill: var(--c-est); opacity: .85; } svg.plot .bar-u { fill: var(--c-sample); opacity: .75; }
+  svg.plot .band-a { fill: var(--c-est); opacity: .12; } svg.plot .band-c { fill: var(--good); opacity: .16; } svg.plot .band-n { fill: var(--c-sample); opacity: .12; }
+  .widget .sliders { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 4px 18px; margin: 6px 0 10px; font-size: 14.5px; }
+  .widget .sliders label { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+  .widget .sliders input[type=range] { accent-color: var(--brand); width: 120px; }
+  @media (max-width: 760px) { .slide-card table.t { display: block; overflow-x: auto; max-width: 100%; } }
+</style>
+<script>
+  window.MODULE_CONFIG = {
+    moduleId: "A6-sc-iv",
+    title: "Synthetic control and IV",
+    subtitle: "Causal Analytics · Asynchronous module",
+    // Colab buttons: publish_site.py writes the GitHub location into the published copy.
+    colabUrl: "",
+    github: "tx58/causal-analytics/A6",
+    notebook: "A6_notebook.ipynb",
+    pySetup: async (py) => {
+      for (const f of ["smoking.csv", "jtpa.csv"]) {
+        const r = await fetch("data/" + f);
+        py.FS.writeFile(f, await r.text());
+      }
+    },
+  };
+</script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script defer src="assets/charts.js"></script>
+<script defer src="assets/a6data.js"></script>
+<script defer src="assets/widgets.js"></script>
+<script defer src="assets/transcripts.js"></script>
+<script defer src="assets/player.js"></script>
+</head>
+<body>
+<div id="deck">
+
+<!-- ======================================================================= START -->
+<section class="slide title-slide" id="title" data-part="Start" data-title="Welcome">
+  <div class="slide-card">
+    <div class="eyebrow">Causal Analytics · Asynchronous module</div>
+    <h1>Synthetic control and IV, in potential outcomes</h1>
+    <p class="lead" style="color:var(--muted);margin:0 0 10px">What each method assumes about the missing potential outcome, why it works, how to test it, and whose effect it estimates</p>
+    <div class="who">Tianli Xia · Simon Business School, University of Rochester</div>
+    <div class="start-row">
+      <button class="btn primary" data-action="play-all">▶ Watch from the start (auto-advance)</button>
+      <button class="btn" data-action="next">Go at my own pace →</button>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Welcome to this module. In the live sessions, we learned synthetic control and instrumental variables mostly through pictures and cases: California's tobacco program, the New York Times paywall, a wellness program offered at random, Super Bowl ads.</p>
+    <p>Here we look under the hood, using the language from the module on potential outcomes. For each method we ask the same questions: which potential outcome is missing, how the method fills it in, what has to be true for that to work, and whose effect we end up estimating. There is some math, but every formula comes with a picture or a simulation you can play with.</p>
+  </aside>
+</section>
+
+<section class="slide" id="how-to" data-part="Start">
+  <div class="slide-card">
+    <h2>How to use this page</h2>
+    <div class="cols">
+      <div>
+        <div class="feature"><span class="ic">▶</span><div><b>Listen.</b> Each slide has its own short voice-over. Press <kbd>Space</kbd>; change the speed at the bottom right.</div></div>
+        <div class="feature"><span class="ic">⇄</span><div><b>Your pace.</b> Use <kbd>←</kbd> <kbd>→</kbd> or the contents. <i>Auto-advance</i> plays it like a video.</div></div>
+        <div class="feature"><span class="ic">≡</span><div><b>Read.</b> The transcript is under each slide (<kbd>T</kbd> hides it).</div></div>
+      </div>
+      <div>
+        <div class="feature"><span class="ic">✦</span><div><b>Try it.</b> Drag a treated unit around its donors; break parallel trends; add defiers to an experiment; move an instrument's strength.</div></div>
+        <div class="feature"><span class="ic">{ }</span><div><b>Code.</b> Python cells run in the page; the same code is in a Colab notebook.</div></div>
+        <div class="feature"><span class="ic">✓</span><div><b>Check.</b> Self-checks at the end of each half. Not graded.</div></div>
+      </div>
+    </div>
+    <p>Notation as in the module on potential outcomes: \(Y_{1i}, Y_{0i}\), treatment \(D_i\). New: \(Y^{N}_{1t}\) and \(Y^{I}_{1t}\) (synthetic control), and potential <i>treatments</i> \(D_{1i}, D_{0i}\) (IV).</p>
+    <div class="box key">
+      <div class="label">What you need for the exam</div>
+      <p><b>Synthetic control:</b> the setup in potential outcomes; the estimator as a weighted average of donors; why the weights are non-negative and sum to one; why matching a long pre-period helps; placebo inference. <b>IV:</b> potential treatments and the four compliance types; the four assumptions; the logic of the LATE theorem (the reduced form is the share of compliers times their effect); LATE vs. ATT and ATE; counting compliers. Not: the factor-model bias bounds or Abadie's kappa.</p>
+    </div>
+  </div>
+  <aside class="script">
+    <p>A quick word on how to use this page. As before, every slide has its own voice-over, you can go at your own pace, and the transcript is under each slide. There are several simulations: you'll drag a treated unit around its donors, break parallel trends, add defiers to an experiment, and change an instrument's strength.</p>
+    <p>For the exam: for synthetic control, know the setup in potential outcomes, the estimator, why the weights are non-negative and sum to one, why a long pre-period helps, and how placebo inference works. For IV, know the four compliance types, the four assumptions, the logic of the LATE theorem, and how LATE relates to the effect on the treated and the average effect. You don't need the bias bounds or the optional extensions.</p>
+  </aside>
+</section>
+
+<section class="slide" id="roadmap" data-part="Start">
+  <div class="slide-card">
+    <h2>Four parts</h2>
+    <div class="parts">
+      <button data-goto="one-unit"><b>Part 1</b>Synthetic control: one treated unit, one missing path, and the weights that fill it in</button>
+      <button data-goto="factor"><b>Part 2</b>Synthetic control: why matching the past works, and how to test it</button>
+      <button data-goto="iv-recap"><b>Part 3</b>IV with heterogeneous effects: compliance types and the LATE theorem</button>
+      <button data-goto="counting"><b>Part 4</b>LATE in practice: whose effect, counting compliers, and what compliers look like</button>
+      <button data-goto="next"><b>Wrap-up</b>Practice notebook</button>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Four parts. Part one sets up synthetic control in potential outcomes: one treated unit, one missing path, and the weights that fill it in. Part two asks why matching the past works, and how to test the result. Part three turns to instrumental variables when effects differ across people: compliance types and the LATE theorem. And part four is about LATE in practice: whose effect it is, how many compliers there are, and what they look like.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 1 -->
+<section class="slide" id="one-unit" data-part="1 · Synthetic control: setup">
+  <div class="slide-card">
+    <h2>One treated unit, one missing path</h2>
+    <ul>
+      <li>Units \(j = 1, \dots, J+1\), periods \(t = 1, \dots, T\). Unit 1 (California, West Germany, a market) is treated from period \(T_0 + 1\) on; the other \(J\) units, the <b>donor pool</b>, are never treated.</li>
+      <li>Two potential outcomes for unit 1 in each period: \(Y^{I}_{1t}\) with the intervention and \(Y^{N}_{1t}\) without. (The same objects as \(Y_1\) and \(Y_0\); <i>I</i> for intervention, <i>N</i> for none.)</li>
+      <li>The effects we want, one per post period:
+        \[ \tau_{1t} = Y^{I}_{1t} - Y^{N}_{1t} = Y_{1t} - Y^{N}_{1t}, \qquad t > T_0 \]</li>
+      <li>We observe \(Y_{1t}\). The missing piece is \(Y^{N}_{1t}\) after \(T_0\): what California's smoking would have been without its program.</li>
+      <li>With one treated unit there is nothing to average over. Every method must <b>impute a whole path</b> from the donors.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Let's set up synthetic control in potential outcomes. There are J plus one units observed over T periods. Unit one, say California, is treated from period T-zero plus one on. The other J units, the donor pool, are never treated.</p>
+    <p>For unit one in each period there are two potential outcomes: Y-I with the intervention, and Y-N without it. They're the same objects as Y-one and Y-zero from the module on potential outcomes; I for intervention, N for none. The effect in each post period is Y-I minus Y-N, and since unit one is treated, Y-I is just what we observe.</p>
+    <p>So the missing piece is Y-N after the intervention: what California's smoking would have been without the program. And with a single treated unit, there's nothing to average over. Every method has to impute a whole path from the donors.</p>
+  </aside>
+</section>
+
+<section class="slide" id="did-imputes" data-part="1 · Synthetic control: setup">
+  <div class="slide-card">
+    <h2>How difference-in-differences would impute it</h2>
+    <div class="widget" data-widget="p99Paths"></div>
+    <ul class="small">
+      <li>DiD imputes \(\hat Y^{N}_{1t} = \bar Y_{1,\text{pre}} + \big(\bar Y_{\text{donors},t} - \bar Y_{\text{donors,pre}}\big)\): <b>equal weights</b> on every donor, plus <b>parallel trends</b>.</li>
+      <li>Two threats: trends that are not parallel (policies often follow a crisis; outcomes revert; the Ashenfelter dip), and an arbitrary choice of comparison group.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>How would difference-in-differences fill in California's missing path? It takes California's pre-period level and adds the average change of the donors. That's two assumptions in one: every donor gets the same weight, and trends are parallel.</p>
+    <p>Look at the first view. Before 1988, California's smoking was already falling faster than the average of the other thirty-eight states. Parallel trends fails before the program even starts, and the average of all states is just a poor stand-in for California.</p>
+    <p>This is common. Policies are often launched in response to a crisis, and outcomes may revert on their own. Remember the Ashenfelter dip: trainees' earnings drop just before they join. And the choice of comparison group is often arbitrary. Synthetic control addresses both.</p>
+  </aside>
+</section>
+
+<section class="slide" id="two-stories" data-part="1 · Synthetic control: setup">
+  <div class="slide-card">
+    <h2>Two ways to impute, two selection stories</h2>
+    <table class="t formula-table">
+      <tr><th class="l"></th><th class="l">Fixed effects / DiD</th><th class="l">Lagged outcomes (unconfoundedness)</th></tr>
+      <tr><td>Assumes</td><td>\(E[Y_{0it} \mid \alpha_i, X_{it}, D_{it}] = E[Y_{0it} \mid \alpha_i, X_{it}]\)</td><td>\(E[Y_{0it} \mid Y_{i,t-h}, X_{it}, D_{it}] = E[Y_{0it} \mid Y_{i,t-h}, X_{it}]\)</td></tr>
+      <tr><td>Selection story</td><td>treated units differ in a <b>permanent</b> unobserved level \(\alpha_i\)</td><td>units were selected on their <b>past outcomes</b> (a bad year, a crisis)</td></tr>
+      <tr><td>Fails when</td><td>selection follows a transitory dip</td><td>a persistent unobserved difference remains</td></tr>
+    </table>
+    <ul>
+      <li>The two are <b>not nested</b>, and putting both a unit fixed effect and a lagged outcome in one regression is biased in short panels (the Nickell bias).</li>
+      <li>Synthetic control borrows from both: it matches the treated unit's <b>past outcomes</b> (like unconfoundedness) over a <b>long pre-period</b>, which also absorbs persistent differences (like fixed effects).</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Step back for a moment. There are two classic ways to fill in a missing untreated outcome in panel data, and they rest on different stories about selection.</p>
+    <p>Fixed effects, and difference-in-differences, assume treated units differ by a permanent unobserved level, alpha-i. Once you remove it, treatment is as good as random. The lagged-outcome approach assumes instead that units were selected on their past outcomes, like a bad year, and conditions on those. That's unconfoundedness again, as in the propensity-score module.</p>
+    <p>Which story is right depends on how the treatment was chosen. A state that adopts a policy because it's always been progressive fits the fixed-effects story. A firm that launches a turnaround plan after one terrible quarter fits the lagged-outcome story, and there, difference-in-differences would credit the plan with a recovery that was coming anyway.</p>
+    <p>The two aren't nested, and you can't simply put both in one regression: a unit fixed effect together with a lagged outcome is biased in short panels. Synthetic control borrows from both: it matches past outcomes, over a long pre-period, which also soaks up persistent differences.</p>
+  </aside>
+</section>
+
+<section class="slide" id="comparative" data-part="1 · Synthetic control: setup">
+  <div class="slide-card">
+    <h2>From hand-picked comparisons to a synthetic one</h2>
+    <ul>
+      <li><b>Comparative case studies</b> compare one aggregate unit with a few others chosen by judgment. Card (1990) asked whether the 1980 Mariel boatlift, which raised Miami's labor force by 7%, hurt less-skilled workers, by comparing Miami with Atlanta, Los Angeles, Houston, and Tampa.</li>
+      <li>Aggregates are good (less noise) and bad (no single unit is a close match).</li>
+      <li>The synthetic control idea (Abadie, Diamond &amp; Hainmueller): a <b>weighted average</b> of donors often resembles the treated unit far better than any single donor or the simple average. Choose the weights <b>systematically</b>, to reproduce the treated unit's characteristics <b>before</b> the intervention.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Synthetic control grew out of comparative case studies. In a famous example, David Card asked whether the 1980 Mariel boatlift, which raised Miami's labor force by seven percent almost overnight, hurt less-skilled workers there. He compared Miami with four cities chosen by judgment: Atlanta, Los Angeles, Houston, and Tampa.</p>
+    <p>Working with aggregates like cities and states helps, because averages are less noisy. But no single city is a close match for Miami. The insight of Abadie, Diamond and Hainmueller is that a weighted average of donors often resembles the treated unit much better than any one donor, or the simple average. And the weights can be chosen systematically: to reproduce the treated unit's characteristics before the intervention.</p>
+  </aside>
+</section>
+
+<section class="slide" id="estimator" data-part="1 · Synthetic control: setup">
+  <div class="slide-card">
+    <h2>The estimator</h2>
+    <ul>
+      <li>Weights \(\mathbf W = (w_2, \dots, w_{J+1})'\) with \(w_j \ge 0\) and \(\sum_j w_j = 1\). Each \(\mathbf W\) is a candidate synthetic control.</li>
+      <li>\(\mathbf X_1\) (\(k \times 1\)): pre-intervention characteristics of unit 1; \(\mathbf X_0\) (\(k \times J\)): the same for the donors. They usually include some pre-period outcomes (not all of them) and covariates.</li>
+      <li>Choose
+        \[ \mathbf W^* = \arg\min_{\mathbf W} \; \sqrt{\textstyle\sum_{h=1}^{k} v_h \big(X_{h1} - w_2 X_{h2} - \cdots - w_{J+1} X_{h,J+1}\big)^2} \]
+        where \(v_h \ge 0\) says how much predictor \(h\) matters (usually chosen so that the synthetic fits the pre-period <i>outcomes</i> best).</li>
+      <li>Then impute and subtract:
+        \[ \hat Y^{N}_{1t} = \sum_{j=2}^{J+1} w^*_j Y_{jt}, \qquad \hat\tau_{1t} = Y_{1t} - \sum_{j=2}^{J+1} w^*_j Y_{jt}, \quad t > T_0 \]</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Here's the estimator. A synthetic control is a set of weights on the donors, all non-negative and summing to one. X-one collects unit one's characteristics before the intervention, and X-zero the same characteristics for the donors. They usually include some pre-period outcomes and other predictors of the outcome.</p>
+    <p>We pick the weights that make the weighted average of the donors as close as possible to unit one on those characteristics. The v's say how much each characteristic counts, and they're usually chosen so that the synthetic tracks unit one's pre-period outcomes as closely as possible.</p>
+    <p>Then the imputed untreated path is the same weighted average of the donors' outcomes after the intervention, and the effect is the gap between unit one and its synthetic.</p>
+    <p>Notice what this does to the comparison with difference-in-differences. DiD also uses a weighted average of donors, with equal weights, and then it adjusts for the level gap. Synthetic control chooses unequal weights so that no level adjustment is needed: the synthetic is supposed to match unit one's level and its trend before the intervention. That's why it can work when trends aren't parallel on average: it finds the donors whose trends are parallel to unit one's.</p>
+  </aside>
+</section>
+
+<section class="slide" id="hull" data-part="1 · Synthetic control: setup" data-pause>
+  <div class="slide-card">
+    <h2>Try it: the geometry of the weights</h2>
+    <div class="widget" data-widget="hullPicture"></div>
+    <p class="small">Two predictors, eight donors. Non-negative weights summing to one can only reach points inside the shaded <b>convex hull</b> of the donors: the synthetic is the closest point in it. Drag the orange point (the treated unit).</p>
+  </div>
+  <aside class="script">
+    <p>Here's the geometry. Imagine only two predictors, so each donor is a point. Because the weights are non-negative and sum to one, a synthetic control can only land inside the shaded area, the convex hull of the donors. The best synthetic is the point in that area closest to the treated unit.</p>
+    <p>The orange treated point starts outside the hull. The synthetic lands on the nearest edge, using only two donors, and some mismatch remains. Drag the point around: outside the hull, the synthetic always sits on an edge or a corner, with one or two donors. That's why synthetic control weights are usually sparse, because with many predictors the treated unit is almost never inside the hull. Drag it inside, and the fit becomes perfect, but then many different weights fit equally well.</p>
+    <p>And it's also the method's honesty: it refuses to extrapolate. If the treated unit is unlike every combination of donors, the poor fit tells you so.</p>
+  </aside>
+</section>
+
+<section class="slide" id="p99-recipe" data-part="1 · Synthetic control: setup">
+  <div class="slide-card">
+    <h2>Synthetic California: the recipe and the fit</h2>
+    <div class="cols">
+      <table class="t">
+        <tr><th class="l">Donor state</th><th>Weight (live session)</th><th>Weight (ADH 2010)</th></tr>
+        <tr><td class="l">Utah</td><td>0.371</td><td>0.334</td></tr>
+        <tr><td class="l">Nevada</td><td>0.246</td><td>0.234</td></tr>
+        <tr><td class="l">Colorado</td><td>0.241</td><td>0.164</td></tr>
+        <tr><td class="l">Montana</td><td>0.073</td><td>0.199</td></tr>
+        <tr><td class="l">Connecticut</td><td>0.068</td><td>0.069</td></tr>
+        <tr><td class="l">Other 33 states</td><td>0</td><td>0</td></tr>
+      </table>
+      <table class="t">
+        <tr><th class="l">Before 1989</th><th>California</th><th>Synthetic</th><th>Average of 38</th></tr>
+        <tr><td class="l">Log income per capita</td><td>10.08</td><td>9.88</td><td>9.83</td></tr>
+        <tr><td class="l">Retail price (cents)</td><td>89.4</td><td>89.4</td><td>87.3</td></tr>
+        <tr><td class="l">Beer per capita</td><td>24.3</td><td>23.6</td><td>23.7</td></tr>
+        <tr><td class="l">Packs per capita, 1975</td><td>127.1</td><td>126.8</td><td>136.9</td></tr>
+        <tr><td class="l">Packs per capita, 1980</td><td>120.2</td><td>120.1</td><td>138.1</td></tr>
+        <tr><td class="l">Packs per capita, 1988</td><td>90.1</td><td>91.7</td><td>113.8</td></tr>
+      </table>
+    </div>
+    <ul class="small">
+      <li>Five states with positive weight; 33 with zero: sparse, as the geometry predicts. The synthetic matches California's pre-1989 smoking and its predictors far better than the average state does.</li>
+      <li>The gap after 1988 averages <b>−17.9 packs per person</b> (−23%) over 1989–2000.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Here's the recipe for synthetic California from the live session's replication. Five states get positive weight: Utah, Nevada, Colorado, Montana, and Connecticut. The other thirty-three get zero, just as the geometry predicts. The weights are close to the published ones; the small differences come from the optimizer.</p>
+    <p>On the right is the fit. Before 1989, the synthetic matches California's cigarette sales in 1975, 1980, and 1988 almost exactly, and it matches the retail price and beer consumption too. The average of the other thirty-eight states smoked far more by 1988. After 1988, the gap between California and its synthetic averages minus eighteen packs per person, about twenty-three percent.</p>
+  </aside>
+</section>
+
+<section class="slide" id="regression-weights" data-part="1 · Synthetic control: setup">
+  <div class="slide-card">
+    <h2>Synthetic weights vs. regression weights</h2>
+    <div class="cols c-60">
+      <div class="widget" data-widget="wBars"></div>
+      <div>
+        <ul class="small">
+          <li>A regression of the donors' post-period outcomes on their characteristics, evaluated at unit 1's characteristics, is <i>also</i> a weighted average of donors:
+            \[ \mathbf W^{\text{reg}} = \bar{\mathbf X}_0'\big(\bar{\mathbf X}_0\bar{\mathbf X}_0'\big)^{-1}\bar{\mathbf X}_1 \]
+            (\(\bar{\mathbf X}\): \(\mathbf X\) with a row of ones).</li>
+          <li>Its weights sum to one, but can be <b>negative</b> or above one (extrapolation), and spread over every donor.</li>
+          <li>West Germany: the synthetic uses 5 countries; regression uses all 16, with Greece, Portugal, Italy, and Spain negative. Prop 99: 12 negative regression weights; the regression-weight gap is −11 packs vs. −18.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>How does this compare with regression? A regression of the donors' post-period outcomes on their characteristics, evaluated at the treated unit's characteristics, turns out to be a weighted average of the donors too, with the weights shown here.</p>
+    <p>Those regression weights also sum to one, but they can be negative or larger than one, which means extrapolation, and they spread over every donor. The chart shows West Germany: the synthetic control uses five countries, led by Austria, the United States, and Japan. The regression uses all sixteen, with negative weights on Greece, Portugal, Italy, and Spain. For California, regression puts negative weight on twelve states and gives a smaller effect, minus eleven packs instead of minus eighteen.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 2 -->
+<section class="slide" id="factor" data-part="2 · Synthetic control: why and tests">
+  <div class="slide-card">
+    <h2>Why matching the past works: a factor model</h2>
+    <p>Synthetic control is not derived from a model, but Abadie, Diamond &amp; Hainmueller justify it with an "as-if" model for the untreated outcome:</p>
+    \[ Y^{N}_{it} = \delta_t + \lambda_t\, \mu_i + \varepsilon_{it} \]
+    <ul>
+      <li>\(\delta_t\): shocks common to all units. \(\mu_i\): unit \(i\)'s unobserved <b>loading</b> (how exposed it is). \(\lambda_t\): a common <b>factor</b> that moves over time.</li>
+      <li>If \(\lambda_t\) is constant, \(\lambda\mu_i\) is just a fixed effect: back to DiD and parallel trends. If \(\lambda_t\) moves, units with different \(\mu_i\) trend differently: <b>parallel trends fails</b>.</li>
+      <li>If the synthetic matches unit 1's outcomes over a <b>long</b> pre-period, it must have \(\sum_j w_j \mu_j \approx \mu_1\); then it keeps tracking unit 1's untreated path after \(T_0\), even as \(\lambda_t\) moves.</li>
+      <li>The catch: with <b>noisy</b> outcomes and a <b>short</b> pre-period, the weights can fit noise instead of \(\mu_1\) (overfitting).</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Why does matching the past work? Synthetic control isn't derived from a model, but its authors justify it with an as-if model for the untreated outcome. Each unit's outcome is a common shock, plus a common factor lambda-t times the unit's own loading mu-i, plus noise. Think of mu-i as how exposed the unit is to some force, like the national decline in smoking.</p>
+    <p>If the factor is constant over time, lambda times mu-i is just a fixed effect, and we're back to difference-in-differences with parallel trends. But if the factor moves, units with different loadings trend differently, and parallel trends fails.</p>
+    <p>Here's the key: if the synthetic matches unit one's outcomes over a long pre-period, its weighted loading has to match unit one's loading. And then it keeps tracking unit one's untreated path after the intervention, even as the factor moves. The catch: with noisy outcomes and a short pre-period, the weights can fit the noise instead.</p>
+    <p>In potential-outcome terms, this is the whole identification argument. The synthetic's untreated outcome equals unit one's untreated outcome, apart from noise, because both are built from the same common shocks and the same loading. Difference-in-differences needs the loadings to be irrelevant; synthetic control only needs them to be matchable.</p>
+  </aside>
+</section>
+
+<section class="slide" id="factor-sim" data-part="2 · Synthetic control: why and tests" data-pause>
+  <div class="slide-card">
+    <h2>Try it: when parallel trends fails</h2>
+    <div class="widget" data-widget="factorSim"></div>
+  </div>
+  <aside class="script">
+    <p>Let's see it. Twenty donors, each with its own loading between zero and two, and a common factor that rises over time, so units with bigger loadings rise faster. The treated unit has a loading of one point five, and the true effect is minus eight from period twenty-one on.</p>
+    <p>Difference-in-differences, in blue, assumes the treated unit follows the average donor, so it gets the wrong trend and the wrong effect. The synthetic control, in green, matches the pre-period, finds donors with loadings near one point five, and lands close to minus eight.</p>
+    <p>Now push the treated loading above two, outside the donors' range. No combination of donors can keep up, the pre-period fit gets visibly worse, and the estimate goes wrong. Then raise the noise and shorten the pre-period: the weights start chasing noise.</p>
+  </aside>
+</section>
+
+<section class="slide" id="bias" data-part="2 · Synthetic control: why and tests">
+  <div class="slide-card">
+    <h2>What controls the bias</h2>
+    <table class="t formula-table">
+      <tr><td>Noise vs. pre-period length</td><td>Bias from overfitting shrinks as the pre-period grows relative to the noise in the outcome. Aggregates (states, countries) help; long pre-periods help, unless the world changed along the way.</td></tr>
+      <tr><td>Interpolation</td><td>A good average can hide bad ingredients: the synthetic matches \(\mathbf X_1\) on average while each donor is far from unit 1. Restrict the donor pool to units that are similar to begin with.</td></tr>
+      <tr><td>Donor pool size</td><td>More donors make a close fit easier and overfitting easier too. Leave out units hit by similar shocks or policies (Prop 99 drops states that passed their own programs).</td></tr>
+      <tr><td>Fit quality</td><td>A poor pre-period fit is a warning: the method does not extrapolate, so it cannot fix it.</td></tr>
+    </table>
+    <p class="small">Synthetic control is more "algorithmic" than "model-based" (Arkhangelsky &amp; Imbens): a strength, because it needs no functional form, and a limitation, because its assumptions are less explicit.</p>
+  </div>
+  <aside class="script">
+    <p>What controls the bias? First, noise against pre-period length. The weights fit the past better when the past is long and the outcome isn't too noisy. That's why synthetic control works best with aggregates like states and countries, and long histories, as long as the world didn't change along the way.</p>
+    <p>Second, interpolation. A synthetic can match the treated unit on average while every ingredient is far away. So restrict the donor pool to units that are similar to begin with. Third, the donor pool: more donors make a close fit easier, but also make overfitting easier. And drop units hit by similar policies, as the Prop 99 study dropped states with their own tobacco programs.</p>
+    <p>Finally, read the pre-period fit. A poor fit is a warning, because the method won't extrapolate to fix it.</p>
+  </aside>
+</section>
+
+<section class="slide" id="sc-assumptions" data-part="2 · Synthetic control: why and tests">
+  <div class="slide-card">
+    <h2>What has to be true, in potential-outcome terms</h2>
+    <table class="t formula-table">
+      <tr><td>No anticipation</td><td>\(Y_{1t} = Y^{N}_{1t}\) for \(t \le T_0\): the pre-period really is untreated. If people reacted to the announcement, move \(T_0\) earlier.</td></tr>
+      <tr><td>No interference</td><td>Donors' observed outcomes are their \(Y^{N}_{jt}\). If California's tax pushed smokers to buy in Nevada, Nevada's sales rise and the effect is <b>overstated</b>.</td></tr>
+      <tr><td>No other shock to unit 1 alone at \(T_0\)</td><td>Another California-only policy starting in 1989 would be credited to Prop 99. Shocks shared with donors are fine.</td></tr>
+      <tr><td>The synthetic keeps tracking</td><td>A synthetic that matched unit 1 before \(T_0\) would have kept matching it: the factor model's job, helped by a long pre-period and similar donors.</td></tr>
+      <tr><td>A good fit is possible</td><td>Unit 1 lies (close to) inside the donors' convex hull. If not, no weights will fix it.</td></tr>
+    </table>
+  </div>
+  <aside class="script">
+    <p>Let's state the assumptions in potential-outcome terms. First, no anticipation: the pre-period must really be untreated. If people reacted to the announcement before the program started, move the start date earlier. Second, no interference: the donors' observed outcomes must be their untreated outcomes. If California's tax sent smokers across the border to buy in Nevada, Nevada's sales would rise, and the effect would be overstated.</p>
+    <p>Third, nothing else may hit California alone at the same moment; shocks shared with the donors are fine, because the synthetic absorbs them. Fourth, a synthetic that tracked California before the program must have kept tracking it, which is what the factor model argument delivers. And fifth, a good fit must be possible at all.</p>
+  </aside>
+</section>
+
+<section class="slide" id="inference" data-part="2 · Synthetic control: why and tests">
+  <div class="slide-card">
+    <h2>Inference: pretend each donor was treated</h2>
+    <div class="cols c-60">
+      <figure><img src="img/fig_p99_placebo.png" alt="Gaps between each state and its synthetic control; California in red"><figcaption>Gap between each state and its own synthetic. California (red) and 38 placebos, each treated "as if" in 1989.</figcaption></figure>
+      <div>
+        <ul class="small">
+          <li>One treated unit: no central limit theorem, no usual standard error.</li>
+          <li>Instead, the permutation logic from the module on experiments: if the program did nothing, California is just one of 39 states. Re-run the method <b>as if each donor were treated</b>, and see where California's gap falls among the placebo gaps.</li>
+          <li>California's post-1988 gap stands out below every placebo whose pre-period fit is comparable.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>How do we know the gap isn't just luck? With a single treated unit there's no central limit theorem and no usual standard error. Instead, synthetic control borrows the shuffling logic from the module on experiments.</p>
+    <p>If the program did nothing, California is just one of thirty-nine states. So we pretend each donor state was treated in 1989, build its own synthetic control from the remaining states, and compute its gap. Those are the grey lines. Before 1989, they all hover around zero. After 1989, California's red line falls below almost every placebo. A gap that large rarely happens by chance among states that weren't treated.</p>
+  </aside>
+</section>
+
+<section class="slide" id="ratio" data-part="2 · Synthetic control: why and tests">
+  <div class="slide-card">
+    <h2>A p-value from 39 placebos</h2>
+    <div class="cols c-60">
+      <figure><img src="img/fig_p99_ratio.png" alt="Ratio of post- to pre-period fit, by state"><figcaption>Post-1989 miss divided by pre-1989 miss (root mean squared prediction error), by state.</figcaption></figure>
+      <div>
+        <ul class="small">
+          <li>Some placebos fit their own past badly, so their post-period gaps are big too. Divide each state's post-period miss by its pre-period miss.</li>
+          <li>California ranks <b>first of 39</b>: \(p = 1/39 = 0.026\), the smallest p-value this design can produce.</li>
+          <li>Alternative: drop placebos whose pre-period fit is much worse than California's. The verdict is the same.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Some placebo states fit their own past badly, so their post-period gaps are large for reasons that have nothing to do with treatment. The standard fix is to divide each state's post-period miss by its pre-period miss. A state with a good fit before and a big gap after gets a large ratio.</p>
+    <p>California ranks first of thirty-nine. If the program did nothing, the chance that California would come out on top is one in thirty-nine, a p-value of point zero two six, which is the smallest this design can produce. Dropping the badly fitting placebos instead gives the same verdict.</p>
+  </aside>
+</section>
+
+<section class="slide" id="robustness" data-part="2 · Synthetic control: why and tests">
+  <div class="slide-card">
+    <h2>Two more checks: backdating and leave-one-out</h2>
+    <div class="cols">
+      <figure><img src="img/fig_p99_intime.png" alt="In-time placebo: synthetic California built with a fake 1980 start"><figcaption>In-time placebo: pretend the program started in 1980.</figcaption></figure>
+      <figure><img src="img/fig_p99_loo.png" alt="Leave-one-out: dropping each donor in turn"><figcaption>Leave-one-out: drop each donor with positive weight, one at a time.</figcaption></figure>
+    </div>
+    <ul class="small">
+      <li><b>Backdating</b> (a placebo in time) probes anticipation and pre-existing divergence: gaps stay near zero in 1980–84, then open to −4 to −9 packs in 1985–88, before the program. A mixed result, and worth reporting as such.</li>
+      <li><b>Leave-one-out</b> probes reliance on a single donor: the average gap stays between −17.5 and −20.2 packs.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Two more checks. Backdating is a placebo in time: pretend the program started in 1980 and see whether a gap appears where none should. Here the gaps stay near zero from 1980 to 1984, but then open up to minus four to minus nine packs from 1985 on, before the program. That's a mixed result: some divergence may have started early. Report it honestly.</p>
+    <p>Leave-one-out asks whether the result hinges on one donor. Dropping each donor with positive weight in turn, the average gap stays between minus seventeen and a half and minus twenty packs. So no single state drives it.</p>
+  </aside>
+</section>
+
+<section class="slide" id="extensions" data-part="2 · Synthetic control: why and tests">
+  <div class="slide-card">
+    <h2>Beyond one treated unit, and the balance sheet</h2>
+    <div class="cols">
+      <div>
+        <h3>Extensions</h3>
+        <ul class="small">
+          <li><b>Several treated units</b>: one synthetic per unit, then aggregate, with the same care about cohorts and calendar time as in staggered DiD.</li>
+          <li><b>Synthetic DiD</b>: unit weights <i>and</i> time weights, plus a level shift.</li>
+          <li><b>Generalized synthetic control / interactive fixed effects</b>: estimate the factor model directly (the New York Times paywall study used it across metro areas).</li>
+          <li><b>Penalized and augmented</b> versions guard against far-away donors and imperfect fit.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Strengths and weaknesses</h3>
+        <ul class="small">
+          <li>+ Transparent: sparse weights, visible fit, matched characteristics</li>
+          <li>+ No extrapolation; no functional form for the outcome</li>
+          <li>+ Weaker (if less explicit) version of parallel trends</li>
+          <li>− Overfitting with noisy outcomes and short pre-periods</li>
+          <li>− Interpolation bias in place of extrapolation bias</li>
+          <li>− Inference is coarse (permutation), extensions are still developing</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Synthetic control keeps growing. With several treated units, you build one synthetic per unit and then aggregate, with the same care about cohorts and calendar time as in staggered difference-in-differences. Synthetic difference-in-differences adds time weights and a level shift. Generalized synthetic control estimates the factor model directly; that's what the New York Times paywall study used across metro areas. And penalized and augmented versions guard against far-away donors and imperfect fits.</p>
+    <p>The balance sheet: it's transparent, it doesn't extrapolate, and it needs a weaker version of parallel trends. But it can overfit noisy outcomes, it trades extrapolation bias for interpolation bias, and its inference is coarse.</p>
+  </aside>
+</section>
+
+<section class="slide" id="py-sc" data-part="2 · Synthetic control: why and tests" data-pause>
+  <div class="slide-card">
+    <h2>In Python: synthetic California in fifteen lines</h2>
+    <div class="pycell" data-colab="synthetic"><textarea>
+import numpy as np
+d = np.genfromtxt("smoking.csv", delimiter=",", names=True, dtype=None, encoding="utf-8")
+states = sorted(set(d["state"]))
+Y = np.array([[r["cigsale"] for r in d if r["state"] == s] for s in states]).T   # years x states
+years = np.arange(1970, 2001)
+pre = years <= 1988
+
+def project(v):                                   # closest point with w >= 0 and sum(w) = 1
+    u = np.sort(v)[::-1]; c = np.cumsum(u)
+    k = np.nonzero(u * np.arange(1, len(v) + 1) > c - 1)[0][-1]
+    return np.maximum(v - (c[k] - 1) / (k + 1), 0)
+
+def synth(y1, Y0, iters=3000):                    # weights that best match the pre-period outcomes
+    A, b = Y0[pre], y1[pre]
+    L = np.linalg.norm(A, 2) ** 2
+    w = z = np.ones(A.shape[1]) / A.shape[1]; t = 1.0
+    for _ in range(iters):                        # projected gradient steps, accelerated
+        w_new = project(z - A.T @ (A @ z - b) / L)
+        t_new = (1 + np.sqrt(1 + 4 * t * t)) / 2
+        z, w, t = w_new + (t - 1) / t_new * (w_new - w), w_new, t_new
+    return w
+
+def gap(s):                                       # state s minus its synthetic
+    i = states.index(s); others = [k for k in range(len(states)) if k != i]
+    w = synth(Y[:, i], Y[:, others])
+    return Y[:, i] - Y[:, others] @ w, {str(states[k]): round(float(x), 2) for k, x in zip(others, w) if x > 0.01}
+
+g, w = gap("California")
+print("weights:", w)
+print(f"average gap 1989-2000: {g[~pre].mean():.1f} packs; in 2000: {g[-1]:.1f}")
+ratio = {}
+for s in states:                                  # placebos: every state "treated" in 1989
+    gs = gap(s)[0]
+    ratio[s] = np.sqrt((gs[~pre] ** 2).mean() / (gs[pre] ** 2).mean())
+rank = sorted(ratio, key=ratio.get, reverse=True)
+print("largest post/pre ratios:", [(str(s), round(float(ratio[s]), 1)) for s in rank[:3]], "| California's rank:", rank.index("California") + 1, "of", len(states))
+</textarea></div>
+    <p class="small">This version matches only the 1970–88 outcomes, and each placebo state gets its own best fit. The gap (about −19.5 packs) is close to the published one, but California ranks <b>third</b> of 39, behind Missouri and Virginia: p ≈ 0.08 instead of 0.026, as in the live session's sensitivity check. The placebo loop takes several seconds.</p>
+  </div>
+  <aside class="script">
+    <p>Here's synthetic California in code. The function synth finds non-negative weights that sum to one and best match California's smoking from 1970 to 1988. Then the placebo loop does the same for every state and ranks the post-over-pre ratios.</p>
+    <p>The weights land close to the published ones, led by Utah, Montana, and Nevada, and the gap is about minus nineteen and a half packs. But because each placebo state now gets its own best fit, two states, Missouri and Virginia, show larger ratios than California, and the p-value rises to about point zero eight. That's a useful lesson: with one treated unit, choices like the predictors and their weights matter. Report them, and check whether the conclusion survives.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-1" data-part="2 · Synthetic control: why and tests" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="b">
+      <div class="q">1. Why does synthetic control restrict the weights to be non-negative and sum to one?</div>
+      <button class="opt" data-k="a">To make the computation faster.</button>
+      <button class="opt" data-k="b">So the synthetic is an interpolation of real donors (inside their convex hull): no extrapolation, sparse and interpretable weights.</button>
+      <button class="opt" data-k="c">So the estimate is unbiased whatever the data.</button>
+      <div class="explain">Regression weights also sum to one but can be negative, which extrapolates beyond the donors.</div>
+    </div>
+    <div class="quiz" data-answer="c">
+      <div class="q">2. In the factor model \(Y^{N}_{it} = \delta_t + \lambda_t \mu_i + \varepsilon_{it}\), when does difference-in-differences fail but synthetic control can still work?</div>
+      <button class="opt" data-k="a">When \(\lambda_t\) is constant.</button>
+      <button class="opt" data-k="b">When the treated unit's \(\mu_1\) is larger than every donor's.</button>
+      <button class="opt" data-k="c">When \(\lambda_t\) moves over time and \(\mu_1\) is within the donors' range, so a weighted average of donors can match it.</button>
+      <div class="explain">A moving factor breaks parallel trends; matching a long pre-period recovers \(\mu_1\), as long as donors bracket it.</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">3. With 39 states and California ranked first in the post/pre ratio, the permutation p-value is:</div>
+      <button class="opt" data-k="a">1/39 ≈ 0.026: the chance that a randomly chosen state would rank first if the program did nothing.</button>
+      <button class="opt" data-k="b">0.05, by convention.</button>
+      <button class="opt" data-k="c">It cannot be computed with one treated unit.</button>
+      <div class="explain">Permutation inference replaces the standard error: the rank among placebos is the evidence.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Three questions on synthetic control. Click an answer to see the explanation.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 3 -->
+<section class="slide" id="iv-recap" data-part="3 · IV and the LATE theorem">
+  <div class="slide-card">
+    <h2>IV with a constant effect: the ratio you know</h2>
+    <ul>
+      <li>Outcome \(Y_i = \beta_0 + \beta_1 D_i + u_i\), but \(D_i\) is correlated with \(u_i\), so OLS is biased.</li>
+      <li>An instrument \(Z_i\): relevant (\(\text{Cov}(Z_i, D_i) \neq 0\)) and exogenous (\(\text{Cov}(Z_i, u_i) = 0\)). Then
+        \[ \beta_1 = \frac{\text{Cov}(Z_i, Y_i)}{\text{Cov}(Z_i, D_i)} = \frac{\text{reduced form}}{\text{first stage}} \]</li>
+      <li>With a binary instrument, the <b>Wald</b> ratio:
+        \[ \beta_1 = \frac{E[Y_i \mid Z_i = 1] - E[Y_i \mid Z_i = 0]}{E[D_i \mid Z_i = 1] - E[D_i \mid Z_i = 0]} \]</li>
+      <li>Here \(\beta_1\) is the <b>same for everyone</b>. But effects differ across people: \(\beta_{1i} = Y_{1i} - Y_{0i}\). What does the ratio estimate then?</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Now instrumental variables. Let's start with what you know from the live session. The outcome is a constant plus beta-one times the treatment plus an error, but the treatment is correlated with the error, so OLS is biased. An instrument that moves the treatment, and is unrelated to the error, gives beta-one as a ratio: the effect of the instrument on the outcome, the reduced form, divided by its effect on the treatment, the first stage. With a binary instrument, that's the Wald ratio of two differences in means.</p>
+    <p>But notice the hidden assumption: beta-one is the same for everyone. In the language of potential outcomes, effects differ across people. So what does that ratio estimate when they do?</p>
+  </aside>
+</section>
+
+<section class="slide" id="potential-treatments" data-part="3 · IV and the LATE theorem">
+  <div class="slide-card">
+    <h2>Potential treatments</h2>
+    <ul>
+      <li>Two potential outcomes for the outcome, <b>and two for the treatment</b>: \(D_{1i}\) is what unit \(i\) would do if \(Z_i = 1\); \(D_{0i}\) if \(Z_i = 0\).</li>
+      <li>Observed treatment, like the switching equation:
+        \[ D_i = D_{0i} + (D_{1i} - D_{0i})\, Z_i \]
+        \(D_{1i} - D_{0i}\) is unit \(i\)'s own causal effect of the instrument on the treatment. We see only one of \(D_{1i}, D_{0i}\).</li>
+      <li>More generally \(Y_i(d, z)\): the outcome with treatment \(d\) and instrument \(z\).</li>
+      <li>The classic example (Angrist 1990): \(Z_i\) = draft-eligible in the Vietnam-era lottery (by birth date), \(D_i\) = served in the military, \(Y_i\) = earnings in the 1980s.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>The key new idea: the treatment has potential outcomes too. D-one-i is what unit i would do if the instrument were switched on, and D-zero-i if it were off. The observed treatment follows a switching equation, just like the outcome: D-zero plus the difference times Z. And the difference, D-one minus D-zero, is unit i's own causal effect of the instrument on the treatment. As always, we only see one of the two.</p>
+    <p>The classic example is Joshua Angrist's study of the Vietnam draft. The instrument is draft eligibility, assigned by a lottery over birth dates. The treatment is military service. The outcome is earnings in the 1980s.</p>
+  </aside>
+</section>
+
+<section class="slide" id="types" data-part="3 · IV and the LATE theorem">
+  <div class="slide-card">
+    <h2>Four compliance types</h2>
+    <div class="cols">
+      <div>
+        <p>Every unit is one of four types, by its pair \((D_{0i}, D_{1i})\):</p>
+        <table class="t types">
+          <tr><th></th><th>\(D_{0i} = 0\)</th><th>\(D_{0i} = 1\)</th></tr>
+          <tr><th>\(D_{1i} = 0\)</th><td>never-taker</td><td>defier</td></tr>
+          <tr><th>\(D_{1i} = 1\)</th><td class="hi">complier</td><td>always-taker</td></tr>
+        </table>
+        <p class="small">Draft: compliers served <i>because</i> they were drafted; always-takers volunteered; never-takers were exempt (health, school).</p>
+      </div>
+      <div>
+        <p>What we actually see in each cell of the data:</p>
+        <table class="t types">
+          <tr><th></th><th>\(Z_i = 0\)</th><th>\(Z_i = 1\)</th></tr>
+          <tr><th>\(D_i = 0\)</th><td>compliers + never-takers</td><td>never-takers <s>+ defiers</s></td></tr>
+          <tr><th>\(D_i = 1\)</th><td>always-takers <s>+ defiers</s></td><td>compliers + always-takers</td></tr>
+        </table>
+        <p class="small">Types are like potential outcomes: fixed, but never observed. With no defiers (crossed out), two cells contain a single type.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Potential treatments sort everyone into four types. Compliers take the treatment if the instrument is on and not otherwise: in the draft, men who served because they were drafted. Always-takers take it either way, like volunteers. Never-takers never do, like men exempt for health reasons. And defiers do the opposite of what the instrument says.</p>
+    <p>On the right is what we actually see. Each cell of the data mixes types. Among those not drafted and not serving, there are compliers and never-takers. Among those drafted and serving, compliers and always-takers. If we rule out defiers, the crossed-out entries disappear, and two cells contain a single type: drafted men who didn't serve are never-takers, and undrafted men who served are always-takers.</p>
+  </aside>
+</section>
+
+<section class="slide" id="assumptions" data-part="3 · IV and the LATE theorem">
+  <div class="slide-card">
+    <h2>Four assumptions</h2>
+    <table class="t formula-table">
+      <tr><th class="l">Assumption</th><th class="l">Formally</th><th class="l">In words, for a coupon offered at random</th></tr>
+      <tr><td>1. Independence</td><td>\(\{Y_i(d,z)\}_{d,z},\, D_{1i}, D_{0i} \perp\!\!\!\perp Z_i\)</td><td>the offer is as good as random (a lottery)</td></tr>
+      <tr><td>2. Exclusion</td><td>\(Y_i(d, 0) = Y_i(d, 1)\) for \(d = 0, 1\)</td><td>the offer affects purchases only through using the coupon, not as an ad</td></tr>
+      <tr><td>3. First stage</td><td>\(E[D_{1i} - D_{0i}] \neq 0\)</td><td>the offer changes who uses a coupon</td></tr>
+      <tr><td>4. Monotonicity</td><td>\(D_{1i} \ge D_{0i}\) for all \(i\) (no defiers)</td><td>nobody stops using coupons <i>because</i> they were offered one</td></tr>
+    </table>
+    <p>With exclusion, the outcome depends only on the treatment: \(Y_{1i} \equiv Y_i(1, \cdot)\), \(Y_{0i} \equiv Y_i(0, \cdot)\), and \(Y_i = Y_{0i} + (Y_{1i} - Y_{0i})D_i\) as before.</p>
+  </div>
+  <aside class="script">
+    <p>Four assumptions. One, independence: the instrument is as good as randomly assigned, so it's unrelated to everyone's potential outcomes and potential treatments. Two, exclusion: the instrument affects the outcome only through the treatment. Three, a first stage: the instrument actually changes the treatment for someone. And four, monotonicity: no defiers. The instrument can only push people in one direction.</p>
+    <p>Think of a coupon mailed at random. Independence holds by the lottery. Exclusion fails if the mailing itself works as an ad. Monotonicity fails if some people refuse to buy because they got a coupon. With exclusion, the outcome depends only on the treatment, so we're back to the familiar Y-one and Y-zero.</p>
+  </aside>
+</section>
+
+<section class="slide" id="where-instruments" data-part="3 · IV and the LATE theorem">
+  <div class="slide-card">
+    <h2>Where instruments come from, and which assumption to worry about</h2>
+    <table class="t formula-table">
+      <tr><th class="l">Source</th><th class="l">Examples</th><th class="l">Independence</th><th class="l">Worry most about</th></tr>
+      <tr><td>Randomized offers ("encouragement")</td><td>a coupon, an email, a wellness program offered at random</td><td>by design</td><td>exclusion: does the offer itself act like an ad?</td></tr>
+      <tr><td>Lotteries</td><td>the draft, charter-school and housing-voucher lotteries</td><td>by design</td><td>exclusion: did winners change other choices?</td></tr>
+      <tr><td>Random assignment to deciders</td><td>loan officers, judges, patent examiners with different leniency</td><td>if assignment is random</td><td>monotonicity: an officer lenient on one kind of case and strict on another</td></tr>
+      <tr><td>Geography and costs</td><td>distance to a college, a store, a hospital</td><td>doubtful: location tracks income</td><td>independence and exclusion</td></tr>
+      <tr><td>Shocks</td><td>weather; whose team plays in the Super Bowl</td><td>plausible</td><td>exclusion: the shock changes other things too</td></tr>
+    </table>
+  </div>
+  <aside class="script">
+    <p>Where do instruments come from in practice, and which assumption should keep you up at night? Randomized offers, or encouragement designs, like a coupon or a wellness program offered at random, get independence by design; the worry is exclusion: does the offer itself work like an ad? Lotteries, like the draft or charter-school lotteries, are similar: did winners change other choices?</p>
+    <p>Random assignment to decision makers, like loan officers or judges with different leniency, raises a monotonicity worry: an officer might be lenient on one kind of case and strict on another. Geography, like distance to a college, is doubtful on independence, because location tracks income. And shocks, like weather or whose team plays in the Super Bowl, threaten exclusion, because they change other things too.</p>
+  </aside>
+</section>
+
+<section class="slide" id="rf-fs" data-part="3 · IV and the LATE theorem">
+  <div class="slide-card">
+    <h2>The reduced form and the first stage are causal</h2>
+    <ul>
+      <li>Independence makes both comparisons of instrument groups causal:
+        \[ \underbrace{E[Y_i \mid Z_i = 1] - E[Y_i \mid Z_i = 0]}_{\text{reduced form (ITT)}} = E\big[Y_i(D_{1i}, 1) - Y_i(D_{0i}, 0)\big] \]
+        \[ \underbrace{E[D_i \mid Z_i = 1] - E[D_i \mid Z_i = 0]}_{\text{first stage}} = E[D_{1i} - D_{0i}] \]</li>
+      <li>The reduced form is the <b>intention-to-treat</b> effect from the module on experiments: the effect of the <i>offer</i>.</li>
+      <li>With no defiers, \(D_{1i} - D_{0i}\) is 1 for compliers and 0 for everyone else, so the first stage is the <b>share of compliers</b>, \(\pi_c\).</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Independence does a lot. It makes the comparison of outcomes across instrument groups a causal effect: the reduced form, which is the intention-to-treat effect from the module on experiments, the effect of the offer itself. And it makes the comparison of treatment rates causal: the first stage is the average effect of the instrument on the treatment.</p>
+    <p>Add monotonicity, and D-one minus D-zero equals one for compliers and zero for everyone else. So the first stage is simply the share of compliers in the population.</p>
+  </aside>
+</section>
+
+<section class="slide" id="late-theorem" data-part="3 · IV and the LATE theorem">
+  <div class="slide-card">
+    <h2>The LATE theorem, in three steps</h2>
+    <div class="steps">
+      <div class="step"><p><b>1. Split the reduced form by type.</b> With exclusion, \(Y_i(D_{1i},1) - Y_i(D_{0i},0) = (D_{1i} - D_{0i})(Y_{1i} - Y_{0i})\). So</p>
+        \[ \text{ITT} = \pi_a \cdot 0 + \pi_n \cdot 0 + \pi_c\, E[Y_{1i} - Y_{0i} \mid \text{complier}] - \pi_d\, E[Y_{1i} - Y_{0i} \mid \text{defier}] \]
+        <p class="small">Always-takers and never-takers do the same thing whatever \(Z\) says, so (by exclusion) their outcomes don't move.</p></div>
+      <div class="step"><p><b>2. Monotonicity removes the defiers</b> (\(\pi_d = 0\)), whose effects would otherwise enter with a minus sign:</p>
+        \[ \text{ITT} = \pi_c \, E[Y_{1i} - Y_{0i} \mid \text{complier}] \]</div>
+      <div class="step"><p><b>3. Divide by the first stage</b>, which is \(\pi_c\):</p>
+        \[ \frac{E[Y_i \mid Z_i = 1] - E[Y_i \mid Z_i = 0]}{E[D_i \mid Z_i = 1] - E[D_i \mid Z_i = 0]} = E[Y_{1i} - Y_{0i} \mid D_{1i} > D_{0i}] \equiv \text{LATE} \]
+        <p>The Wald ratio is the <b>local average treatment effect</b>: the average effect for compliers (Imbens &amp; Angrist 1994).</p></div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Here's the LATE theorem in three steps. Step one: split the reduced form by type. By exclusion, each person's outcome moves only if their treatment moves. Always-takers and never-takers do the same thing whatever the instrument says, so they contribute nothing. Compliers contribute their effect, weighted by their share. And defiers contribute their effect with a minus sign, because the instrument pushes them out of treatment.</p>
+    <p>Step two: monotonicity rules out defiers, so the reduced form is just the share of compliers times their average effect.</p>
+    <p>Step three: divide by the first stage, which is exactly the share of compliers. The ratio is the average effect for compliers: the local average treatment effect, or LATE. That's the theorem of Imbens and Angrist.</p>
+    <p>Notice what we didn't need: we never assumed the effect is the same for everyone. Always-takers can gain a lot, never-takers can gain nothing, and compliers can be somewhere in between. The ratio still has a clean meaning; it's just the meaning of one subgroup. That's the price of letting effects differ: the instrument tells us about the people it moves, and only them.</p>
+  </aside>
+</section>
+
+<section class="slide" id="late-sim" data-part="3 · IV and the LATE theorem" data-pause>
+  <div class="slide-card">
+    <h2>Try it: which assumption breaks what</h2>
+    <div class="widget" data-widget="lateSim"></div>
+    <p class="small">Expected values for a large population with the instrument assigned 50/50. Effects can differ by type.</p>
+  </div>
+  <aside class="script">
+    <p>Let's break the theorem on purpose. Here's a population with four types, each with its own effect. At the start there are no defiers and no direct effect of the instrument, so the Wald ratio equals the compliers' effect, four, even though always-takers gain eight and never-takers gain only one. Notice that the average effect and the effect on the treated are different numbers.</p>
+    <p>Now add some defiers. Their effects enter with a minus sign, and the ratio drifts away from the compliers' effect. Then set defiers back to zero and add a direct effect of the instrument, an exclusion violation. The bias equals the direct effect divided by the first stage, so it explodes when the first stage is small. Lower the share of compliers and watch.</p>
+  </aside>
+</section>
+
+<section class="slide" id="weak-iv" data-part="3 · IV and the LATE theorem">
+  <div class="slide-card">
+    <h2>Why a weak first stage is dangerous, in potential-outcome terms</h2>
+    <ul>
+      <li>Small violations get <b>divided by the first stage</b>. With a direct effect \(\delta\) of the instrument (exclusion fails a little):
+        \[ \text{Wald} = \frac{\pi_c\, \text{LATE} + \delta}{\pi_c} = \text{LATE} + \frac{\delta}{\pi_c} \]
+        A direct effect of 0.1 is harmless when 60% are compliers (bias 0.17), and fatal when 2% are (bias 5).</li>
+      <li>Defiers work the same way: \(\text{Wald} = \dfrac{\pi_c\,\tau_c - \pi_d\,\tau_d}{\pi_c - \pi_d}\), and the denominator shrinks with every defier.</li>
+      <li>In samples, a weak instrument also makes the estimate noisy and pulls 2SLS toward OLS. Check the first stage first: a first-stage F well above 10.</li>
+      <li>The live session's cases were strong: Illinois F ≈ 4,200 (56% compliers); the Super Bowl first stage was precise (+7.7 rating points, SE 0.9).</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>The theorem also explains why a weak first stage is dangerous. Suppose exclusion fails a little: the instrument has a small direct effect, delta, on everyone's outcome. Then the Wald ratio equals the LATE plus delta divided by the share of compliers. A direct effect of point one is harmless when sixty percent are compliers, and fatal when only two percent are: the bias becomes five.</p>
+    <p>Defiers work the same way, shrinking the denominator. And in real samples, a weak instrument also makes the estimate noisy and pulls two-stage least squares toward OLS. So always check the first stage first. The cases in the live session were strong: the Illinois first stage had an F-statistic around forty-two hundred.</p>
+  </aside>
+</section>
+
+<section class="slide" id="draft" data-part="3 · IV and the LATE theorem">
+  <div class="slide-card">
+    <h2>The draft lottery, read as a LATE</h2>
+    <table class="t">
+      <tr><th class="l">White men born 1950</th><th>Reduced form: earnings, eligible − not</th><th>First stage: served, eligible − not</th><th class="hi">LATE</th></tr>
+      <tr><td class="l">Earnings in 1981</td><td>−$435.8</td><td>0.159</td><td class="hi">−$2,741</td></tr>
+      <tr><td class="l">Earnings in 1971</td><td>−$325.9</td><td>0.159</td><td class="hi">−$2,050</td></tr>
+    </table>
+    <ul>
+      <li>Draft eligibility raised the probability of serving by 16 points: <b>16% of men were compliers</b>.</li>
+      <li>The LATE is the effect of service on men who served <b>because</b> they were drafted: not volunteers (always-takers), not men exempt for health reasons (never-takers).</li>
+      <li>Checks: eligibility had no effect on earnings in 1969, before the lottery; and none for men born in 1953, who were never drafted.</li>
+    </ul>
+    <p class="src">Angrist (1990), "Lifetime Earnings and the Vietnam Era Draft Lottery," <i>American Economic Review</i>.</p>
+  </div>
+  <aside class="script">
+    <p>Here's the draft lottery read as a LATE. For white men born in 1950, draft eligibility lowered 1981 earnings by about four hundred and thirty-six dollars. That's the reduced form. Eligibility raised the probability of serving by sixteen points. That's the first stage, and it says sixteen percent of men were compliers. The ratio, minus two thousand seven hundred and forty-one dollars, is the effect of military service on the compliers.</p>
+    <p>And who are they? Men who served because they were drafted: not volunteers, who would have served anyway, and not men exempt for health reasons. Two checks support the design: eligibility had no effect on earnings in 1969, before the lottery, and none for men born in 1953, who were never drafted.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 4 -->
+<section class="slide" id="counting" data-part="4 · LATE in practice">
+  <div class="slide-card">
+    <h2>Counting the types</h2>
+    <div class="cols c-60">
+      <div>
+        <p>With independence and no defiers, the shares are identified from two treatment rates:</p>
+        \[ \pi_a = E[D_i \mid Z_i = 0], \qquad \pi_c = E[D_i \mid Z_i = 1] - E[D_i \mid Z_i = 0], \qquad \pi_n = 1 - E[D_i \mid Z_i = 1] \]
+        <ul>
+          <li><b>JTPA job training</b> (a randomized offer, 7,812 adults): 65.4% of those offered trained; 1.3% of those not offered trained anyway.</li>
+          <li>So 1.3% always-takers, 64.1% compliers, 34.6% never-takers.</li>
+          <li><b>KIPP charter school lottery</b> (from <i>Mastering 'Metrics</i>): 4.6% always-takers, 74.1% compliers, 21.3% never-takers.</li>
+        </ul>
+      </div>
+      <div class="widget" data-widget="typeShares"></div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>How many compliers are there? With independence and no defiers, two treatment rates tell us. Among those not offered, everyone treated is an always-taker. Among those offered, everyone untreated is a never-taker. And the difference in treatment rates is the compliers.</p>
+    <p>Take the JTPA job-training experiment, where training was offered at random to about seventy-eight hundred adults. Sixty-five percent of those offered trained, and one point three percent of those not offered trained anyway. So one percent are always-takers, sixty-four percent compliers, and thirty-five percent never-takers. In the KIPP charter-school lottery from Mastering 'Metrics, compliers are seventy-four percent.</p>
+    <p>These shares matter for interpretation. A LATE based on sixty-four percent of the population tells you about most people. A LATE based on sixteen percent, as in the draft lottery, tells you about a much narrower group, and you should think hard about who they are before applying the number to anyone else.</p>
+  </aside>
+</section>
+
+<section class="slide" id="att-ate" data-part="4 · LATE in practice">
+  <div class="slide-card">
+    <h2>LATE, ATT, and ATE are different averages</h2>
+    <ul>
+      <li>The treated are always-takers plus the compliers who got \(Z_i = 1\). So the effect on the treated mixes two types:
+        \[ \underbrace{E[Y_{1i} - Y_{0i} \mid D_i = 1]}_{\text{ATT}} = E[\,\cdot \mid \text{always-taker}]\; P(\text{AT} \mid D_i = 1) + E[\,\cdot \mid \text{complier}]\; P(\text{C}, Z_i = 1 \mid D_i = 1) \]</li>
+      <li>Likewise the untreated mix never-takers and compliers, and the ATE mixes all three types.</li>
+      <li>IV says nothing about always-takers and never-takers: the instrument never changes what they do. Assuming their effects equal the compliers' is a constant-effects assumption.</li>
+      <li><b>Exception (Bloom 1984):</b> with <b>one-sided non-compliance</b> (no always-takers: nobody in the control group can get the treatment), the treated are all compliers, and LATE = ATT:
+        \[ \frac{\text{ITT}}{\text{compliance rate}} = E[Y_{1i} - Y_{0i} \mid D_i = 1] \]</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>LATE is not the effect on the treated, and not the average effect. The treated are always-takers plus the compliers who happened to get the instrument. So the effect on the treated is a weighted average of the always-takers' effect and the compliers' effect. Likewise, the untreated mix never-takers and compliers, and the average effect mixes all three.</p>
+    <p>IV is silent about always-takers and never-takers, because the instrument never changes what they do. Assuming their effects equal the compliers' is a constant-effects assumption, not something the data show.</p>
+    <p>There's one important exception, due to Howard Bloom. With one-sided non-compliance, where nobody in the control group can get the treatment, there are no always-takers. Then everyone treated is a complier, and the ratio is the effect on the treated.</p>
+    <p>That's why the exception matters so much in business experiments. When a firm offers a new service to a random half of its customers, and the other half simply can't get it, the ratio of the intention-to-treat effect to the take-up rate is the effect on the customers who actually used the service. That's often exactly the number a manager wants.</p>
+  </aside>
+</section>
+
+<section class="slide" id="jtpa" data-part="4 · LATE in practice">
+  <div class="slide-card">
+    <h2>JTPA: four answers to "what did training do?"</h2>
+    <div class="cols c-60">
+      <div class="widget" data-widget="jtpaBars"></div>
+      <div>
+        <ul class="small">
+          <li><b>ITT</b>: the offer raised earnings over 30 months by about $1,390. Diluted: a third of those offered never trained.</li>
+          <li><b>LATE</b> = ITT / first stage = 1,390 / 0.641 ≈ <b>$2,170</b> per trainee among compliers. With only 1.3% always-takers, this is close to the effect on the treated.</li>
+          <li><b>As treated</b> (trainees vs. everyone else) and <b>per protocol</b> (those who followed their assignment) are observational comparisons. Here they happen to land near the LATE; nothing guarantees it, as the next slide shows.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="src">Bloom et al. (1997), <i>Journal of Human Resources</i>; data as distributed with <i>Mostly Harmless Econometrics</i>.</p>
+  </div>
+  <aside class="script">
+    <p>Here are four answers to the question: what did job training do for earnings? The intention-to-treat effect is about thirteen hundred and ninety dollars over thirty months. That's the effect of the offer, diluted because a third of those offered never trained. Divide by the first stage, point six four, and you get about twenty-one hundred and seventy dollars per trainee among compliers. With so few always-takers, that's close to the effect on the treated.</p>
+    <p>The as-treated comparison, trainees against everyone else, and the per-protocol comparison are observational. Here they happen to land near the LATE. Nothing guarantees that, as the next example shows.</p>
+  </aside>
+</section>
+
+<section class="slide" id="complier-means" data-part="4 · LATE in practice">
+  <div class="slide-card">
+    <h2>What compliers look like: the wellness program</h2>
+    <div class="cols c-60">
+      <div class="widget" data-widget="compliersIll"></div>
+      <div>
+        <ul class="small">
+          <li>We can't label individual compliers, but we can estimate their <b>average</b> potential outcomes:
+            \[ E[Y_{1i} \mid \text{C}] = \tfrac{E[Y_iD_i \mid Z_i=1] - E[Y_iD_i \mid Z_i=0]}{\pi_c}, \quad E[Y_{0i} \mid \text{C}] = \tfrac{E[Y_i(1-D_i) \mid Z_i=0] - E[Y_i(1-D_i) \mid Z_i=1]}{\pi_c} \]
+            and never-takers' \(E[Y_{0i}]\) directly (offered, didn't take part).</li>
+          <li>Illinois Workplace Wellness (one-sided: no always-takers). Gym visits a year: compliers <b>7.4</b> with the program and <b>7.5</b> without. Never-takers: <b>3.8</b>.</li>
+          <li>The naive gap between participants and non-participants (+3.5) is <b>all selection</b>: participants were gym-goers anyway. The LATE is −0.1.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Here's a powerful trick. We can't label individual compliers, but we can estimate their average potential outcomes, both with and without treatment, using the formulas shown. And never-takers' untreated outcome is observed directly: they're the people offered the program who didn't take part.</p>
+    <p>Apply it to the Illinois wellness program from the live session. Compliers go to the gym about seven point four times a year with the program, and seven point five times without it: no effect. Never-takers go only three point eight times. So the naive gap between participants and non-participants, plus three and a half visits, is entirely selection: the people who signed up were gym-goers anyway.</p>
+  </aside>
+</section>
+
+<section class="slide" id="extrapolate" data-part="4 · LATE in practice">
+  <div class="slide-card">
+    <h2>From compliers to everyone? Compare the types' outcomes</h2>
+    <table class="t">
+      <tr><th class="l"></th><th>Compliers, \(E[Y_{0i}]\)</th><th>Never-takers, \(E[Y_{0i}]\)</th><th>Compliers, \(E[Y_{1i}]\)</th><th>Always-takers, \(E[Y_{1i}]\)</th></tr>
+      <tr><td class="l">JTPA: 30-month earnings</td><td>$18,371</td><td>$18,118</td><td>$20,541</td><td>$17,285 <span class="small">(34 people)</span></td></tr>
+      <tr><td class="l">Wellness: gym visits a year</td><td>7.5</td><td>3.8</td><td>7.4</td><td>none</td></tr>
+    </table>
+    <ul>
+      <li>IV gives the compliers' effect. Whether it applies to others is extrapolation, but the data can warn you: compare outcome <b>levels</b> across types.</li>
+      <li>JTPA: compliers and never-takers look alike without training, so the complier effect is a more plausible guide for the never-takers.</li>
+      <li>Wellness: never-takers go to the gym half as often. They are different people; a zero effect for compliers says little about what a program would do for them.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Can we extrapolate from compliers to everyone else? Strictly, no: IV identifies only the compliers' effect. But the data can warn you. We can estimate the outcome levels of each type, and compare: compliers' untreated outcomes with never-takers', and compliers' treated outcomes with always-takers'.</p>
+    <p>In JTPA, compliers and never-takers earn almost the same without training, so the compliers' effect is a more plausible guide for the never-takers. There are only thirty-four always-takers, too few to say much. In the wellness program, never-takers go to the gym half as often as compliers. They're different people, and a zero effect for the compliers tells us little about what a program would do for them.</p>
+  </aside>
+</section>
+
+<section class="slide" id="latent" data-part="4 · LATE in practice" data-pause>
+  <div class="slide-card">
+    <h2>Try it: whose effect? A latent-index view</h2>
+    <div class="widget" data-widget="latentIndex"></div>
+    <ul class="small">
+      <li>Treatment if \(\gamma_0 + \gamma_1 Z_i > v_i\), where \(v_i\) is unobserved <b>resistance</b> to treatment, independent of \(Z_i\) (a Heckman-style selection model). Monotonicity holds automatically.</li>
+      <li>Always-takers: \(v_i &lt; \gamma_0\). Compliers: \(\gamma_0 &lt; v_i &lt; \gamma_0 + \gamma_1\). Never-takers: \(v_i &gt; \gamma_0 + \gamma_1\). LATE = the average gain in the complier band.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Who exactly are the compliers? A latent-index model gives a picture. Each person has an unobserved resistance to treatment, v. They take the treatment if gamma-zero plus gamma-one times Z exceeds their resistance. People with low resistance take it anyway: always-takers. People with high resistance never do. The compliers are the band in between, and the LATE is the average gain in that band.</p>
+    <p>Suppose gains fall with resistance: eager people gain most. Move the instrument's strength, gamma-one. A stronger instrument pulls in more resistant people, and the LATE falls. So two valid instruments can give two different LATEs, without either being wrong. They simply move different people.</p>
+    <p>This picture also shows why the effect on the treated is usually larger than the LATE here: the treated include the always-takers, the least resistant and the biggest gainers. And the average effect for everyone sits lower still, because it includes never-takers who would gain little. Set the slope to zero, so everyone gains the same, and all three numbers coincide. Heterogeneity is what makes them differ.</p>
+  </aside>
+</section>
+
+<section class="slide" id="multiple-iv" data-part="4 · LATE in practice">
+  <div class="slide-card">
+    <h2>Several instruments, and covariates</h2>
+    <ul>
+      <li><b>Two instruments</b> \(Z_1, Z_2\), each with its own Wald ratio \(\rho_1, \rho_2\) (its own compliers). 2SLS with both is a weighted average:
+        \[ \rho_{\text{2SLS}} = \psi\,\rho_1 + (1 - \psi)\,\rho_2, \qquad \psi = \frac{\pi_{11}\text{Cov}(D_i, Z_{1i})}{\pi_{11}\text{Cov}(D_i, Z_{1i}) + \pi_{12}\text{Cov}(D_i, Z_{2i})} \]
+        with more weight on the stronger instrument. Different estimates from different instruments can both be right: different compliers.</li>
+      <li><b>Covariates</b>: if the instrument is random only within groups, assume independence given \(X_i\). Each \(X\) has its own LATE \(\lambda(X_i)\), and 2SLS with covariates estimates a weighted average of them.</li>
+      <li class="small"><i>Optional:</i> Abadie's kappa, \(\kappa_i = 1 - \frac{D_i(1-Z_i)}{1-P(Z_i=1\mid X_i)} - \frac{(1-D_i)Z_i}{P(Z_i=1\mid X_i)}\), "finds" the compliers by down-weighting always-takers and never-takers; with a linear first stage it reproduces 2SLS.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Two generalizations. With two instruments, each has its own Wald ratio for its own compliers. Two-stage least squares with both instruments gives a weighted average of the two, with more weight on the instrument with the stronger first stage. So when two instruments give different answers, that's not necessarily a contradiction: they may move different people.</p>
+    <p>And with covariates: if the instrument is only random within groups, we assume independence given X. Each group has its own LATE, and two-stage least squares with covariates estimates a weighted average of them. There's an elegant optional result, Abadie's kappa, that weights the data to find the compliers, and with a linear first stage it reproduces two-stage least squares.</p>
+  </aside>
+</section>
+
+<section class="slide" id="py-late" data-part="4 · LATE in practice" data-pause>
+  <div class="slide-card">
+    <h2>In Python: types, LATE, and complier means from JTPA</h2>
+    <div class="pycell" data-colab="late"><textarea>
+import numpy as np
+d = np.genfromtxt("jtpa.csv", delimiter=",", names=True)
+Z, D, Y = d["assignmt"], d["training"], d["earnings"]        # offer, training, 30-month earnings
+
+p1, p0 = D[Z == 1].mean(), D[Z == 0].mean()
+pa, pc, pn = p0, p1 - p0, 1 - p1                            # always-takers, compliers, never-takers
+itt = Y[Z == 1].mean() - Y[Z == 0].mean()
+print(f"shares: always {pa:.3f}, compliers {pc:.3f}, never {pn:.3f}")
+print(f"ITT ${itt:,.0f};  LATE = ITT / first stage = ${itt / pc:,.0f}")
+
+y1c = ((Y * D)[Z == 1].mean() - (Y * D)[Z == 0].mean()) / pc            # compliers, with training
+y0c = ((Y * (1 - D))[Z == 0].mean() - (Y * (1 - D))[Z == 1].mean()) / pc  # compliers, without
+print(f"compliers: ${y1c:,.0f} with training, ${y0c:,.0f} without (difference ${y1c - y0c:,.0f})")
+print(f"never-takers without training: ${Y[(Z == 1) & (D == 0)].mean():,.0f}")
+print(f"as treated (trainees vs. everyone else): ${Y[D == 1].mean() - Y[D == 0].mean():,.0f}")
+</textarea></div>
+    <p class="small">Your turn: repeat for men and women separately (<code>d["sex"]</code>: 1 = male). Is the LATE the same?</p>
+  </div>
+  <aside class="script">
+    <p>Here's all of it in code with the JTPA data: the three shares from two treatment rates, the intention-to-treat effect, the LATE as their ratio, and the compliers' average earnings with and without training. You'll see the compliers' difference equals the LATE exactly. Then try it separately for men and women: the effects are quite different.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-2" data-part="4 · LATE in practice" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="c">
+      <div class="q">1. In a coupon experiment, 50% of those offered use the coupon and 10% of those not offered use one anyway. Purchases are 2 points higher in the offered group. What is the LATE, and for whom?</div>
+      <button class="opt" data-k="a">2 points, for everyone offered.</button>
+      <button class="opt" data-k="b">4 points, for everyone who used a coupon.</button>
+      <button class="opt" data-k="c">2 / (0.5 − 0.1) = 5 points, for compliers: people who use a coupon only if offered one.</button>
+      <div class="explain">The first stage is the share of compliers (40%); always-takers (10%) and never-takers (50%) contribute nothing to the reduced form.</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">2. Why does monotonicity matter for the LATE theorem?</div>
+      <button class="opt" data-k="a">Defiers' effects would enter the reduced form with a minus sign, so the ratio could be a meaningless mix, even zero when everyone benefits.</button>
+      <button class="opt" data-k="b">It guarantees a strong first stage.</button>
+      <button class="opt" data-k="c">It makes the instrument random.</button>
+      <div class="explain">Without monotonicity, ITT = π<sub>c</sub>·(compliers' effect) − π<sub>d</sub>·(defiers' effect).</div>
+    </div>
+    <div class="quiz" data-answer="b">
+      <div class="q">3. A program can only be joined by those offered it (no always-takers). What does the Wald ratio estimate?</div>
+      <button class="opt" data-k="a">The ATE.</button>
+      <button class="opt" data-k="b">The effect on the treated (Bloom): with no always-takers, everyone treated is a complier.</button>
+      <button class="opt" data-k="c">Nothing: the first stage is zero.</button>
+      <div class="explain">One-sided non-compliance makes LATE = ATT; it still says nothing about never-takers.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Three questions on IV and LATE. Click an answer to see the explanation.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= WRAP-UP -->
+
+<section class="slide" id="next" data-part="Wrap-up">
+  <div class="slide-card">
+    <h2>Practice, and thanks</h2>
+    <div class="cols">
+      <div>
+        <h3>Practice notebook</h3>
+        <p>Synthetic California by hand with placebos; JTPA compliance types, LATE, and complier means; the wellness program's compliers vs. never-takers; a latent-index simulation.</p>
+        <div class="btn-row" data-notebook-links></div>
+        <p class="small">In Colab: <i>File → Save a copy in Drive</i> to keep your own version.</p>
+      </div>
+      <div>
+        <h3>Further reading</h3>
+        <p class="small">Abadie (2021), "Using Synthetic Controls," <i>Journal of Economic Literature</i>; Angrist &amp; Pischke, <i>Mastering 'Metrics</i> ch. 3 and <i>Mostly Harmless Econometrics</i> §4.4; Imbens &amp; Angrist (1994), <i>Econometrica</i>; Arkhangelsky &amp; Imbens (2024), "Causal Models for Longitudinal and Panel Data: A Survey."</p>
+      </div>
+    </div>
+    <p class="small">Thanks to Paul Ellickson, whose lecture notes on synthetic controls and on instrumental variables are the backbone of this module, and to Eric Zou, Elena Prager, and Avery Haviv for sharing their teaching materials.</p>
+  </div>
+  <aside class="script">
+    <p>That's the end of this module, and of the asynchronous material on methods. The practice notebook has synthetic California with placebos, the JTPA calculations, and the wellness program's compliers. Thanks for watching.</p>
+  </aside>
+</section>
+
+</div>
+</body>
+</html>
