@@ -1,0 +1,709 @@
+<!doctype html>
+<!--
+  Asynchronous module 1 for GBA 472 (Fall B 2026; written so it can be reused in other years):
+  sampling, the LLN, the CLT, confidence intervals and tests.
+  Built 2026-10-27 from the GBA 436 web module A1 (GBA436/01_Lectures/Async/A1_LLN_CLT_regression_math),
+  keeping its Parts 1-4 and dropping the three regression parts (Tianli's request). Tianli's own recordings
+  are reused; five clips were cut where they mentioned regression (code/make_audio.py).
+  Sources: GBA 472 handout2x (Fall 2025); Mastering 'Metrics, appendix to chapter 1; Stock & Watson chapters 2-3.
+
+  How this page works (details in ../README.md):
+  - every <section class="slide"> is one slide; its <aside class="script"> is the narration script,
+    shown as the transcript and read by the computer voice when no recording exists;
+  - audio/<slide id>.m4a (or .mp3/.webm) is the voice-over for that slide; open the page with
+    ?record at the end of the address to record takes in the browser;
+  - .widget[data-widget] blocks are simulations from assets/widgets.js; .pycell blocks run Python in the browser.
+  Rule for student-facing text here (slides AND scripts): no course numbers, terms, or lecture numbers.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Samples, the LLN and the CLT</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Self-paced module: samples, the law of large numbers, the central limit theorem, confidence intervals, and tests.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="assets/player.css">
+<style>
+  /* page-specific */
+  .parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin-top: 12px; }
+  .parts button { text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 10px 12px; cursor: pointer; font-size: 15px; line-height: 1.35; }
+  .parts button:hover { border-color: var(--brand); }
+  .parts button b { display: block; color: var(--brand); font-size: 13px; text-transform: uppercase; letter-spacing: .05em; }
+  .feature { display: grid; grid-template-columns: 36px 1fr; gap: 6px 10px; align-items: start; margin: 8px 0; }
+  .feature .ic { width: 32px; height: 32px; border-radius: 8px; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  .formula-table td { text-align: left; vertical-align: middle; }
+  .formula-table td:first-child { color: var(--muted); }
+</style>
+<script>
+  window.MODULE_CONFIG = {
+    moduleId: "GBA472-A1-lln-clt",
+    title: "Samples, the law of large numbers, and the central limit theorem",
+    subtitle: "Causal and Predictive Analytics · Asynchronous module",
+    // Colab buttons: on GitHub Pages (user.github.io/repo/A1/) they open A1_notebook.ipynb from the same
+    // repo automatically. Elsewhere they download the notebook, unless you set one of these:
+    //   github: "user/repo/A1"   or   colabUrl: "https://colab.research.google.com/drive/<file id>"
+    colabUrl: "",
+    github: "tx58/causal-analytics/GBA472/A1",
+    notebook: "A1_notebook.ipynb",
+  };
+</script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script defer src="assets/transcripts.js"></script>
+<script defer src="assets/widgets.js"></script>
+<script defer src="assets/player.js"></script>
+</head>
+<body>
+<div id="deck">
+
+<!-- ======================================================================= START -->
+<section class="slide title-slide" id="title" data-part="Start" data-title="Welcome">
+  <div class="slide-card">
+    <div class="eyebrow">Causal and Predictive Analytics · Asynchronous module</div>
+    <h1>Samples, the law of large numbers, and the central limit theorem</h1>
+    <div class="who">Tianli Xia · Simon Business School, University of Rochester</div>
+    <div class="start-row">
+      <button class="btn primary" data-action="play-all">▶ Watch from the start (auto-advance)</button>
+      <button class="btn" data-action="next">Go at my own pace →</button>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Welcome to this module.</p>
+    <p>Every number we compute comes from a sample. So how close is a sample number to the truth? Two results answer that question: the law of large numbers and the central limit theorem. Once we have them, we use them to build confidence intervals.</p>
+    <p>You can watch this like a video, with the slides advancing on their own, or go at your own pace. Many slides have something to try. Take your time with those.</p>
+  </aside>
+</section>
+
+<section class="slide" id="how-to" data-part="Start">
+  <div class="slide-card">
+    <h2>How to use this page</h2>
+    <div class="cols">
+      <div>
+        <div class="feature"><span class="ic">▶</span><div><b>Listen.</b> Each slide has its own short voice-over. Press <kbd>Space</kbd> or the play button. Change the speed at the bottom right.</div></div>
+        <div class="feature"><span class="ic">⇄</span><div><b>Your pace.</b> Use <kbd>←</kbd> <kbd>→</kbd> or the contents on the left. Turn on <i>Auto-advance</i> to watch it like a video.</div></div>
+        <div class="feature"><span class="ic">≡</span><div><b>Read.</b> The transcript sits under each slide (<kbd>T</kbd> hides it). Click a sentence to jump there.</div></div>
+      </div>
+      <div>
+        <div class="feature"><span class="ic">✦</span><div><b>Try it.</b> Slides marked <i>try it</i> have simulations. Change the settings and see what happens.</div></div>
+        <div class="feature"><span class="ic">{ }</span><div><b>Code.</b> Python cells run right in the page. Edit them and press <i>Run</i>. The same code is in a Colab notebook.</div></div>
+        <div class="feature"><span class="ic">✓</span><div><b>Check.</b> Short self-checks end each part. They are not graded.</div></div>
+      </div>
+    </div>
+    <div class="box key">
+      <div class="label">What you need for the exam</div>
+      <p>The ideas, and how to use the formulas: the standard error of a mean, confidence intervals, and <i>t</i>-statistics. The derivations are here so that you believe the results. You will not need to reproduce them.</p>
+    </div>
+  </div>
+  <aside class="script">
+    <p>A quick tour of the page. Every slide has its own short voice-over. Press the space bar or the play button to hear it, and change the speed at the bottom right.</p>
+    <p>You decide the pace. Use the arrow keys or the list of slides on the left. If you prefer to sit back, turn on auto-advance and the page plays like a video. It stops on the slides where you have something to do.</p>
+    <p>The transcript is under each slide, so you can read instead of listening.</p>
+    <p>Slides marked try it have small simulations. The code cells run Python inside the page, so you do not need to install anything. The same code is in a Colab notebook if you want to keep it.</p>
+    <p>For the exam, focus on the ideas and on using the formulas. The derivations are there so you can see where the results come from. You will not have to reproduce them.</p>
+  </aside>
+</section>
+
+<section class="slide" id="roadmap" data-part="Start">
+  <div class="slide-card">
+    <h2>The question behind every estimate</h2>
+    <p class="lead">You surveyed 400 customers and found an average spend of $45. How close is $45 to the average of <i>all</i> your customers?</p>
+    <div class="parts">
+      <button data-goto="prob-to-stats"><b>Part 1</b>From a sample to the population</button>
+      <button data-goto="xbar-rv"><b>Part 2</b>The sample mean is a random variable</button>
+      <button data-goto="lln"><b>Part 3</b>The law of large numbers and the CLT</button>
+      <button data-goto="ci-idea"><b>Part 4</b>Confidence intervals and tests</button>
+      <button data-goto="summary"><b>Wrap-up</b>Summary and practice notebook</button>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Here is the question behind every estimate. Suppose you survey 400 customers and their average spend is 45 dollars. You want the average of all your customers, not just these 400. How close is 45 likely to be?</p>
+    <p>Parts one to four answer this for the simplest estimate, a sample mean.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 1 -->
+<section class="slide" id="prob-to-stats" data-part="1 · From a sample to the population">
+  <div class="slide-card">
+    <h2>From probability to statistics</h2>
+    <ul class="lead">
+      <li><b>Statistics</b> makes inferences about a group of individuals (the <b>population</b>) using data collected from a subgroup (the <b>sample</b>).</li>
+      <li>Drawing a sample involves randomness. We use <b>probability</b> to describe the uncertainty that this sampling creates.</li>
+    </ul>
+    <div class="cols" style="margin-top:18px">
+      <div class="box"><div class="label">Probability</div><p>We know the population. What samples are likely?</p><p class="small">"A fair coin: how likely are 7 heads in 10 flips?"</p></div>
+      <div class="box"><div class="label">Statistics</div><p>We see a sample. What can we say about the population?</p><p class="small">"7 heads in 10 flips: is the coin fair?"</p></div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Let's start with what statistics is. Statistics is about learning something about a whole group, the population, from data on part of it, the sample.</p>
+    <p>Which individuals land in the sample is random. Probability is the language we use to describe that randomness.</p>
+    <p>The two directions are worth keeping apart. In probability, we know the population and ask which samples are likely, like how likely seven heads in ten flips of a fair coin are. In statistics, we go the other way. We see the sample, seven heads, and ask what it tells us about the coin.</p>
+  </aside>
+</section>
+
+<section class="slide" id="sampling" data-part="1 · From a sample to the population">
+  <div class="slide-card">
+    <h2>Sampling from the population</h2>
+    <div class="cols c-40">
+      <ul>
+        <li>For many reasons, you usually <b>can't examine every member</b> of the population.</li>
+        <li>Instead you collect data from a <b>sample drawn from that population</b>.</li>
+        <li>The hope: the sample <b>represents</b> the population, so what you learn from it informs decisions about everyone.</li>
+        <li>That is the fundamental goal of statistics.</li>
+      </ul>
+      <div class="widget" data-widget="popDiagram"></div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>In practice you can rarely look at everyone. Measuring every customer, every store, or every transaction is too expensive or too slow, or the population includes people who haven't arrived yet.</p>
+    <p>So you collect data on a sample drawn from the population. The picture shows the idea: a big population of dots, and a random handful of them highlighted. That handful is all you get to see. Press the button to draw another sample. Each time you get different dots.</p>
+    <p>The hope is that the sample looks like the population, so what you learn from it carries over to everyone. Random sampling is what makes that hope reasonable, and the rest of this module makes it precise.</p>
+  </aside>
+</section>
+
+<section class="slide" id="pop-sample" data-part="1 · From a sample to the population">
+  <div class="slide-card">
+    <h2>Population parameters and their sample analogs</h2>
+    <div class="cols">
+      <table class="t">
+        <tr><th class="l">Quantity</th><th>Population (unknown)</th><th>Sample (computed)</th></tr>
+        <tr><td class="l">mean</td><td>\(\mu_X\)</td><td>\(\bar X\)</td></tr>
+        <tr><td class="l">variance</td><td>\(\sigma_X^2\)</td><td>\(s_X^2\)</td></tr>
+        <tr><td class="l">covariance</td><td>\(\sigma_{XY}\)</td><td>\(s_{XY}\)</td></tr>
+        <tr><td class="l">regression slope</td><td>\(\beta_1\)</td><td>\(\hat\beta_1\)</td></tr>
+        <tr><td class="l">size</td><td>\(N\) (or \(\infty\))</td><td>\(n\)</td></tr>
+      </table>
+      <div>
+        <p><b>Examples</b></p>
+        <ul>
+          <li>Average return of "the market": the population could be all tradable assets, the sample the stocks in the Wilshire 5000.</li>
+          <li>Average monthly spend of all 1.2 million loyalty-card holders, estimated from a survey of 400.</li>
+        </ul>
+        <p class="small">Greek letters for population quantities, Latin letters or hats for their sample versions.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Each population quantity has a sample analog. The population mean, mu, is estimated by the sample mean, X bar. The population variance, sigma squared, by the sample variance, s squared. The same goes for the covariance and, as we will see, for a regression slope. Beta one is the population slope, and beta one hat is the slope we compute from our data.</p>
+    <p>For example, to learn the average return of the market, the population might be all tradable assets and the sample the stocks in a broad index. Or, for a retailer, the population is every loyalty-card holder and the sample is the 400 customers who answered a survey.</p>
+    <p>A convention that helps: Greek letters for population quantities we don't know, and Latin letters or hats for the numbers we compute.</p>
+  </aside>
+</section>
+
+<section class="slide" id="point-estimates" data-part="1 · From a sample to the population">
+  <div class="slide-card">
+    <h2>Point estimates and estimators</h2>
+    <ul>
+      <li>We use samples to learn key population parameters. This is <b>estimation</b>, or <b>statistical learning</b>.</li>
+      <li>A <b>point estimate</b> is a single number used to estimate an unknown parameter.
+        <ul>
+          <li>The sample mean \(\bar X\) estimates the population mean \(\mu_X\).</li>
+          <li>The sample variance \(s_X^2\) estimates the population variance \(\sigma_X^2\).</li>
+          <li>The sample covariance \(s_{XY}\) estimates the population covariance \(\sigma_{XY}\).</li>
+        </ul>
+      </li>
+      <li>An <b>estimator</b> is the recipe: a function of the sample that produces the number.</li>
+    </ul>
+    $$ \underbrace{f(\text{sample data})}_{\text{estimator}} \;=\; \underbrace{\text{a number}}_{\text{estimate}} $$
+    <p class="small">You will see both notations: a new letter (\(s_{XY}\) for \(\sigma_{XY}\)) or a hat on the parameter (\(\hat\sigma_{XY}\)).</p>
+  </div>
+  <aside class="script">
+    <p>Two words that sound alike but mean different things. A point estimate is one number, like 45 dollars. An estimator is the recipe that produced it, a formula you apply to whatever sample you happen to get.</p>
+    <p>The distinction matters because the recipe is fixed but the sample is random. Apply the same recipe to a different sample and you get a different number. So the questions "is this a good estimate?" and "is this a good recipe?" are different, and only the second has a clean answer. We will judge recipes by how they behave across all the samples we might have drawn.</p>
+  </aside>
+</section>
+
+<section class="slide" id="estimators" data-part="1 · From a sample to the population">
+  <div class="slide-card">
+    <h2>Formulas for common estimators</h2>
+    <div class="cols c-60">
+      <div>
+        $$ \text{Sample mean:}\quad \bar X=\frac1n\sum_{i=1}^n X_i $$
+        $$ \text{Sample variance:}\quad s_X^2=\frac{1}{n-1}\sum_{i=1}^n (X_i-\bar X)^2 $$
+        $$ \text{Sample covariance:}\quad s_{XY}=\frac{1}{n-1}\sum_{i=1}^n (X_i-\bar X)(Y_i-\bar Y) $$
+        $$ \text{Sample correlation:}\quad r_{XY}=\frac{s_{XY}}{s_X\, s_Y} $$
+      </div>
+      <div>
+        <p><b>In Python</b> (pandas columns <code>x</code>, <code>y</code>):</p>
+<pre class="codeview"><code>x.mean()     # sample mean
+x.var()      # sample variance (divides by n − 1)
+x.cov(y)     # sample covariance
+x.corr(y)    # sample correlation</code></pre>
+        <div class="box optional"><p class="small"><b>Why n − 1?</b> Deviations from \(\bar X\) are a bit smaller than deviations from \(\mu\), because \(\bar X\) is fitted to the same data. Dividing by \(n-1\) instead of \(n\) corrects that downward bias. Careful: <code>np.var(x)</code> divides by \(n\) unless you write <code>ddof=1</code>.</p></div>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Here are the recipes for the estimators we use most. The sample mean adds up the observations and divides by n. The sample variance averages the squared deviations from the mean, dividing by n minus one. The sample covariance does the same with products of deviations of X and Y, and the correlation rescales the covariance by the two standard deviations so that it lies between minus one and one.</p>
+    <p>In Python these are one-liners on a pandas column: mean, var, cov, and corr.</p>
+    <p>Why divide by n minus one? Deviations from the sample mean are slightly too small, because the sample mean is computed from the same data and sits in the middle of it. Dividing by n minus one corrects that. One trap: numpy's var function divides by n unless you set d d o f equal to one. Pandas divides by n minus one by default.</p>
+  </aside>
+</section>
+
+<section class="slide" id="try-sampling" data-part="1 · From a sample to the population" data-pause>
+  <div class="slide-card">
+    <h2>Try it: one population, many samples</h2>
+    <div class="widget" data-widget="sampler"></div>
+    <p class="small">Draw one sample at a time and watch \(\bar X\) jump around. Then draw 100 samples and compare the average and spread of your \(\bar X\)'s with \(\mu\) and \(\sigma/\sqrt n\). Switch \(n\) from 5 to 100.</p>
+  </div>
+  <aside class="script">
+    <p>Time to play. On the left is a population: the monthly spend of two thousand customers. Like most spending data, it is skewed. Most customers spend a little and a few spend a lot. The dashed line is the population mean, mu, which in real life you would not know.</p>
+    <p>Press draw one sample. The blue dots are the 25 customers you happened to get, and the orange line is their average, X bar. Press it a few more times. X bar jumps around, because each sample is different.</p>
+    <p>Now press draw 100 samples. The right panel collects all your sample means. Notice two things. They are centered on mu, and they are much less spread out than the population itself. The readout compares their spread with sigma over root n. Then switch n to 5 and to 100 and see how the spread changes. That is the whole module in one picture. The next slides explain it.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 2 -->
+<section class="slide" id="xbar-rv" data-part="2 · The sample mean is a random variable">
+  <div class="slide-card">
+    <h2>The sample mean is a random variable</h2>
+    <ul class="lead">
+      <li>Focus on the sample mean for now. The same arguments apply to the other estimators, including regression coefficients.</li>
+      <li>Random sampling makes \(\bar X\) <b>itself a random variable</b>: before we draw the sample, we don't know what it will be.</li>
+      <li>So \(\bar X\) has a distribution, the <b>sampling distribution</b>, with its own mean and standard deviation.</li>
+      <li>What are they?</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Here is the key shift in thinking. Once you have your data, X bar is just a number. But before you draw the sample, X bar is a random variable, because which customers you will get is random. You saw this in the simulation: every new sample gave a new X bar.</p>
+    <p>Because it is a random variable, X bar has a distribution, which we call its sampling distribution. Like any distribution, it has a mean and a standard deviation. Knowing those two numbers tells us how good the recipe is.</p>
+  </aside>
+</section>
+
+<section class="slide" id="mean-var" data-part="2 · The sample mean is a random variable">
+  <div class="slide-card">
+    <h2>Mean and variance of the sample mean</h2>
+    <p>With a random sample \(X_1,\dots,X_n\) from a population with mean \(\mu_X\) and variance \(\sigma_X^2\):</p>
+    <div class="cols">
+      <div class="box"><div class="label">Fact 1</div>$$E(\bar X)=\mu_X$$<p>Correct on average: <b>unbiased</b>, not systematically too high or too low.</p></div>
+      <div class="box"><div class="label">Fact 2</div>$$\operatorname{Var}(\bar X)=\frac{\sigma_X^2}{n}$$<p>Closer to \(\mu_X\) the larger the sample.</p></div>
+    </div>
+    <div class="steps box optional">
+      <div class="step"><p class="label">Optional: why? Two lines each</p>
+        $$E(\bar X)=E\Big(\frac1n\sum_i X_i\Big)=\frac1n\sum_i E(X_i)=\frac1n\, n\,\mu_X=\mu_X$$</div>
+      <div class="step">$$\operatorname{Var}(\bar X)=\frac1{n^2}\operatorname{Var}\Big(\sum_i X_i\Big)\overset{\text{independent}}{=}\frac1{n^2}\sum_i\operatorname{Var}(X_i)=\frac{n\,\sigma_X^2}{n^2}=\frac{\sigma_X^2}{n}$$
+        <p class="small">Independence is what lets the variance of the sum be the sum of the variances. Without random sampling, Fact 2 can fail.</p></div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Two facts describe the sampling distribution of X bar.</p>
+    <p>Fact one: the mean of X bar is the population mean. On average, across all the samples you might draw, X bar is right. We call this unbiased. It is not systematically too high or too low.</p>
+    <p>Fact two: the variance of X bar is the population variance divided by n. So the bigger the sample, the more tightly X bar clusters around the truth.</p>
+    <p>Why should you care? Because these facts tell you the recipe is a good one. It is right on average, and it gets more precise as you collect more data.</p>
+    <p>If you are curious where they come from, click through the optional box. Each fact takes two lines. Notice where independence is used. It is what lets us add up the variances, and that is why random sampling matters.</p>
+  </aside>
+</section>
+
+<section class="slide" id="se" data-part="2 · The sample mean is a random variable">
+  <div class="slide-card">
+    <h2>The standard error of the sample mean</h2>
+    <ul>
+      <li>The standard deviation of an estimator is called its <b>standard error</b>.</li>
+      <li>For the sample mean, it is the square root of \(\operatorname{Var}(\bar X)\):</li>
+    </ul>
+    $$ SE(\bar X)=\sigma_{\bar X}=\frac{\sigma_X}{\sqrt n} \qquad\text{estimated by}\qquad \widehat{SE}(\bar X)=\frac{s_X}{\sqrt n}$$
+    <div class="cols">
+      <div class="box key"><p><b>Why is \(\sigma_{\bar X}\) smaller than \(\sigma_X\)?</b> One customer can be far from the average. The average of 100 customers rarely is: the big and small spenders cancel out.</p></div>
+      <div class="box key"><p><b>The \(\sqrt n\) law.</b> To halve the standard error you need <b>four times</b> the data. Precision gets expensive.</p></div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The standard deviation of an estimator has a special name, the standard error. For the sample mean, it is sigma over the square root of n. In practice we don't know sigma, so we plug in the sample standard deviation, s.</p>
+    <p>Why is the standard error so much smaller than the standard deviation of the data? One customer can easily be far from the average. But for the average of a hundred customers to be far off, most of them would have to be unusual in the same direction, and that rarely happens. The highs and lows cancel out.</p>
+    <p>Notice the square root. Doubling the sample does not halve the standard error. You need four times as many observations to cut it in half. That is why precision gets expensive, and why companies run experiments on millions of users.</p>
+  </aside>
+</section>
+
+<section class="slide" id="two-coins" data-part="2 · The sample mean is a random variable" data-pause>
+  <div class="slide-card">
+    <h2>A picture: flipping an unfair coin</h2>
+    <p>A coin lands heads (\(X_i=1\)) with probability \(p=0.66\). With \(n=2\) flips, \(\bar X\) can only be 0, 0.5, or 1:</p>
+    <table class="t">
+      <tr><th class="l">Flips</th><th>\(\bar X\)</th><th class="l">Probability</th></tr>
+      <tr><td class="l">two tails</td><td>0</td><td class="l">\(0.34\times0.34\approx0.116\)</td></tr>
+      <tr><td class="l">one of each</td><td>0.5</td><td class="l">\(2\times0.34\times0.66\approx0.449\)</td></tr>
+      <tr><td class="l">two heads</td><td>1</td><td class="l">\(0.66\times0.66\approx0.436\)</td></tr>
+    </table>
+    <div class="widget" data-widget="coinExact"></div>
+    <p class="small">These are exact probabilities, not a simulation. Increase \(n\): the distribution of \(\bar X\) squeezes toward 0.66 (Fact 2) and starts to look like a bell. Tick <i>Standardize</i> to preview the next part.</p>
+  </div>
+  <aside class="script">
+    <p>Let's see the sampling distribution in the simplest possible case. A coin lands heads with probability 0.66, and X is one for heads and zero for tails. Flip it twice. The share of heads, X bar, can only be zero, one half, or one.</p>
+    <p>Two tails has probability 0.34 times 0.34, about 0.12. One of each can happen two ways, so its probability is two times 0.34 times 0.66, about 0.45. Two heads has probability 0.66 squared, about 0.44. That is the whole sampling distribution of X bar with two flips.</p>
+    <p>Now use the buttons to increase the number of flips. These are exact probabilities computed from the binomial formula, not a simulation. Two things happen. The distribution squeezes toward 0.66, which is fact two at work. And its shape turns into a bell. Hold on to that bell. It is the subject of the next part.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 3 -->
+<section class="slide" id="lln" data-part="3 · The LLN and the CLT" data-pause>
+  <div class="slide-card">
+    <h2>The law of large numbers</h2>
+    <div class="cols c-40">
+      <div>
+        <p>As the sample grows, the sample mean gets arbitrarily close to the population mean (with probability approaching one):</p>
+        $$\bar X \xrightarrow{\;p\;} \mu_X \quad\text{as } n\to\infty$$
+        <p class="small">It follows from Facts 1 and 2: the center stays at \(\mu_X\) while the spread \(\sigma_X/\sqrt n\) shrinks to zero.</p>
+        <p><b>Business versions:</b> insurers pool many policies; casinos win on average; an A/B test with millions of users measures conversion rates very precisely.</p>
+      </div>
+      <div class="widget" data-widget="lln"></div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The first big result is the law of large numbers. It says that as the sample gets larger, the sample mean gets as close as you like to the population mean.</p>
+    <p>It follows from the two facts. The center of X bar's distribution stays at mu, and its spread, sigma over root n, shrinks to zero. A distribution that stays centered on mu and whose spread goes to zero piles up right on mu.</p>
+    <p>Try it on the right. Flip the coin and watch the running share of heads. Early on it swings wildly. After a few thousand flips it settles near 0.66. Add a few classmates. Everyone starts in a different place, and everyone ends up at the same number. The shaded funnel shows where 95 percent of paths should be at each sample size.</p>
+    <p>This is why insurance works, why the casino always wins in the long run, and why an online experiment with millions of users can measure a conversion rate to a fraction of a percentage point. The law says nothing about the next flip, though. After five heads in a row, tails is not due.</p>
+  </aside>
+</section>
+
+<section class="slide" id="small-samples" data-part="3 · The LLN and the CLT" data-pause>
+  <div class="slide-card">
+    <h2>The flip side: small samples produce the extremes</h2>
+    <div class="widget" data-widget="smallSamples"></div>
+    <div class="cols">
+      <p>Every store has the same true conversion rate, 10%. Yet the "best" and "worst" stores are almost all small ones: with few visitors, \(\sigma/\sqrt n\) is large.</p>
+      <p class="small">Wainer called \(\sigma/\sqrt n\) "the most dangerous equation": the counties with the lowest and highest kidney-cancer rates, and the best and worst schools, tend to be the smallest. Before rewarding the top store or firing the manager of the bottom one, check its sample size.</p>
+    </div>
+    <p class="src">Wainer, H. (2007), "The Most Dangerous Equation," <i>American Scientist</i> 95(3).</p>
+  </div>
+  <aside class="script">
+    <p>The law of large numbers has a dangerous flip side. If big samples give precise averages, small samples give noisy ones, and noisy averages end up at the extremes.</p>
+    <p>Each dot is a store. Every one of these 200 stores has exactly the same true conversion rate, 10 percent. The only difference is how many visitors they had this month. The green dots are this month's top ten stores and the red dots the bottom ten. Look at where they are: almost all on the left, among the small stores. Press next month. A new set of small stores takes the top and bottom spots.</p>
+    <p>The statistician Howard Wainer called sigma over root n the most dangerous equation, because ignoring it leads to expensive mistakes. The counties with the lowest and the highest kidney-cancer rates are both mostly small rural counties. A foundation once poured money into small schools because small schools were overrepresented among the best, but they were also overrepresented among the worst. So before you reward the top store or fire the manager of the bottom one, look at the sample size.</p>
+  </aside>
+</section>
+
+<section class="slide" id="clt" data-part="3 · The LLN and the CLT">
+  <div class="slide-card">
+    <h2>The central limit theorem</h2>
+    <p>When \(n\) is large, the <b>standardized</b> sample mean is approximately standard normal, <b>whatever the distribution of \(X\)</b> (as long as its variance is finite):</p>
+    $$ Z=\frac{\bar X-\mu_X}{\sigma_X/\sqrt n}\;\approx\; N(0,1) \qquad\text{equivalently}\qquad \bar X \approx N\Big(\mu_X,\ \frac{\sigma_X^2}{n}\Big)$$
+    <div class="cols c-40">
+      <div>
+        <div class="box"><div class="label">LLN</div><p>Where \(\bar X\) ends up: at \(\mu_X\).</p></div>
+        <div class="box"><div class="label">CLT</div><p>The <i>shape</i> of its random error on the way: a bell curve of width \(\sigma_X/\sqrt n\).</p></div>
+        <p><b>Why care?</b> It lets us compute <b>margins of error</b> (52% ± 2%) and <b>test hypotheses</b> (is the mean above 20?) without knowing what the population looks like.</p>
+      </div>
+      <div>
+        <p class="small" style="margin:0 0 4px">The coin again (\(p=0.66\)): standardized share of heads, exact probabilities, with the standard normal in green.</p>
+        <div class="widget" data-widget="cltCoins"></div>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The second big result is the central limit theorem. Take the sample mean, subtract the population mean, and divide by the standard error. The theorem says that when n is large, this standardized mean is approximately standard normal. And this holds whatever the population looks like: coin flips, dice, skewed spending, anything with a finite variance.</p>
+    <p>The law of large numbers tells you where X bar ends up. The central limit theorem tells you the shape of the error along the way: a bell curve whose width is sigma over root n.</p>
+    <p>Why should you care? Because the normal distribution is completely known. If X bar is approximately normal, we can say how likely it is to be within any distance of the truth. That gives us margins of error, like 52 percent plus or minus 2, and hypothesis tests, like whether the average is above 20. And we never need to know the shape of the population.</p>
+  </aside>
+</section>
+
+<section class="slide" id="clt-machine" data-part="3 · The LLN and the CLT" data-pause>
+  <div class="slide-card">
+    <h2>Try it: the CLT machine</h2>
+    <div class="widget" data-widget="clt" data-pop="spend"></div>
+    <p class="small">Start with \(n=1\): the histogram is just the population. Increase \(n\) and watch it become the green bell. Then try the coin and the rare big win. How large must \(n\) be before "about 95% within ±1.96" is true?</p>
+  </div>
+  <aside class="script">
+    <p>Here is a machine for the central limit theorem. Pick a population on top. The left panel shows what a single draw looks like. The right panel takes two thousand samples of size n, computes each sample mean, standardizes it, and plots the histogram. The green curve is the standard normal.</p>
+    <p>Start with n equal to one. The histogram is just the population, and for customer spend it is badly skewed. Now go to 2, 5, 10, 30. The skew melts away and the histogram hugs the bell.</p>
+    <p>Then try the other populations. The die looks normal almost immediately. The coin is lumpy for small n, because the sample mean can only take a few values. The rare big win, a one-percent chance of a hundred dollars, needs hundreds of observations before it looks normal. Watch the readout of the share within plus or minus 1.96. It should be close to 95 percent. The lesson: the CLT always kicks in, but how soon depends on how skewed the population is. With very skewed outcomes like revenue per user, you need large samples.</p>
+  </aside>
+</section>
+
+<section class="slide" id="properties" data-part="3 · The LLN and the CLT">
+  <div class="slide-card">
+    <h2>What makes an estimator good?</h2>
+    <p>Intuitively, we want an estimator \(\hat\mu\) of \(\mu\) to</p>
+    <table class="t">
+      <tr><th class="l">In words</th><th class="l">Formally</th><th class="l">Name</th></tr>
+      <tr><td class="l">be centered on the truth ("correct on average")</td><td class="l">\(E(\hat\mu)=\mu\)</td><td class="l"><b>unbiased</b></td></tr>
+      <tr><td class="l">get closer to the truth as the sample grows ("correct eventually")</td><td class="l">\(\hat\mu \xrightarrow{p}\mu\)</td><td class="l"><b>consistent</b></td></tr>
+      <tr><td class="l">have a convenient sampling distribution</td><td class="l">\((\hat\mu-\mu)/SE(\hat\mu)\approx N(0,1)\)</td><td class="l"><b>asymptotically normal</b></td></tr>
+    </table>
+    <div class="cols">
+      <ul>
+        <li>The sample mean has all three (Fact 1, the LLN, the CLT).</li>
+        <li>Regression coefficients get the same checklist later in the course. The answer will be yes, under assumptions.</li>
+        <li class="small">If an estimator is biased, its bias is \(E(\hat\mu)-\mu\).</li>
+      </ul>
+      <div class="box optional"><p><b>A silly rival:</b> \(\tilde X=(X_1+X_2)/2\), the average of the first two observations only.</p>
+        <p class="small">Unbiased: \(E(\tilde X)=\mu\). But not consistent: it ignores observations 3 to \(n\), so its variance stays \(\sigma^2/2\) however much data you collect. Unbiasedness alone is not enough.</p></div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Let's collect what we have learned into a checklist for any estimator. We want three things.</p>
+    <p>First, it should be centered on the truth, correct on average. That is unbiasedness. Second, it should get closer to the truth as the sample grows, correct eventually. That is consistency. Third, it should have a convenient sampling distribution, ideally normal, so that we can build intervals and tests. That is asymptotic normality.</p>
+    <p>Why do we need more than unbiasedness? Consider a silly rival estimator: the average of only the first two observations. It is unbiased, since each observation has mean mu. But it never improves. With a million observations it still uses two, so it is not consistent.</p>
+    <p>The sample mean passes all three: fact one gives unbiasedness, the law of large numbers gives consistency, and the central limit theorem gives normality.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-1" data-part="3 · The LLN and the CLT" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="b">
+      <div class="q">1. With 100 customers, the standard error of average spend is $5. How many customers do you need for a standard error of $2.50?</div>
+      <button class="opt" data-k="a">200</button><button class="opt" data-k="b">400</button><button class="opt" data-k="c">141</button><button class="opt" data-k="d">1,000</button>
+      <div class="explain">\(SE=\sigma/\sqrt n\). Halving the SE means doubling \(\sqrt n\), so \(n\) must grow four times: 400.</div>
+    </div>
+    <div class="quiz" data-answer="c">
+      <div class="q">2. Which statement is the law of large numbers?</div>
+      <button class="opt" data-k="a">As \(n\) grows, the data become normally distributed.</button>
+      <button class="opt" data-k="b">After a long run of heads, tails becomes more likely.</button>
+      <button class="opt" data-k="c">As \(n\) grows, the sample mean gets close to the population mean.</button>
+      <div class="explain">(a) is wrong twice: the data never change shape, and it is the <i>standardized mean</i> that becomes normal (that's the CLT). (b) is the gambler's fallacy: flips are independent.</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">3. Revenue per user is very skewed (most users pay $0). For which sample size can you most safely use the normal approximation for average revenue?</div>
+      <button class="opt" data-k="a">50,000 users</button><button class="opt" data-k="b">30 users, the usual rule of thumb</button><button class="opt" data-k="c">Never: the data are not normal</button>
+      <div class="explain">The CLT works for any shape, but very skewed populations need large samples (remember the "rare big win" in the CLT machine). "30" is a rule of thumb for mildly skewed data only.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Before moving on, three quick questions to check your understanding. Click an answer to see whether you got it and why. Nothing here is graded.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 4 -->
+<section class="slide" id="ci-idea" data-part="4 · Confidence intervals and tests">
+  <div class="slide-card">
+    <h2>An estimate needs a margin of error</h2>
+    <ul>
+      <li>A point estimate is your best guess, but it doesn't say how close it is likely to be to the truth.</li>
+      <li>It is much more useful with an estimate of the error that might be involved:
+        $$\mu_X=\bar X\pm\text{error}\qquad\Longleftrightarrow\qquad \bar X-\text{error}&lt;\mu_X&lt;\bar X+\text{error}$$</li>
+    </ul>
+    <div class="box">
+      <p><b>What you would like to be able to say:</b> "I estimated the average price of a gallon of gas in greater Rochester last week. My estimate is <b>$3.30</b>. The way I made this estimate, I had a <b>95% chance</b> of ending up within <b>$0.36</b> of the truth."</p>
+    </div>
+    <p>How can you make sure a statement like "a 95% chance of ending up within $0.36 of the truth" is actually valid?</p>
+  </div>
+  <aside class="script">
+    <p>A point estimate is your best guess, but on its own it doesn't tell anyone how much to trust it. An estimate becomes much more useful when it comes with a margin of error: X bar plus or minus some error.</p>
+    <p>Here is the kind of sentence we would like to be able to say. I estimated the average price of gas in Rochester last week. My estimate is three dollars thirty. The way I went about it, I had a 95 percent chance of ending up within 36 cents of the truth.</p>
+    <p>Notice the careful wording: the 95 percent describes the procedure, the way I made the estimate. The question for the next few slides is how to make such a statement true.</p>
+  </aside>
+</section>
+
+<section class="slide" id="interval" data-part="4 · Confidence intervals and tests">
+  <div class="slide-card">
+    <h2>Interval estimates</h2>
+    <ul class="lead">
+      <li>An <b>interval estimate</b> is a range of values within which the parameter is likely to lie: \([\bar X-\text{error},\ \bar X+\text{error}]\).</li>
+      <li>It comes with a <b>confidence level</b>: how often the procedure captures the parameter.
+        $$\Pr(\bar X-\text{error}&lt;\mu_X&lt;\bar X+\text{error})=0.95$$</li>
+      <li>Wait: why 0.95? Why not 1?</li>
+    </ul>
+    <p class="small">Only the interval \((-\infty,\infty)\) is right 100% of the time, and it is useless. Every useful interval trades confidence for precision.</p>
+  </div>
+  <aside class="script">
+    <p>An interval estimate is a range of values, X bar minus some error to X bar plus some error, that is likely to contain the parameter. It comes with a confidence level, the probability that the procedure captures the parameter. Here, 95 percent.</p>
+    <p>Why 95 and not 100? The only interval that is certain to contain the truth runs from minus infinity to plus infinity, and that tells you nothing. Any useful interval accepts some chance of missing. Ninety-five percent is a convention. We will see how to get 90 or 99 percent instead.</p>
+  </aside>
+</section>
+
+<section class="slide" id="normal" data-part="4 · Confidence intervals and tests" data-pause>
+  <div class="slide-card">
+    <h2>A warm-up: the middle 95% of a standard normal</h2>
+    <p>Find an interval that contains a draw from a standard normal 95% of the time:</p>
+    $$\Pr(-1.96&lt;Z&lt;1.96)=0.95$$
+    <div class="widget" data-widget="normal95"></div>
+    <p class="small">\(\pm1.96\) is the tightest such interval. For 90% use \(\pm1.645\), for 99% use \(\pm2.576\) (often rounded to 2.58).</p>
+  </div>
+  <aside class="script">
+    <p>A warm-up. Forget estimation for a moment and take a standard normal random variable, Z. Which interval contains Z 95 percent of the time? The answer is minus 1.96 to plus 1.96. The shaded middle area is 95 percent, and each tail has two and a half percent.</p>
+    <p>Use the buttons to see the other common levels. For 90 percent the cutoff is 1.645, and for 99 percent it is about 2.58. More confidence means a wider interval. These three numbers are worth remembering.</p>
+  </aside>
+</section>
+
+<section class="slide" id="ci-build" data-part="4 · Confidence intervals and tests">
+  <div class="slide-card">
+    <h2>Constructing a confidence interval for \(\mu_X\)</h2>
+    <div class="steps">
+      <div class="step"><p><b>1. Start from the CLT.</b> Assume for now that we know \(\sigma_X\). Then</p>
+        $$\Pr\Big(-1.96&lt;\frac{\bar X-\mu_X}{\sigma_X/\sqrt n}&lt;1.96\Big)\approx0.95$$</div>
+      <div class="step"><p><b>2. Rearrange</b> to put \(\mu_X\) in the middle:</p>
+        $$\Pr\Big(\bar X-1.96\,\frac{\sigma_X}{\sqrt n}&lt;\mu_X&lt;\bar X+1.96\,\frac{\sigma_X}{\sqrt n}\Big)\approx0.95$$
+        <p>So a 95% confidence interval is \(\bar X\pm1.96\,\sigma_X/\sqrt n\). It gets tighter as \(n\to\infty\).</p></div>
+      <div class="step"><p><b>3. We don't know \(\sigma_X\).</b> Replace it with the sample standard deviation \(s_X\):</p>
+        $$\mu_X\in\Big[\bar X-1.96\,\frac{s_X}{\sqrt n},\ \bar X+1.96\,\frac{s_X}{\sqrt n}\Big]=\bar X\pm1.96\times\widehat{SE}(\bar X)$$</div>
+      <div class="step"><p><b>4. Other levels:</b> replace 1.96 by 1.645 (90%) or 2.58 (99%). The interval widens as you choose to be wrong less often.</p>
+        <p class="small">Example: \(n=400\) customers, \(\bar X=\$45.20\), \(s_X=\$50\). \(\widehat{SE}=50/\sqrt{400}=2.50\), so the 95% CI is \(45.20\pm4.90=[\$40.30,\ \$50.10]\).</p>
+        <p class="small">With small samples (say \(n&lt;100\)) software uses the \(t\) distribution instead of 1.96; for larger samples the two agree.</p></div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Now let's build the interval, one step at a time. Click next step as I go.</p>
+    <p>Step one. The central limit theorem says the standardized mean is approximately standard normal. So, just like Z, it lies between minus 1.96 and plus 1.96 with probability 95 percent. For now, pretend we know sigma.</p>
+    <p>Step two. Rearrange the inequality so that mu is in the middle. We get X bar minus 1.96 standard errors, to X bar plus 1.96 standard errors. That is the 95 percent confidence interval. It gets narrower as n grows.</p>
+    <p>Step three. We don't actually know sigma, so we replace it with the sample standard deviation, s. You should recognize s over root n: it is the estimated standard error. So the interval is the estimate plus or minus 1.96 standard errors. You will use this recipe all the time.</p>
+    <p>Step four. For other confidence levels, swap 1.96 for 1.645 or 2.58. For example, with 400 customers, an average of 45 dollars 20, and a standard deviation of 50, the standard error is 2.50 and the interval runs from about 40 dollars 30 to 50 dollars 10. Software uses the t distribution instead of 1.96, which matters only in small samples.</p>
+  </aside>
+</section>
+
+<section class="slide" id="ci-coverage" data-part="4 · Confidence intervals and tests" data-pause>
+  <div class="slide-card">
+    <h2>Try it: what "95% confidence" means</h2>
+    <div class="widget" data-widget="ciCoverage"></div>
+    <p class="small">The true mean is fixed; the intervals are what's random. About 95% of them catch \(\mu\). Then switch to the skewed spending data: even at \(n=100\), only about 92% of intervals cover \(\mu\) (about 83% at \(n=10\)). The CLT approximation needs more data when the population is skewed.</p>
+  </div>
+  <aside class="script">
+    <p>Here is what 95 percent confidence really means. Each line is the confidence interval from one sample of 100 customer ratings, on a one-to-five star scale. The dashed line is the true mean rating. It never moves. What moves is the interval.</p>
+    <p>Draw forty samples. Most intervals cross the dashed line. A few, in red, miss it. Now draw a thousand and look at the count. About 95 percent of the intervals contain the true mean. That is the promise: not that this particular interval is right, but that the procedure is right 95 percent of the time.</p>
+    <p>Now some experiments. Switch to 99 percent: the intervals get wider and miss less often. Then go back to 95 percent and switch the population to monthly spend, the skewed one. Even with 100 customers, only about 92 percent of intervals cover the truth, and with 10 customers about 83 percent. With skewed data, the central limit theorem needs more observations before our interval can be trusted. At 400 customers, coverage is back near 94 percent.</p>
+  </aside>
+</section>
+
+<section class="slide" id="t-test" data-part="4 · Confidence intervals and tests">
+  <div class="slide-card">
+    <h2>From intervals to tests</h2>
+    <p>To test \(H_0:\mu_X=\mu_0\) against \(H_1:\mu_X\neq\mu_0\), measure how many standard errors the estimate is from \(\mu_0\):</p>
+    $$t=\frac{\bar X-\mu_0}{\widehat{SE}(\bar X)},\qquad p\text{-value}=\Pr(|Z|>|t|)=2\,\Phi(-|t|)$$
+    <div class="cols">
+      <div>
+        <ul>
+          <li>Reject at the 5% level if \(|t|>1.96\), i.e. if \(p&lt;0.05\).</li>
+          <li>Same thing: reject if \(\mu_0\) lies <b>outside</b> the 95% confidence interval.</li>
+          <li>The \(p\)-value is the probability of an estimate at least this far from \(\mu_0\) <i>if \(H_0\) were true</i>.</li>
+        </ul>
+      </div>
+      <div class="box">
+        <p><b>Example.</b> Marketing claims average spend is $40. Our survey: \(\bar X=45.20\), \(\widehat{SE}=2.50\).</p>
+        <p>\(t=(45.20-40)/2.50=2.08\), \(p=2\Phi(-2.08)=0.038\). Reject at 5%: $40 is outside \([40.30,\,50.10]\).</p>
+        <p class="small">In Python: <code>2 * scipy.stats.norm.cdf(-abs(t))</code></p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Confidence intervals and hypothesis tests are two sides of the same coin. To test whether the population mean equals some value, mu zero, count how many standard errors your estimate is from mu zero. That count is the t statistic.</p>
+    <p>If the null hypothesis were true, t would be approximately standard normal, so a value beyond plus or minus 1.96 would happen less than five percent of the time. That is our rule: reject at the five percent level when the absolute value of t exceeds 1.96. The p-value is the probability of getting an estimate at least this far from mu zero if the null were true.</p>
+    <p>An example. Marketing claims customers spend 40 dollars on average. Our survey says 45 dollars 20 with a standard error of 2.50. The t statistic is 5.20 over 2.50, about 2.08, and the p-value is about 0.04. We reject the claim at the five percent level. Equivalently, 40 dollars lies outside our 95 percent confidence interval. The test and the interval always agree.</p>
+  </aside>
+</section>
+
+<section class="slide" id="election" data-part="4 · Confidence intervals and tests">
+  <div class="slide-card">
+    <h2>Uncertainty is real: the 2016 election forecast</h2>
+    <figure>
+      <img src="img/Lec5TvC2016.png" alt="FiveThirtyEight's 2016 forecast of electoral votes, June to November, with 80% bands. On election day: Clinton 302.2, Trump 235.0." loading="lazy">
+      <figcaption>Forecast electoral votes with the range each candidate had an 80% chance of falling in.</figcaption>
+    </figure>
+    <ul>
+      <li>The final forecast gave Clinton about 302 electoral votes on average and Trump about 235, with wide bands. Trump won 304.</li>
+      <li>The outcome fell inside Trump's band. A forecast with honest uncertainty is not a promise; an unlikely event is not an impossible one.</li>
+    </ul>
+    <p class="src">Source: FiveThirtyEight, 2016 general election forecast (final update, November 8, 2016).</p>
+  </div>
+  <aside class="script">
+    <p>A real example of why intervals matter. This chart shows a 2016 election forecast. The lines are the forecast number of electoral votes for each candidate over the campaign, and the shaded bands show the range each candidate had an 80 percent chance of falling in.</p>
+    <p>On election day, the average forecast was about 302 electoral votes for Clinton and 235 for Trump. Many people read that as "Clinton wins." But look at the bands: they overlap a lot. Trump won 304 electoral votes, inside his band. The forecast gave him roughly a 30 percent chance, close to one in three. Things with a one-in-three chance happen all the time.</p>
+    <p>The lesson for business is the same. Report the interval, not only the point estimate, and remember that an unlikely outcome is not an impossible one.</p>
+  </aside>
+</section>
+
+<section class="slide" id="py-inference" data-part="4 · Confidence intervals and tests" data-pause>
+  <div class="slide-card">
+    <h2>In Python: the LLN, the CLT, and a confidence interval</h2>
+    <div class="pycell" data-colab="lln-clt-ci"><textarea>
+import numpy as np
+import matplotlib.pyplot as plt
+rng = np.random.default_rng(1)
+
+# 1. LLN: running share of heads for a coin with p = 0.66
+flips = rng.random(10_000) < 0.66
+running = flips.cumsum() / np.arange(1, 10_001)
+print("share of heads after 10, 100, 10,000 flips:", running[[9, 99, 9_999]].round(3))
+
+# 2. CLT: 5,000 sample means, each from n = 30 skewed draws (customer spend)
+n = 30
+means = rng.lognormal(3.4, 0.9, size=(5_000, n)).mean(axis=1)
+plt.hist(means, bins=50, color="#2563eb")
+plt.title(f"5,000 sample means, n = {n}")
+plt.xlabel("sample mean ($)")
+
+# 3. A 95% confidence interval from one sample of 400 customers
+x = rng.lognormal(3.4, 0.9, size=400)
+se = x.std(ddof=1) / np.sqrt(len(x))
+print(f"mean {x.mean():.2f}, SE {se:.2f}, 95% CI [{x.mean() - 1.96*se:.2f}, {x.mean() + 1.96*se:.2f}]")
+</textarea></div>
+    <p class="small">Your turn: set <code>n = 2</code> and run again. Then change the seed in <code>default_rng(1)</code> and see the interval move. (<kbd>Shift</kbd>+<kbd>Enter</kbd> also runs a cell.)</p>
+  </div>
+  <aside class="script">
+    <p>Everything we just did fits in a few lines of Python. This cell runs inside the page. Press run. The first run takes a little while because your browser downloads Python. After that it is instant.</p>
+    <p>Part one flips ten thousand coins and prints the running share of heads after 10, 100, and 10,000 flips. Part two draws five thousand samples of 30 customers and plots the histogram of their means. Part three builds a 95 percent confidence interval from one sample of 400.</p>
+    <p>Now change things. Set n to 2 and rerun: the histogram of means turns skewed again. Change the seed and the interval moves, because you drew a different sample. Edit freely. The reset button brings the original code back.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-2" data-part="4 · Confidence intervals and tests" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="c">
+      <div class="q">1. A 95% confidence interval for average spend is [$40, $50]. Which reading is correct?</div>
+      <button class="opt" data-k="a">95% of customers spend between $40 and $50.</button>
+      <button class="opt" data-k="b">If we surveyed again, the new average would be in [$40, $50] with probability 95%.</button>
+      <button class="opt" data-k="c">The procedure that produced this interval captures the true mean in 95% of samples.</button>
+      <div class="explain">(a) confuses the spread of customers (\(\sigma\)) with the precision of the mean (\(\sigma/\sqrt n\)). (b) is wrong because the new interval would be centered somewhere else. The 95% is a property of the procedure: the true mean is fixed and intervals vary.</div>
+    </div>
+    <div class="quiz" data-answer="b">
+      <div class="q">2. An estimate has \(t=2.4\). At which levels do you reject \(H_0\)?</div>
+      <button class="opt" data-k="a">Neither 5% nor 1%</button><button class="opt" data-k="b">5% but not 1%</button><button class="opt" data-k="c">Both 5% and 1%</button>
+      <div class="explain">\(|t|=2.4>1.96\) (reject at 5%) but \(&lt;2.58\) (not at 1%). The \(p\)-value is \(2\Phi(-2.4)\approx0.016\).</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">3. Same data, but you report a 99% instead of a 95% interval. The interval is</div>
+      <button class="opt" data-k="a">wider</button><button class="opt" data-k="b">narrower</button><button class="opt" data-k="c">the same width, shifted</button>
+      <div class="explain">2.58 standard errors instead of 1.96. More confidence costs precision.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Three more questions on intervals and tests. The first one trips up a lot of people, so read the options carefully.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= WRAP-UP -->
+<section class="slide" id="summary" data-part="Wrap-up">
+  <div class="slide-card">
+    <h2>Summary</h2>
+    <table class="t formula-table">
+      <tr><td>Sample mean</td><td>\(E(\bar X)=\mu\), \(SE(\bar X)=\sigma/\sqrt n\), estimated by \(s/\sqrt n\)</td></tr>
+      <tr><td>LLN</td><td>\(\bar X\to\mu\) as \(n\to\infty\); small samples produce the extremes</td></tr>
+      <tr><td>CLT</td><td>\((\bar X-\mu)/SE\approx N(0,1)\) for any population with finite variance; skewed data need larger \(n\)</td></tr>
+      <tr><td>Confidence interval</td><td>estimate \(\pm\,1.96\times SE\) (90%: 1.645, 99%: 2.58); the procedure covers the truth 95% of the time</td></tr>
+      <tr><td>Test</td><td>\(t=(\text{estimate}-\text{null})/SE\); reject at 5% if \(|t|>1.96\), \(p=2\Phi(-|t|)\)</td></tr>
+    </table>
+  </div>
+  <aside class="script">
+    <p>Let's wrap up. The sample mean is a random variable, centered on the truth, with standard error sigma over root n. The law of large numbers says it converges to the truth, and its flip side warns that small samples produce extremes. The central limit theorem says its standardized version is approximately normal, which gives us confidence intervals, the estimate plus or minus 1.96 standard errors, and tests based on the t statistic.</p>
+  </aside>
+</section>
+
+<section class="slide" id="next" data-part="Wrap-up">
+  <div class="slide-card">
+    <h2>Practice, and what comes next</h2>
+    <div class="cols">
+      <div>
+        <h3>Practice notebook</h3>
+        <p>All the code from this module, plus a few short exercises.</p>
+        <div class="btn-row" data-notebook-links></div>
+        <p class="small">In Colab: <i>File → Save a copy in Drive</i> to keep your own version.</p>
+      </div>
+      <div>
+        <h3>Next</h3>
+        <p>These ideas come back with every number we estimate. A regression coefficient is computed from a sample too, so it also has a standard error, a confidence interval, and a <i>t</i>-statistic. The live sessions build on this when we turn to experiments and regression.</p>
+      </div>
+    </div>
+    <p class="src">References: Békés &amp; Kézdi, <i>Data Analysis for Business, Economics, and Policy</i>, chapters 5–6; Angrist &amp; Pischke, <i>Mastering 'Metrics</i>, appendix to chapter 1; Stock &amp; Watson, <i>Introduction to Econometrics</i>, chapters 2–3.</p>
+  </div>
+  <aside class="script">
+    <p>That's it for this module. If you want to keep the code, open the practice notebook.</p>
+  </aside>
+</section>
+
+</div>
+</body>
+</html>

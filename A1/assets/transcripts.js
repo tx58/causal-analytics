@@ -263,26 +263,6 @@ window.TRANSCRIPTS = {
 [
 46.4,
 "Convention helps. Typically, we use Greek letters for population quantities, which we don't know, and Latin letters, or hats, for the numbers we compute from the sample."
-],
-[
-58.4,
-"But for that application, we need to be registered."
-],
-[
-60.4,
-"If you're listening to Greek letters in English, we may not be registered for"
-],
-[
-74.2,
-"language problems, which means that in English, this is a big benefit foridée."
-],
-[
-76.4,
-"We have a variety of the appropriate options of the application."
-],
-[
-78.4,
-"Most people don't know you could use that, but in English, we need to keep a number of measures in itself"
 ]
 ],
 "point-estimates": [
@@ -445,58 +425,6 @@ window.TRANSCRIPTS = {
 [
 67.0,
 "and the next slide, we're going to explain it."
-],
-[
-70.0,
-"So, have you just taken over the next slide?"
-],
-[
-72.0,
-"If you look at the small sample,"
-],
-[
-73.0,
-"the one with the small sample is on the same page."
-],
-[
-74.0,
-"If you look at the small sample,"
-],
-[
-75.0,
-"the number size is on the same page as an apple."
-],
-[
-76.0,
-"The main feature is on the same page as an apple."
-],
-[
-77.0,
-"There's one with this large sample."
-],
-[
-78.0,
-"And there's a lot of surgery."
-],
-[
-79.0,
-"You can see what you're using."
-],
-[
-80.0,
-"Here's a little bit."
-],
-[
-81.0,
-"There's a little bit more than a couple of things."
-],
-[
-82.0,
-"You can see how the line is moving in one picture,"
-],
-[
-83.0,
-"and let's see how the line is moving."
 ]
 ],
 "xbar-rv": [
@@ -693,10 +621,6 @@ window.TRANSCRIPTS = {
 [
 80.1,
 "Now hold on to that bell, and that's the subject in the next slide."
-],
-[
-84.2,
-"Thank you."
 ]
 ],
 "lln": [
@@ -775,10 +699,6 @@ window.TRANSCRIPTS = {
 [
 67.6,
 "After five heads in a row, tails is not due."
-],
-[
-70.4,
-"Thank you."
 ]
 ],
 "small-samples": [
@@ -887,26 +807,6 @@ window.TRANSCRIPTS = {
 [
 62.6,
 "And we never need to know the shape of the population."
-],
-[
-66.6,
-"So, let's see."
-],
-[
-67.6,
-"Let's see."
-],
-[
-68.6,
-"Let's see."
-],
-[
-69.6,
-"Let's see."
-],
-[
-70.6,
-"Let's see."
 ]
 ],
 "clt-machine": [
@@ -1002,7 +902,7 @@ window.TRANSCRIPTS = {
 ],
 [
 59.0,
-"Fact 1 gives unbiasedness, the log of large numbers gives consistency,"
+"Fact 1 gives unbiasedness, the law of large numbers gives consistency,"
 ],
 [
 63.5,
@@ -1019,46 +919,6 @@ window.TRANSCRIPTS = {
 [
 73.3,
 "And those assumptions turns out to be the heart of this course."
-],
-[
-76.1,
-"The fact is true about the fact that there is no evidence."
-],
-[
-77.0,
-"It is true."
-],
-[
-94.1,
-"And this is true."
-],
-[
-94.2,
-"The effect is obtained a lot of mistakes between aünden."
-],
-[
-95.0,
-"And that is allowed to be noticed."
-],
-[
-96.5,
-"Of course, it's not something."
-],
-[
-98.3,
-"This is evidence that none of them are accepted,"
-],
-[
-99.8,
-"but the least unfortunate isn't it,"
-],
-[
-100.6,
-"and because this a while is something that운ус,"
-],
-[
-102.4,
-"it is pense 소 feedback."
 ]
 ],
 "check-1": [
@@ -1795,66 +1655,6 @@ window.TRANSCRIPTS = {
 [
 57.0,
 "That is why this course spends so much time on research designs, which is to think about how the data generating process looks like."
-],
-[
-66.0,
-"And therefore, if not, if not, how the data gets replicated, or more into a certain way."
-],
-[
-67.0,
-"I will not have the manner in terms of making this case."
-],
-[
-68.0,
-"I will wait until you see it from now on the left there."
-],
-[
-69.0,
-"And I will wait until thismiyor."
-],
-[
-71.0,
-"And I will wait until you see it from now on the left."
-],
-[
-72.0,
-"And thanks for the fact that that I have been doing this,"
-],
-[
-73.0,
-"I will wait until the next step in the next step."
-],
-[
-75.0,
-"That is what I have done at the beginning of this week."
-],
-[
-76.0,
-"Somehow, you will have been rabidated by the question."
-],
-[
-78.0,
-"I am the other hand."
-],
-[
-79.0,
-"And then everything is going to be the same thing."
-],
-[
-81.0,
-"I am so excited about the answer."
-],
-[
-82.0,
-"In the first place in the room, we are not a single person at theweekly field,"
-],
-[
-83.0,
-"but with everyone on the right."
-],
-[
-85.0,
-"Themediate region, a lot of this world,"
 ]
 ],
 "dummy-x": [
@@ -1973,22 +1773,6 @@ window.TRANSCRIPTS = {
 [
 53.4,
 "The standard deviation of that distribution is the standard error of the slope."
-],
-[
-57.9,
-"Did it work on a branch that stabilizes."
-],
-[
-72.4,
-"Magic?"
-],
-[
-72.9,
-"The standard deviation for certain forces from the ground."
-],
-[
-76.4,
-"抓 aDEN- Stories of Fire on the ground."
 ]
 ],
 "se-beta": [
@@ -2341,14 +2125,6 @@ window.TRANSCRIPTS = {
 [
 70.0,
 "As you can see, the formula holds exactly in every sample."
-],
-[
-73.0,
-"The difference between gutoring is about the range of 2. Near range,"
-],
-[
-92.0,
-"and 3.4 points of outbreak, and 4.2 points moyen."
 ]
 ],
 "py-fwl": [
