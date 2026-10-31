@@ -1,0 +1,1074 @@
+<!doctype html>
+<!--
+  Asynchronous module 2 for GBA 472 (Fall B 2026; written so it can be reused in other years):
+  describing data (summary statistics, histograms, scatter plots, correlation), crosstabs (PivotTables) as
+  conditional means, and running a regression (OLS) in Excel four ways and in Python.
+  Built 2026-10-30 (Tianli: "make the asynchronous video for week 2 ... data description and crosstab and OLS
+  implementation", borrowing his recordings and slides). Sources: GBA 472 handout3x (Fall 2025) and the 2024
+  handouts 6-7 (describing data, crosstabs, OLS in Excel); Lecture 2 of this course (numbers re-estimated in
+  code/A2_examples.py); the 2024 recordings in Videos/ ("3 OLS implementation in Excel" for Part 4, the
+  Nov 5, 2024 class for Part 3, the Oct 29, 2024 class and "1 Review of Statistics" for Parts 1-2), cut by
+  code/make_audio.py; screenshots of Tianli's own Excel from those recordings (code/make_frames.py) and of a
+  clean workbook built for the module (code/make_excel.py, web/data/A2_examples.xlsx).
+
+  How this page works (details in ../README.md):
+  - every <section class="slide"> is one slide; its <aside class="script"> is the narration script,
+    shown as the transcript and read by the computer voice when no recording exists; the twelve slides
+    without a 2024 recording have their script read by a neutral US male text-to-speech voice
+    (code/make_tts.py: Kokoro-82M, voice am_michael);
+  - audio/<slide id>.m4a is the voice-over for that slide; open the page with ?record at the end of the
+    address to record takes in the browser;
+  - .widget[data-widget] blocks are simulations from assets/widgets.js (data in assets/a2data.js);
+    .pycell blocks run Python in the browser (pandas and statsmodels; the data files are fetched from data/).
+  Rule for student-facing text here (slides AND scripts): no course numbers, terms, or lecture numbers.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Describing data, crosstabs, and OLS</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Self-paced module: describing data, crosstabs (PivotTables) as conditional means, and running a regression in Excel and Python.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="assets/player.css">
+<style>
+  /* page-specific */
+  .parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; margin-top: 12px; }
+  .parts button { text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 10px 12px; cursor: pointer; font-size: 15px; line-height: 1.35; }
+  .parts button:hover { border-color: var(--brand); }
+  .parts button b { display: block; color: var(--brand); font-size: 13px; text-transform: uppercase; letter-spacing: .05em; }
+  .feature { display: grid; grid-template-columns: 36px 1fr; gap: 6px 10px; align-items: start; margin: 8px 0; }
+  .feature .ic { width: 32px; height: 32px; border-radius: 8px; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+  .shots.three { grid-template-columns: 1fr 1fr 1fr; }
+  .shots figure, figure.shot { margin: 6px 0; }
+  .shots img, figure.shot img, .cols figure img { border: 1px solid var(--line); background: #fff; }
+  .xtab table.t { margin: 8px 0; }
+  .xtab tr.tot td { font-weight: 650; border-top: 2px solid var(--line); }
+  table.map th, table.map td { text-align: left; }
+  table.map td:first-child { color: var(--muted); }
+  code.xl { font-family: var(--mono); background: var(--code-bg); padding: 1px 6px; border-radius: 4px; font-size: 14px; white-space: nowrap; }
+  pre.codeview { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; font-size: 14px; overflow-x: auto; font-family: var(--mono); }
+  svg.plot .dot-cell { fill: var(--c-est); opacity: .85; }
+  svg.plot .path-cells { fill: none; stroke: var(--c-est); stroke-width: 1.5; opacity: .7; }
+  .widget select { font: inherit; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  @media (max-width: 760px) { .shots, .shots.three { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<script>
+  window.MODULE_CONFIG = {
+    moduleId: "GBA472-A2-data-crosstabs-ols",
+    title: "Describing data, crosstabs, and running a regression",
+    subtitle: "Causal and Predictive Analytics · Asynchronous module",
+    // Colab buttons: publish_site.py writes the GitHub location into the published copy.
+    colabUrl: "",
+    github: "tx58/causal-analytics/GBA472/A2",
+    notebook: "A2_notebook.ipynb",
+    pyPackages: ["numpy", "matplotlib", "pandas", "statsmodels"],
+    pySetup: async (py) => {
+      py.runPython("import warnings\nwarnings.filterwarnings('ignore')");   // pandas' pyarrow notice etc.
+      for (const f of ["diamonds.csv", "titanic.csv", "cps99.csv", "wines.csv"]) {
+        const r = await fetch("data/" + f);
+        py.FS.writeFile(f, await r.text());
+      }
+    },
+  };
+</script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script defer src="assets/a2data.js"></script>
+<script defer src="assets/transcripts.js"></script>
+<script defer src="assets/widgets.js"></script>
+<script defer src="assets/player.js"></script>
+</head>
+<body>
+<div id="deck">
+
+<!-- ======================================================================= START -->
+<section class="slide title-slide" id="title" data-part="Start" data-title="Welcome">
+  <div class="slide-card">
+    <div class="eyebrow">Causal and Predictive Analytics · Asynchronous module</div>
+    <h1>Describing data, crosstabs, and running a regression</h1>
+    <div class="who">Tianli Xia · Simon Business School, University of Rochester</div>
+    <div class="start-row">
+      <button class="btn primary" data-action="play-all">▶ Watch from the start (auto-advance)</button>
+      <button class="btn" data-action="next">Go at my own pace →</button>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Welcome. This module is about doing things with data. First a quick review of PivotTables, a very flexible way to show the relationship between two variables. Then the method at the heart of this course, linear regression: how to run it in Excel, in Python, and with ChatGPT, and how to read the output.</p>
+  </aside>
+</section>
+
+<section class="slide" id="how-to" data-part="Start">
+  <div class="slide-card">
+    <h2>How to use this page</h2>
+    <div class="cols">
+      <div>
+        <div class="feature"><span class="ic">▶</span><div><b>Listen.</b> Each slide has its own short voice-over. Press <kbd>Space</kbd> or the play button. Change the speed at the bottom right.</div></div>
+        <div class="feature"><span class="ic">⇄</span><div><b>Your pace.</b> Use <kbd>←</kbd> <kbd>→</kbd> or the contents on the left. Turn on <i>Auto-advance</i> to watch it like a video.</div></div>
+        <div class="feature"><span class="ic">≡</span><div><b>Read.</b> The transcript sits under each slide (<kbd>T</kbd> hides it). Click a sentence to jump there.</div></div>
+      </div>
+      <div>
+        <div class="feature"><span class="ic">✦</span><div><b>Try it.</b> Slides marked <i>try it</i> have simulations. Change the settings and see what happens.</div></div>
+        <div class="feature"><span class="ic">{ }</span><div><b>Code.</b> Python cells run right in the page. Edit them and press <i>Run</i>. The same code is in a Colab notebook.</div></div>
+        <div class="feature"><span class="ic">✓</span><div><b>Check.</b> Short self-checks end each part. They are not graded.</div></div>
+      </div>
+    </div>
+    <div class="box key">
+      <div class="label">What you need for the exam</div>
+      <p>Read a crosstab as a table of conditional means, know what OLS minimizes, and find the intercept and slope in Excel's and Python's output. You will not be asked to reproduce Excel menus from memory.</p>
+    </div>
+  </div>
+  <aside class="script">
+    <p>A quick tour of the page. Every slide has its own short voice-over. Press the space bar or the play button to hear it, and change the speed at the bottom right.</p>
+    <p>You decide the pace. Use the arrow keys or the list of slides on the left. If you prefer to sit back, turn on auto-advance and the page plays like a video. It stops on the slides where you have something to do.</p>
+    <p>The transcript is under each slide, so you can read instead of listening.</p>
+    <p>Slides marked try it have small simulations. The code cells run Python inside the page, so you do not need to install anything. The same code is in a Colab notebook if you want to keep it.</p>
+    <p>For the exam, focus on the ideas and on using the formulas. The derivations are there so you can see where the results come from. You will not have to reproduce them.</p>
+  </aside>
+</section>
+
+<section class="slide" id="roadmap" data-part="Start">
+  <div class="slide-card">
+    <h2>Three things you will do with every data set</h2>
+    <p class="lead">Look at one variable at a time. Compare groups. Fit a line. This module does all three on three small data sets: 380 diamonds, the 2,201 people on the Titanic, and 6,050 workers from a labor survey.</p>
+    <div class="parts">
+      <button data-goto="data-kinds"><b>Part 1</b>Describing data: summary statistics and histograms</button>
+      <button data-goto="relationships"><b>Part 2</b>Two variables: scatter plots and correlation</button>
+      <button data-goto="xt-why"><b>Part 3</b>Crosstabs (PivotTables): conditional means for categorical data</button>
+      <button data-goto="ols-intro"><b>Part 4</b>Running a regression: OLS in Excel, four ways, and in Python</button>
+      <button data-goto="summary"><b>Wrap-up</b>Summary and practice notebook</button>
+    </div>
+    <p class="small">Data and the Excel workbook behind the screenshots: <a href="data/diamonds.csv" download>diamonds.csv</a> · <a href="data/titanic.csv" download>titanic.csv</a> · <a href="data/cps99.csv" download>cps99.csv</a> · <a href="data/wines.csv" download>wines.csv</a> · <a href="data/A2_examples.xlsx" download>A2_examples.xlsx</a></p>
+  </div>
+  <aside class="script">
+    <p>Whatever the question, the first steps with a data set are the same. You look at one variable at a time, you compare groups, and you fit a line. Part one is about describing single variables: summary statistics and histograms. Part two puts two variables together, with scatter plots and the correlation. Part three is about crosstabs, or PivotTables, which compute conditional means for categorical data. Part four runs a regression, four ways in Excel and then in Python, and shows you where to find the intercept and the slope in the output.</p>
+    <p>Three small data sets carry the whole module: 380 diamonds, the people on board the Titanic, and 6,050 workers from a labor survey. You can download them here and follow along in Excel or Colab.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 1 -->
+<section class="slide" id="data-kinds" data-part="1 · Describing data">
+  <div class="slide-card">
+    <h2>What kind of data do you have?</h2>
+    <p class="lead">The right tool depends on the kind of variable. Look at the first rows of each file before you compute anything.</p>
+    <div class="cols">
+      <div>
+        <table class="t">
+          <tr><th class="l">Data set</th><th class="l">Variables</th><th>Kind</th></tr>
+          <tr><td class="l">diamonds.csv (380)</td><td class="l">carats, price</td><td>numeric</td></tr>
+          <tr><td class="l"></td><td class="l">color (1 = colorless or near-colorless)</td><td>binary</td></tr>
+          <tr><td class="l">titanic.csv (2,201)</td><td class="l">class, age, gender, survival</td><td>all categorical</td></tr>
+          <tr><td class="l">cps99.csv (6,050)</td><td class="l">Earnings, Hours, Educ (years)</td><td>numeric</td></tr>
+          <tr><td class="l"></td><td class="l">Gender, Race</td><td>categorical</td></tr>
+        </table>
+      </div>
+      <div>
+        <ul>
+          <li><b>Numeric</b> variables (a price, a weight, hours): means, standard deviations, histograms, scatter plots, correlations.</li>
+          <li><b>Categorical</b> variables (a class, a gender, yes/no): counts and shares, and <b>crosstabs</b> to compare groups.</li>
+          <li>A numeric outcome can be compared <i>across</i> categories: mean earnings by gender is a crosstab too (Part 3).</li>
+          <li>Some data are not numeric at all: the Titanic file has no numbers in it, yet it answers "who survived?"</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Before computing anything, look at the first rows of the file and ask what kind of variables you have. The diamonds file has two numeric variables, carats and price, and a binary one, color. The Titanic file has no numbers at all: class, age, gender and survival are all categories. The labor survey has both kinds: earnings, hours and years of education are numeric, gender and race are categories.</p>
+    <p>The kind of variable decides the tool. Numeric variables get means, standard deviations, histograms, and, in pairs, scatter plots and correlations. Categorical variables get counts and shares, and crosstabs when you want to compare groups. And a numeric outcome compared across categories, like mean earnings by gender, is a crosstab as well. That is Part three.</p>
+  </aside>
+</section>
+
+<section class="slide" id="summary-stats" data-part="1 · Describing data">
+  <div class="slide-card">
+    <h2>Summary statistics: one number for the center, one for the spread</h2>
+    <div class="cols c-60">
+      <div>
+        <ul>
+          <li><b>Center</b>: the <b>mean</b> \(\bar X=\frac1n\sum X_i\), the <b>median</b> (the middle value), the mode.</li>
+          <li><b>Spread</b>: the <b>variance</b> \(s^2=\frac{1}{n-1}\sum (X_i-\bar X)^2\) and the <b>standard deviation</b> \(s=\sqrt{s^2}\), in the units of \(X\).</li>
+          <li><b>Range</b>: minimum and maximum; and the <b>count</b> \(n\).</li>
+          <li>The mean is pulled by extreme values; the median is not. Compare them: for the diamonds, the mean price ($4,036) is a little below the median ($4,120), so the low end stretches further than the high end.</li>
+        </ul>
+        <p class="small">The sample statistics estimate the population quantities of the first module: \(\bar X\) estimates \(\mu\), \(s\) estimates \(\sigma\).</p>
+      </div>
+      <figure class="shot"><img src="img/xl_summary.png" alt="Summary statistics of carats and price for 380 diamonds, computed in Excel"><figcaption>380 diamonds, in Excel (sheet <i>diamonds</i> of A2_examples.xlsx)</figcaption></figure>
+    </div>
+  </div>
+  <aside class="script">
+    <p>A full distribution is a lot of information. In the workplace you rarely send a colleague the whole histogram: you send a few numbers. One for the center, the mean, or the median, which is the middle value; and one for the spread, the standard deviation, which says how far a typical observation sits from the mean. Add the minimum, the maximum and the count, and you have described the variable.</p>
+    <p>For the 380 diamonds, the mean price is about 4,036 dollars and the median 4,120. The mean is a little lower because the cheapest diamonds are further below the center than the dearest ones are above it. The standard deviation is about 1,050 dollars.</p>
+  </aside>
+</section>
+
+<section class="slide" id="excel-functions" data-part="1 · Describing data">
+  <div class="slide-card">
+    <h2>The same numbers in Excel and in Python</h2>
+    <div class="cols">
+      <div>
+        <table class="t map">
+          <tr><th>Statistic</th><th>Excel</th><th>pandas</th></tr>
+          <tr><td>count</td><td><code class="xl">=COUNT(B2:B381)</code></td><td><code>df.carats.count()</code></td></tr>
+          <tr><td>mean</td><td><code class="xl">=AVERAGE(B2:B381)</code></td><td><code>df.carats.mean()</code></td></tr>
+          <tr><td>median</td><td><code class="xl">=MEDIAN(B2:B381)</code></td><td><code>df.carats.median()</code></td></tr>
+          <tr><td>standard deviation</td><td><code class="xl">=STDEV.S(B2:B381)</code></td><td><code>df.carats.std()</code></td></tr>
+          <tr><td>variance</td><td><code class="xl">=VAR.S(B2:B381)</code></td><td><code>df.carats.var()</code></td></tr>
+          <tr><td>min, max</td><td><code class="xl">=MIN(…)</code>, <code class="xl">=MAX(…)</code></td><td><code>.min()</code>, <code>.max()</code></td></tr>
+          <tr><td>covariance</td><td><code class="xl">=COVARIANCE.S(B2:B381,C2:C381)</code></td><td><code>df.carats.cov(df.price)</code></td></tr>
+          <tr><td>correlation</td><td><code class="xl">=CORREL(B2:B381,C2:C381)</code></td><td><code>df.carats.corr(df.price)</code></td></tr>
+          <tr><td>all at once</td><td>Data → Data Analysis → <i>Descriptive Statistics</i></td><td><code>df.describe()</code></td></tr>
+        </table>
+      </div>
+      <div>
+        <figure class="shot"><img src="img/xl_summary_formulas.png" alt="The Excel formulas behind the summary table"><figcaption>The formulas behind the table on the previous slide</figcaption></figure>
+        <p class="small"><b>.S</b> means "sample": <code class="xl">STDEV.S</code> and <code class="xl">VAR.S</code> divide by \(n-1\) (the <code class="xl">.P</code> versions divide by \(n\)). pandas does the same by default. The <i>Descriptive Statistics</i> tool needs the Analysis ToolPak add-in (File → Options → Add-ins).</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>You do not compute any of this by hand. Excel has a function for each statistic: AVERAGE for the mean, VAR.S for the sample variance, COVARIANCE.S for the sample covariance, and CORREL for the correlation. The dot S means sample: these divide by n minus one. In Python, pandas has the same methods, and describe gives all of them at once.</p>
+  </aside>
+</section>
+
+<section class="slide" id="histogram" data-part="1 · Describing data" data-pause>
+  <div class="slide-card">
+    <h2>Try it: the histogram</h2>
+    <div class="widget" data-widget="histo"></div>
+    <p class="small">A histogram cuts the range into bins and counts the observations in each. Try 5 bins and 40 bins: too few hide the shape, too many show noise. In Excel: Insert → Charts → <i>Histogram</i> (or Data Analysis → Histogram); in Python: <code>df.price.hist(bins=13)</code>.</p>
+  </div>
+  <aside class="script">
+    <p>Summary statistics compress; a histogram shows the whole shape. It cuts the range of the variable into bins and counts how many observations fall into each. Switch between price and carats, and move the slider for the number of bins. With five bins you lose the shape; with forty you mostly see noise. Something like ten to twenty is usually right for a few hundred observations.</p>
+    <p>Notice the carats histogram: diamonds cluster at round sizes like one carat, because that is how they are cut and sold. The orange line is the mean and the dashed line the median. For price they are close, so the distribution is roughly symmetric.</p>
+  </aside>
+</section>
+
+<section class="slide" id="python-describe" data-part="1 · Describing data" data-pause>
+  <div class="slide-card">
+    <h2>In Python: describe() and a histogram</h2>
+    <div class="pycell" data-colab="describe"><textarea>
+import pandas as pd
+import matplotlib.pyplot as plt
+
+diamonds = pd.read_csv("diamonds.csv")          # 380 diamonds: color, carats, price
+print(diamonds.head())
+print(diamonds.describe().round(3))               # count, mean, std, min, quartiles, max
+print("median price:", diamonds.price.median(), "  SD:", round(diamonds.price.std(), 1))
+
+diamonds.price.hist(bins=13, color="#2563eb", edgecolor="white")
+plt.xlabel("price ($)"); plt.ylabel("number of diamonds")
+</textarea></div>
+    <p class="small">Your turn: change <code>price</code> to <code>carats</code> in the last three lines, and <code>bins=13</code> to 40. The first run downloads Python and pandas (about 30 MB) and takes a minute; after that it is instant.</p>
+  </div>
+  <aside class="script">
+    <p>Here is the same thing in Python. The cell runs in your browser; press Run. Pandas reads the file, head shows the first rows, and describe prints the count, mean, standard deviation, minimum, quartiles and maximum of every numeric column. The last lines draw the histogram of price. Change price to carats and rerun, and try forty bins. The first run takes a while because your browser downloads Python; after that it is instant.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 2 -->
+<section class="slide" id="relationships" data-part="2 · Two variables">
+  <div class="slide-card">
+    <h2>From one variable to pairs of variables</h2>
+    <p class="lead">Describing one variable is rarely the point. The questions that matter are about <b>relationships</b>:</p>
+    <div class="cols">
+      <ul>
+        <li>Education and salary: does a degree raise lifetime income?</li>
+        <li>Price and quantity: if I raise the price, how much less do I sell?</li>
+        <li>Quality and price: what are customers willing to pay for a better product?</li>
+        <li>Earnings and the stock price: how does the market react to good results?</li>
+      </ul>
+      <div class="box">
+        <div class="label">Tools for two numeric variables</div>
+        <p>The <b>scatter plot</b> (one dot per observation) and the <b>correlation</b> (one number for how tightly the dots hug a line). Then, in Part 4, the <b>regression line</b>.</p>
+        <p class="small">For categorical variables the tool is the crosstab (Part 3).</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Describing a single variable is only the start. The interesting questions are about relationships between two variables. We care about education and salary, about price and quantity, about quality and willingness to pay, about earnings and the stock price. So we need tools that describe how two variables move together. For numeric variables those are the scatter plot and the correlation, and later the regression line.</p>
+  </aside>
+</section>
+
+<section class="slide" id="scatter" data-part="2 · Two variables" data-pause>
+  <div class="slide-card">
+    <h2>Try it: the scatter plot</h2>
+    <div class="widget" data-widget="scatter"></div>
+    <p class="small">One dot per diamond: carats on the horizontal axis, price on the vertical. Tick the boxes to add the point of means and the least-squares line (Part 4 explains where the line comes from). In Excel: select the two columns, Insert → <i>Scatter</i>; right-click the dots → <i>Add Trendline</i> → <i>Display Equation</i>.</p>
+  </div>
+  <aside class="script">
+    <p>A scatter plot puts one dot per observation: here carats across and price up. The cloud rises to the right, so bigger diamonds cost more, and it widens as it rises, so the prices of big diamonds vary more. Tick the first box to see the point of means, the average carats and the average price. Tick the second to add the least-squares line, which always passes through that point. Part four shows where the line comes from.</p>
+    <p>In Excel, select the two columns and insert a scatter chart; a right-click on the dots adds a trendline, and you can display its equation on the chart.</p>
+  </aside>
+</section>
+
+<section class="slide" id="correlation" data-part="2 · Two variables">
+  <div class="slide-card">
+    <h2>Correlation: one number for the association</h2>
+    <div class="cols c-60">
+      <div>
+        $$ r_{XY}=\frac{s_{XY}}{s_X\,s_Y}=\frac{\sum (X_i-\bar X)(Y_i-\bar Y)}{\sqrt{\sum (X_i-\bar X)^2}\sqrt{\sum (Y_i-\bar Y)^2}} $$
+        <ul>
+          <li>The <b>covariance</b> \(s_{XY}\) is positive when \(X\) and \(Y\) tend to be above (or below) their means together. Its units are awkward: carats × dollars.</li>
+          <li>Dividing by the two standard deviations makes it <b>unit-free</b>: \(-1\le r\le 1\). Measure price in thousands of dollars and \(r\) does not change.</li>
+          <li>\(r = \pm 1\): the dots lie exactly on a line. \(r = 0\): no <i>linear</i> association (a U-shape can have \(r = 0\)).</li>
+          <li>Diamonds: \(s_{XY} = 128.8\), \(s_X = 0.152\), \(s_Y = 1{,}052.9\), so \(r = 0.80\). Its square, \(0.65\), will reappear as the \(R^2\) of the regression.</li>
+        </ul>
+      </div>
+      <figure class="shot"><img src="img/xl_scatter_trend.png" alt="Excel scatter plot of price against carats with a linear trendline, y = 5573.3x - 1679.2, R-squared 0.6477"><figcaption>Excel's scatter chart with a trendline: the same line as Part 4</figcaption></figure>
+    </div>
+    <div class="box key"><div class="label">Correlation is not causation</div><p>A high \(r\) says the two variables move together, not that one moves the other. The diamonds' size may well cause their price; the wine ratings and prices of the practice notebook could run either way.</p></div>
+  </div>
+  <aside class="script">
+    <p>The correlation puts one number on a scatter plot. Start from the covariance: the average product of the two deviations from the means. It is positive when X and Y tend to be high together, but its units are odd, carats times dollars. Dividing by the two standard deviations removes the units and gives a number between minus one and plus one. Plus or minus one means the dots lie exactly on a line; zero means no linear association.</p>
+    <p>For the diamonds the correlation is 0.80. Its square, 0.65, is a number you will meet again as the R squared of the regression. One warning that never goes away: correlation says the variables move together, not that one moves the other.</p>
+  </aside>
+</section>
+
+<section class="slide" id="guess-corr" data-part="2 · Two variables" data-pause>
+  <div class="slide-card">
+    <h2>Try it: guess the correlation</h2>
+    <div class="widget" data-widget="guessCorr"></div>
+    <p class="small">Each cloud has 60 points. Guess \(r\) with the slider, press Reveal, then ask for a new cloud. After a few rounds you will read a scatter plot in one glance: the sign is the direction, the size is how tightly the points hug a line, and 0.3 looks a lot messier than you might expect.</p>
+  </div>
+  <aside class="script">
+    <p>A small game to calibrate your eye. Each cloud has sixty points drawn from a population with some correlation. Move the slider to your guess and press Reveal. Then ask for a new cloud. After a few rounds you will see that 0.3 is a very loose relationship, 0.8 is clearly a line, and the sign simply tells you whether the cloud rises or falls.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-1" data-part="2 · Two variables" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="a">
+      <div class="q">1. The median price of the 380 diamonds is $4,120 and the mean is $4,036. What does the difference tell you?</div>
+      <button class="opt" data-k="a">The cheap end stretches further from the center than the expensive end: a few cheap diamonds pull the mean down.</button>
+      <button class="opt" data-k="b">A few very expensive diamonds pull the mean up.</button>
+      <button class="opt" data-k="c">Nothing: the mean and the median are always within a few percent of each other.</button>
+      <div class="explain">The mean is pulled toward extreme values, the median is not. Mean below median means the low tail is longer. (Most spending or income data go the other way: a few very large values pull the mean up.)</div>
+    </div>
+    <div class="quiz" data-answer="b">
+      <div class="q">2. The correlation between carats and price is 0.80. If price were measured in thousands of dollars instead of dollars, the correlation would be</div>
+      <button class="opt" data-k="a">0.0008</button><button class="opt" data-k="b">0.80</button><button class="opt" data-k="c">800</button>
+      <div class="explain">Correlation is unit-free: dividing by the standard deviations cancels the units. The <i>covariance</i> would shrink by a factor of 1,000.</div>
+    </div>
+    <div class="quiz" data-answer="b">
+      <div class="q">3. Which pair of variables can a scatter plot and a correlation <i>not</i> handle well?</div>
+      <button class="opt" data-k="a">carats and price</button><button class="opt" data-k="b">gender and survival (yes/no)</button><button class="opt" data-k="c">rating score and price</button>
+      <div class="explain">Both are categories. A scatter plot of two 0/1 variables is four dots, and "the correlation of gender" has no useful meaning. Compare the groups with a crosstab instead: that is Part 3.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Before moving on, three quick questions to check your understanding. Click an answer to see whether you got it and why. Nothing here is graded.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 3 -->
+<section class="slide" id="xt-why" data-part="3 · Crosstabs">
+  <div class="slide-card">
+    <h2>Estimating conditional expectations</h2>
+    <ul class="lead">
+      <li>Whether the goal is prediction or causal measurement, the key input is a <b>conditional expectation</b>, \(E(Y \mid X)\): the expected outcome given what we know.</li>
+      <li>In a clinical trial: the expected health outcome given treatment, and given control.</li>
+      <li>Estimating an unconditional mean is easy: draw a sample, average. The law of large numbers and the central limit theorem tell us how good that average is.</li>
+      <li>A conditional mean is the same idea <b>within a group</b>: the sample average of \(Y\) among the observations with a given \(X\).</li>
+      <li>The most flexible way to do it is the <b>crosstab</b>, or PivotTable.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Whether we want a prediction or a causal effect, the key input is always a conditional expectation: the expected outcome given something we know. In a clinical trial it is the expected health outcome given that the patient got the treatment, and given that they did not. Estimating an unconditional mean is simple: draw a sample and average, and the law of large numbers and the central limit theorem tell us how reliable that average is. A conditional mean is the same thing within a group. The most flexible way to compute it is the crosstab, or PivotTable.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xt-when" data-part="3 · Crosstabs">
+  <div class="slide-card">
+    <h2>When scatter plots and correlations do not work</h2>
+    <div class="cols">
+      <ul>
+        <li>Scatter plots and correlations need <b>numeric</b> variables with many values.</li>
+        <li>Many business variables are <b>categorical</b>: a product line, a region, a customer segment, yes or no.</li>
+        <li>For binary or categorical variables, the tool is the <b>crosstab</b>: a table that crosses two variables and counts (or averages) within each cell.</li>
+        <li>Excel calls it a <b>PivotTable</b>. The two words are used interchangeably.</li>
+        <li>Crosstabs can show many "conditional" measures per cell: counts, shares, means, maxima.</li>
+      </ul>
+      <div class="box">
+        <div class="label">Where crosstabs sit</div>
+        <p>A crosstab <i>conditions</i>: it splits the data by the values of \(X\) and reports something about \(Y\) in each slice. That makes it the natural first step toward regression, which does the same thing with a formula instead of a table.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>One way to describe a relationship is a scatter plot or a correlation. That works when both variables are numeric. But often the data are not numeric at all: the variables are categories, like a class, a region, a yes or a no. For those, the right tool is the crosstab, a table that crosses two variables. Excel calls it a PivotTable, and the two words mean the same thing. A crosstab computes conditional means when the conditioning variables are categorical, and it can show counts, shares, or any other summary in each cell.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xt-titanic" data-part="3 · Crosstabs">
+  <div class="slide-card">
+    <h2>Example: who survived the Titanic?</h2>
+    <div class="cols c-40">
+      <figure class="shot"><img src="img/xl_titanic_data.png" alt="The first rows of titanic.csv in Excel: class, age, gender, survival"><figcaption>titanic.csv, first rows</figcaption></figure>
+      <div>
+        <ul>
+          <li>The RMS Titanic sank on its maiden voyage from Southampton to New York, April 15, 1912.</li>
+          <li><b>2,201 people on board</b>, one row each: <b>class</b> (first, second, third, crew), <b>age</b> (adult, young), <b>gender</b>, and <b>survival</b> (yes/no).</li>
+          <li>Question: how did the chance of surviving depend on class, age and gender? In symbols, \(E(\text{survival} \mid \text{class})\), \(E(\text{survival} \mid \text{gender})\), and so on.</li>
+          <li>Survival is yes/no, so its conditional mean is a <b>share</b>: the survival rate in each group.</li>
+        </ul>
+        <p class="small">Open the file in Excel and build the tables along with the next slides.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The Titanic was the biggest ship of its time, and it sank on its maiden voyage from Southampton to New York. The data set has one row for each of the 2,201 people on board: their class, first, second, third, or crew; their age, adult or young; their gender; and whether they survived. The outcome we care about is survival, and we want its expected value conditional on the attributes of the passengers: the survival rate in each class, for each gender, and so on. Open the file in Excel and build the PivotTable along with me.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xt-excel" data-part="3 · Crosstabs">
+  <div class="slide-card">
+    <h2>A PivotTable, step by step</h2>
+    <div class="shots three">
+      <figure><img src="img/c2_fields.png" alt="The PivotTable Fields pane with the four variables"><figcaption>1. Select the data (<kbd>Ctrl</kbd>+<kbd>A</kbd>), Insert → PivotTable → new worksheet. The field list shows the four variables.</figcaption></figure>
+      <figure><img src="img/c2_counts_fields.png" alt="Count of survival by class and survival, with the field pane"><figcaption>2. Drag <b>class</b> to Rows, <b>survival</b> to Columns and to Values: the number of people in each cell.</figcaption></figure>
+      <figure><img src="img/c2_rowpct.png" alt="The same table shown as percent of row total: survival rates by class"><figcaption>3. Values → <i>Value Field Settings</i> → <i>Show Values As</i> → <b>% of Row Total</b>: the survival rate in each class.</figcaption></figure>
+    </div>
+    <p>Each row now reads as a conditional mean: \(E(\text{survival} \mid \text{crew}) = 24\%\), first class 62%, second 41%, third 25%. Overall, 32% survived.</p>
+  </div>
+  <aside class="script">
+    <p>Select all the data, then Insert, PivotTable, and put it in a new worksheet. The PivotTable Fields pane on the right lists the four variables. Drag class to Rows: four row labels appear. Drag survival to Columns, so you get a yes and a no column, and drag survival to Values as well, so Excel counts the people in each cell. Six hundred and seventy-three crew members did not survive, two hundred and twelve did.</p>
+    <p>Counts are not yet conditional means. Click the value field, open Value Field Settings, and under Show Values As pick percent of row total. Now each row shows the share who survived: about 24 percent of the crew, 62 percent of first class, 41 percent of second, 25 percent of third. Those are the estimated conditional expectations of survival given class.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xt-causal" data-part="3 · Crosstabs">
+  <div class="slide-card">
+    <h2>Is the class gap causal?</h2>
+    <div class="cols">
+      <figure class="shot"><img src="img/c2_rowpct.png" alt="Survival rates by class"><figcaption>First class 62%, third class 25%</figcaption></figure>
+      <div>
+        <ul>
+          <li>Nobody was <b>randomly assigned</b> to a cabin class: people sorted themselves by income and other things.</li>
+          <li>So the gap mixes a plausible mechanism (first-class cabins were near the deck and the lifeboats) with everything else that differs between first- and third-class passengers.</li>
+          <li>The numbers give a <b>narrative</b>, not a causal effect. History and survivors' accounts can support the narrative; the table alone cannot.</li>
+          <li>The correlation is still useful for <b>prediction</b>: told that someone was in first class, you would bet on survival; told crew or third class, you would not.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Is the difference between first and third class a causal effect of the cabin? The gold standard for causation is an experiment, and this is clearly not one: nobody was assigned to a class at random. People sorted themselves by income and much else. So the gap is a mixture: first-class cabins were closer to the deck and the lifeboats, which is a real mechanism, but first-class passengers also differed in many other ways. The table gives us a narrative, not a causal effect.</p>
+    <p>The correlation is still useful. If I know someone was in first class, I know their chance of survival was much higher than a crew member's or a third-class passenger's. That is a prediction, and the table answers it well.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xt-more" data-part="3 · Crosstabs">
+  <div class="slide-card">
+    <h2>Conditioning on gender, and on class and gender together</h2>
+    <div class="shots">
+      <figure><img src="img/c2_gender.png" alt="Survival rate by gender: women 73%, men 21%"><figcaption>Rows: gender. Women 73%, men 21%: "women and children first".</figcaption></figure>
+      <figure><img src="img/c2_class_gender.png" alt="Survival rates by class and gender"><figcaption>Rows: class <i>and</i> gender. First-class women 97%, third-class women 46%, third-class men 17%.</figcaption></figure>
+    </div>
+    <p>Drag a second variable to Rows and each cell conditions on both: \(E(\text{survival} \mid \text{class}, \text{gender})\). Young passengers also did better than adults (52% vs 31%). Any number of variables can go in; the table just gets bigger.</p>
+  </div>
+  <aside class="script">
+    <p>Replace class by gender in the rows and the story changes: 73 percent of women survived, against 21 percent of men. The narrative is women and children first, and survivors' accounts confirm it. Put age in the rows and the young did better than adults.</p>
+    <p>You can condition on two things at once: drag both class and gender to Rows. The table becomes larger but reads the same way. First-class women had a 97 percent survival rate; third-class women 46 percent, still much higher than third-class men at 17 percent.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xt-cells" data-part="3 · Crosstabs">
+  <div class="slide-card">
+    <h2>Where crosstabs run out: small cells, big tables, continuous variables</h2>
+    <div class="cols c-40">
+      <figure class="shot"><img src="img/c2_age.png" alt="Survival rates by class, gender and age, with several 100% cells"><figcaption>Class × gender × age: several cells read 100% or 0%</figcaption></figure>
+      <div>
+        <ul>
+          <li>Add age as a third variable and some cells show <b>100% survival</b>. Switch the values back to counts: those cells hold <b>one or five people</b>.</li>
+          <li>Every variable you condition on <b>splits the sample</b> further. The law of large numbers needs big cells; a cell of five is a coin flip.</li>
+          <li>A big table is also <b>hard to summarize</b>: dozens of numbers, no single message.</li>
+          <li>And a <b>continuous</b> variable (a price, years of education) has too many values: one cell per value means almost empty cells, or arbitrary bins.</li>
+        </ul>
+        <p class="small">Regression (Part 4) fixes all three by borrowing strength across cells with a formula.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Add age as a third row variable and the table becomes huge, with some striking numbers: first-class young women, 100 percent survival. Show the counts instead of percentages and you see why: that cell holds one person. Other cells hold five. That is the trade-off of splitting the sample: more conditioning variables mean smaller cells, and the law of large numbers only works with enough observations. A cell of one or five tells you very little about the population.</p>
+    <p>Two more downsides. A big table is hard to summarize: there is no single number that tells the story. And crosstabs cannot handle continuous variables, like a price or years of education, because a continuous variable would need an infinite number of cells. Regression solves these problems.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xt-tryit" data-part="3 · Crosstabs" data-pause>
+  <div class="slide-card">
+    <h2>Try it: build the crosstab</h2>
+    <div class="widget" data-widget="crosstab"></div>
+    <p class="small">Pick the row and column variables and what to show. Compare "survival rate" with "number of people": the cell for young crew members holds nobody, and several cells hold fewer than 50 people.</p>
+  </div>
+  <aside class="script">
+    <p>Now build the tables yourself. Choose a row variable, a column variable, and what each cell should show: the number of people, the survival rate, or the share of the row. Try gender by class with survival rates, then switch to counts and look at how many people stand behind each rate. Then try age by class: there were no young crew members, and the young cells are small everywhere.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xt-python" data-part="3 · Crosstabs" data-pause>
+  <div class="slide-card">
+    <h2>In Python (and with ChatGPT)</h2>
+    <div class="pycell" data-colab="crosstab-rates"><textarea>
+import pandas as pd
+
+t = pd.read_csv("titanic.csv")
+t["survived"] = (t.survival == "yes").astype(int)         # yes/no -> 1/0, so the mean is a share
+
+print(pd.crosstab(t["class"], t.gender))                      # how many people in each cell
+print(t.pivot_table(index="class", columns="gender", values="survived", aggfunc="mean").round(3))   # survival rates
+print(t.groupby("age").survived.mean().round(3))             # one conditioning variable at a time
+</textarea></div>
+    <p class="small">ChatGPT (with data analysis) does the same from a prompt: upload the file and ask "make a pivot table of survival rates by gender and class; show the numbers and the rates". It writes and runs this code, so you can check it. Excel is quicker for a one-off table; Python scales to the next steps.</p>
+  </div>
+  <aside class="script">
+    <p>In Python a crosstab is one line. Crosstab counts the people in each cell; pivot table with a mean gives the survival rates once survival is coded as zero and one; and groupby does one variable at a time. ChatGPT can do all of this from a prompt: upload the file and ask for a pivot table of survival rates by gender and class. It writes and runs this same code, so you can read it and check it. For a one-off table Excel is faster, drag and drop. For anything beyond that, Python is the better tool, and that is where the course goes next.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xt-cps" data-part="3 · Crosstabs">
+  <div class="slide-card">
+    <h2>A second example: earnings, gender and education</h2>
+    <div class="cols">
+      <div>
+        <ul>
+          <li><b>cps99.csv</b>: 6,050 full-time workers from the Current Population Survey (1999), five North-Central states.</li>
+          <li>Five variables: usual <b>hours</b> worked per week, years of <b>education</b>, annual <b>earnings</b>, <b>race</b>, <b>gender</b>.</li>
+          <li>Labor questions: What is the return to education? Do women earn less than men, and why?</li>
+        </ul>
+      </div>
+      <div class="box">
+        <div class="label">Questions for the crosstab</div>
+        <ol>
+          <li>How much do men and women earn on average?</li>
+          <li>Does education explain the gap?</li>
+          <li>Do hours explain it?</li>
+          <li>Does the gap exist within every education group?</li>
+          <li>Is there evidence of discrimination?</li>
+        </ol>
+        <p class="small">Education is (almost) continuous: the crosstab will show its limits here.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>A second example, closer to everyday life: a labor survey. The Current Population Survey is run by the Department of Labor, and this file has 6,050 full-time workers from five North-Central states in 1999, with their usual weekly hours, years of education, annual earnings, race and gender. Typical questions: what is the return to education, and do women earn less than men, and if so, why? Let's see how far a PivotTable gets us, and where it starts to struggle, because education is nearly a continuous variable.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xt-cps-gender" data-part="3 · Crosstabs">
+  <div class="slide-card">
+    <h2>Earnings by gender, and two possible explanations</h2>
+    <div class="shots">
+      <figure><img src="img/c2_cps_gender.png" alt="PivotTable: average yearly earnings by gender, and the Value Field Settings dialog switching education from Sum to Average"><figcaption>Rows: gender; Values: earnings, summarized by <b>Average</b> (not Sum). Men $47,014, women $29,421.</figcaption></figure>
+      <figure><img src="img/c2_cps_hours.png" alt="PivotTable: average earnings, education and hours by gender"><figcaption>Add education and hours to Values: women have slightly <i>more</i> education (13.5 vs 13.5 years) and work 2.6 fewer hours a week.</figcaption></figure>
+    </div>
+    <ul>
+      <li>Women earn 63% of what men earn. Is that discrimination, or does something else differ?</li>
+      <li><b>Education?</b> No: the two groups have the same education, so it cannot explain the gap.</li>
+      <li><b>Hours?</b> A little: men work about 3 more hours a week (6% more), nowhere near a 37% earnings gap.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Select the data, insert a PivotTable, and put gender in the rows and yearly earnings in the values. Excel sums by default, which is useless here, so open Value Field Settings and switch to Average. Men earned about 47,000 dollars, women about 29,000: a big gap. Is it discrimination, or is there a mechanism? One candidate is education: maybe men studied longer. Add education to the values, switch it to average, and the two groups turn out to have the same education; if anything, women have slightly more. So education cannot explain the gap. Another candidate is hours. Add usual hours worked: men work about three more hours a week. That is a channel, but far too small to explain the difference.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xt-cps-educ" data-part="3 · Crosstabs">
+  <div class="slide-card">
+    <h2>Does the gap exist within every education group?</h2>
+    <div class="widget" data-widget="cefBars"></div>
+    <p class="small">Rows: education group <i>and</i> gender; Values: average earnings. Each bar is \(E(\text{earnings} \mid \text{education}, \text{gender})\). Switch to "women / men": the ratio is 0.56–0.68 in every group. (The Excel version: sheet <i>pivot_cps</i> of A2_examples.xlsx.)</p>
+  </div>
+  <aside class="script">
+    <p>Perhaps the gap only exists for low-education jobs. To check, condition on both gender and education: put years of education in the rows under gender, with average earnings in the values. Here the groups are collapsed into five education levels. Earnings rise with education for both men and women, and the gap is there at every level: college graduates, 61 cents on the dollar; graduate degrees, 56 cents. So the hypothesis that the gap only exists for blue-collar workers is ruled out too. That is what crosstabs are good for: testing mechanisms, one at a time, and ruling stories out.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xt-outlier" data-part="3 · Crosstabs">
+  <div class="slide-card">
+    <h2>A crosstab lesson: small cells and an outlier</h2>
+    <div class="shots three">
+      <figure><img src="img/c2_cps_years.png" alt="Average earnings by exact years of education, men: 9 years earn more than 10 or 11"><figcaption>Average earnings by exact years of education (men). Nine years: $33,197, more than 10, 11 or 11.5 years.</figcaption></figure>
+      <figure><img src="img/c2_cps_count.png" alt="The number of workers in each cell: 28 men with nine years of education"><figcaption>Switch Values to <b>Count</b>: 28 men have nine years of education, against 883 with twelve.</figcaption></figure>
+      <figure><img src="img/c2_cps_max.png" alt="The maximum in each cell: one man with nine years of education earned $306,731"><figcaption>Switch to <b>Max</b>: one of the 28 earned $306,731 (in 1999 dollars).</figcaption></figure>
+    </div>
+    <ul>
+      <li>An average over 28 people is easily moved by one extreme value; an average over 883 is not. The law of large numbers again.</li>
+      <li>A median would resist the outlier, but a PivotTable cannot show medians (Python can: <code>aggfunc="median"</code>).</li>
+      <li>With a continuous variable, one cell per value means many near-empty cells. That is the case for imposing some structure: a line through the cells instead of a separate mean for each.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>With every value of education as its own row, a strange number appears: men with nine years of education earn more on average than men with ten or eleven. An input error? Unlikely, in a survey this carefully checked. A trade like plumbing? Possible, but let's look at the data first. Switch the values to Count: only 28 men have nine years of education, against hundreds in the neighboring cells. Switch to Max: one of those 28 earned over 300,000 dollars in 1999. A single person moved the whole cell.</p>
+    <p>That is the law of large numbers in a PivotTable. A cell with 28 draws is not big enough; a bad draw, or for him a good one, dominates the average. A median would resist the outlier, but PivotTables cannot show medians. And more generally, when a variable is continuous, you should not trust every cell equally. Sometimes you want to impose structure on the data instead of a separate average for each basket.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xt-discrimination" data-part="3 · Crosstabs">
+  <div class="slide-card">
+    <h2>Is there evidence of discrimination?</h2>
+    <div class="cols">
+      <div>
+        <ul>
+          <li>What the crosstabs did: <b>rule out</b> two common explanations. Education does not explain the gap; hours explain very little; the gap is there at every education level.</li>
+          <li>What they cannot do: rule out <b>every</b> explanation. Occupation, experience, industry, and much else differ between men and women, and some of it is hard to measure.</li>
+          <li>So the honest statement is cautious: the usual channels do not explain the gap, and the data alone cannot prove discrimination.</li>
+        </ul>
+      </div>
+      <div class="box key">
+        <div class="label">The statistician's habit</div>
+        <p>Say what the data rule out, say what they cannot, and name the comparisons you would need: men and women who are alike in everything else. Holding "everything else" fixed is exactly what the next tool, regression, is for.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>So is there evidence of discrimination? It is very hard to say from statistics alone. What we have done is rule out several hypotheses that say the gap is not discrimination: it is not education, and hours explain little. But we cannot rule out every alternative, especially mechanisms that are hard to measure, like occupation or experience. The careful way to put it: the usual channels do not explain the gap, and we do not have strong evidence either way. We will come back to this question with better tools.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xt-limits" data-part="3 · Crosstabs" data-pause>
+  <div class="slide-card">
+    <h2>Summing up: powerful, but not scalable</h2>
+    <div class="widget" data-widget="cells"></div>
+    <p class="small">The diamonds' crosstab: one mean price for each of the 50 carat values. Half the cells hold six diamonds or fewer, so the orange path jumps around; the line smooths them with two numbers. Add race, hours and occupation to the earnings table and the cells empty out the same way.</p>
+  </div>
+  <aside class="script">
+    <p>To sum up: crosstabs are a very powerful way to estimate conditional expectations and to measure associations. But they do not scale up. Add race to the earnings table and it becomes unwieldy; add ten variables and it is hopeless, especially if the variables are continuous. Here is the diamonds version: a mean price for each of the fifty carat values in the data. Half the cells hold six diamonds or fewer, and the means jump around. The straight line through the cloud needs only two numbers, and that is where regression comes in.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xt-to-reg" data-part="3 · Crosstabs">
+  <div class="slide-card">
+    <h2>From crosstabs to regression</h2>
+    <div class="cols">
+      <div>
+        <p><b>Two kinds of questions</b> about \(X\) and \(Y\):</p>
+        <ol>
+          <li><b>Causal</b>: if I change \(X\), what happens to \(Y\)? Spend $100K more on ads; cut the price by 10%.</li>
+          <li><b>Predictive</b>: what is the most likely \(Y\) given \(X\)? Units sold at price \(P\); is this transaction fraudulent?</li>
+        </ol>
+        <p>Crosstabs can answer both, but they are not scalable.</p>
+      </div>
+      <div>
+        <p>To establish a gender gap "all else equal" we would want</p>
+        $$ E(\text{earnings} \mid \text{gender, age, experience, education, hours, \ldots}) $$
+        <p>comparing people who are alike in everything but gender. Too many variables for a PivotTable; routine for a regression.</p>
+        <p class="small">Regression starts with one \(X\) (Part 4) and adds the others later in the course.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Regression has the same motivation as the crosstab: to understand the relationship between variables. We ask two kinds of questions. Causal: if I change X, what happens to Y, like spending 100,000 dollars more on advertising, or cutting the price by ten percent. And predictive: what is the most likely Y given X, like how many units I will sell at a given price, or whether a transaction is fraudulent. Crosstabs can answer both, as we saw, but they are not scalable. To establish a gender gap we would like to keep everything else constant: age, experience, education, hours. That is far too many variables for a PivotTable, and exactly what regression is for.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-2" data-part="3 · Crosstabs" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="b">
+      <div class="q">1. In the Titanic crosstab, the cell "women, first class: 97%" is</div>
+      <button class="opt" data-k="a">the share of all survivors who were first-class women</button>
+      <button class="opt" data-k="b">the survival rate among first-class women: a conditional mean</button>
+      <button class="opt" data-k="c">the share of first-class passengers who were women</button>
+      <div class="explain">Rows condition, values summarize: among the 145 women in first class, 97% survived. (a) would be a "% of column total", (c) a different table altogether.</div>
+    </div>
+    <div class="quiz" data-answer="b">
+      <div class="q">2. A crosstab shows that men with 9 years of education earn more on average than men with 11 years. The most likely explanation is</div>
+      <button class="opt" data-k="a">extra schooling lowers earnings in that range</button>
+      <button class="opt" data-k="b">a small cell (28 men) with one extreme earner</button>
+      <button class="opt" data-k="c">a data-entry error in the survey</button>
+      <div class="explain">Check the counts and the maximum before believing a surprising cell. Twenty-eight observations and one $300K earner explain it; the law of large numbers has not kicked in.</div>
+    </div>
+    <div class="quiz" data-answer="c">
+      <div class="q">3. Why move from crosstabs to regression?</div>
+      <button class="opt" data-k="a">Regression answers causal questions; crosstabs only describe</button>
+      <button class="opt" data-k="b">Excel cannot build a PivotTable with more than two row variables</button>
+      <button class="opt" data-k="c">Crosstabs do not scale: many variables, or continuous ones, leave the cells nearly empty</button>
+      <div class="explain">Both tools estimate conditional means, and neither is causal by itself. Regression replaces one mean per cell with a formula, so it can condition on many variables, continuous ones included.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Before moving on, three quick questions to check your understanding. Click an answer to see whether you got it and why. Nothing here is graded.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 4 -->
+<section class="slide" id="ols-intro" data-part="4 · Running a regression">
+  <div class="slide-card">
+    <h2>OLS in Excel: four ways to get the same two numbers</h2>
+    <div class="cols">
+      <ol class="lead">
+        <li><b>Solver</b>: minimize the sum of squared residuals by brute force (crazy, but you see what OLS does).</li>
+        <li><b>The formulas</b>: \(\hat\beta_1 = s_{XY}/s_X^2\), \(\hat\beta_0=\bar Y-\hat\beta_1\bar X\) (yuck, but it is just AVERAGE, COVARIANCE.S and VAR.S).</li>
+        <li><b>INTERCEPT and SLOPE</b>: two worksheet functions.</li>
+        <li><b>Data → Data Analysis → Regression</b>: the full output table. The one to use from now on.</li>
+      </ol>
+      <div class="box">
+        <div class="label">Then in Python</div>
+        <p>One line, <code>smf.ols("price ~ carats", data=diamonds).fit()</code>, gives the same table. And the point of doing it four times: the estimates are nothing but a computation on the sample. No magic.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>In this part we get the regression estimates in Excel, four different ways. The first is a slightly crazy idea: use Excel's Solver to search for the line directly. You will probably never do it again, but it shows what least squares means. The second is to type the formulas. The third uses the INTERCEPT and SLOPE functions. The fourth is Excel's built-in Regression command. After that we see how easy the same thing is in Python.</p>
+  </aside>
+</section>
+
+<section class="slide" id="ols-setup" data-part="4 · Running a regression">
+  <div class="slide-card">
+    <h2>The data and the model</h2>
+    <div class="cols c-40">
+      <figure class="shot"><img src="img/v_data.png" alt="The diamonds sheet in Excel: color, carats, price"><figcaption>diamonds.csv in Excel: 380 rows</figcaption></figure>
+      <div>
+        <ul>
+          <li>\(Y\) = price (the dependent, or left-hand-side, variable); \(X\) = carats (the independent variable, or regressor).</li>
+          <li>The model: \(E(\text{price} \mid \text{carats}) = \beta_0 + \beta_1 \times \text{carats}\), a straight line.</li>
+          <li>Each diamond's prediction error, or <b>residual</b>: \(\hat e_i = \text{price}_i - (\hat\beta_0 + \hat\beta_1\,\text{carats}_i)\).</li>
+          <li>OLS picks \(\hat\beta_0, \hat\beta_1\) to <b>minimize the sum of squared residuals</b>, \(\text{SSR}=\sum_i \hat e_i^2\).</li>
+        </ul>
+        <p class="small">Squaring makes every error positive, so under- and over-predictions cannot cancel, and it punishes big misses more than small ones.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The data are the diamonds: carats, the size, and price. We want the relationship between price, the dependent variable on the left-hand side, and carats, the independent variable on the right. The linear regression model assumes that the expected price given carats is a line, beta zero plus beta one times carats. And we estimate beta zero and beta one by searching for the values that minimize the sum of squared residuals. That is the plan.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xl-cells" data-part="4 · Running a regression">
+  <div class="slide-card">
+    <h2>Step 1: two cells for the guess, one column for the predictions</h2>
+    <figure class="shot"><img src="img/v_model.png" alt="Excel: =beta0+beta1*B2 typed in the price_hat column, with beta0 and beta1 cells set to 1000"><figcaption>Name two cells <code class="xl">beta0</code> and <code class="xl">beta1</code> (start with 1,000 each) and type <code class="xl">=beta0+beta1*B2</code> in the first row of <i>price_hat</i>.</figcaption></figure>
+    <div class="cols">
+      <figure class="shot"><img src="img/v_pricehat.png" alt="The price_hat column filled down: predicted prices for every diamond at beta0 = beta1 = 1000"><figcaption>Double-click the fill handle: a prediction for all 380 diamonds. The first one is 1,000 + 1,000 × 0.75 = 1,750.</figcaption></figure>
+      <div>
+        <ul>
+          <li>Any guess of \(\beta_0, \beta_1\) produces a predicted price for every diamond, \(\hat Y_i = \beta_0 + \beta_1 X_i\).</li>
+          <li>Naming the cells (type a name in the Name Box) keeps the formulas readable; <code class="xl">$J$3</code> works too.</li>
+          <li>The guess is obviously bad: a 0.75-carat diamond is predicted at $1,750 but sold for $2,050.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>First define two cells for beta zero and beta one, with an initial guess, say 1,000 and 1,000. To keep the formulas readable, name the two cells beta0 and beta1. Then compute the predicted price for the first diamond: beta zero plus beta one times its carats, 0.75, which gives 1,750. Double-click the corner of the cell and Excel applies the same formula to every row: a predicted price for all 380 diamonds, given this guess.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xl-resid" data-part="4 · Running a regression">
+  <div class="slide-card">
+    <h2>Step 2: the residuals, and their squares</h2>
+    <div class="cols c-60">
+      <figure class="shot"><img src="img/v_resid.png" alt="Excel: residual = price - price_hat and residual^2 columns filled for every diamond"><figcaption><i>residual</i> = <code class="xl">=C2-D2</code>, <i>error^2</i> = <code class="xl">=E2^2</code>, filled down</figcaption></figure>
+      <div>
+        <ul>
+          <li>The residual is the prediction error: the price we observe minus the price the line predicts.</li>
+          <li>Residuals are positive and negative. Squaring makes them all positive, so the next step can add them up without cancellation.</li>
+          <li>Row 2: price 2,050 − prediction 1,750 = 300; squared, 90,000.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Next, a column for the residual, the prediction error: the price we observe minus the predicted price. Fill it down for every observation. Then square the residuals. The reason to square is to make every error positive: whether the line is above or below the point, the squared error counts the same way, and the next step can add them all up.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xl-ssr" data-part="4 · Running a regression">
+  <div class="slide-card">
+    <h2>Step 3: the objective, and a first improvement by hand</h2>
+    <div class="cols c-60">
+      <figure class="shot"><img src="img/v_ssr.png" alt="Excel: the objective cell holds the sum of the squared residuals, 1,867,431,239, at beta0 = beta1 = 1000"><figcaption><i>objective</i> = <code class="xl">=SUM(F2:F381)</code> (select the column with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>↓</kbd>)</figcaption></figure>
+      <div>
+        <ul>
+          <li>At \(\beta_0 = \beta_1 = 1{,}000\) the SSR is about <b>1.87 billion</b>.</li>
+          <li>Change \(\beta_1\) to 2,000 and watch the objective fall to <b>629 million</b>: a better line.</li>
+          <li>You could keep adjusting the two cells until no change lowers the SSR. That point is the OLS estimate.</li>
+          <li>Doing this by hand takes an hour and you never know when you are done. Excel can search for you.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Now the objective: the sum of all the squared residuals. Select the column with Control Shift Down, close the bracket, and you get a very big number, about 1.9 billion, for the initial guess. Change beta one to 2,000 and the objective falls to about 600 million. So we could keep changing the two cells until the objective cannot be reduced any further: that would be the estimate. But searching by hand is slow and you never know when you have reached the minimum. Luckily, Excel can do the search for us.</p>
+  </aside>
+</section>
+
+<section class="slide" id="fit-line" data-part="4 · Running a regression" data-pause>
+  <div class="slide-card">
+    <h2>Try it: find the line yourself</h2>
+    <div class="widget" data-widget="fitLine"></div>
+    <p class="small">Move the two sliders and watch the sum of squared residuals. The red segments are the residuals. The right panel shows how the SSR changes with the slope (with the intercept set to its best value for that slope): a bowl with one bottom. When you give up, press the button.</p>
+  </div>
+  <aside class="script">
+    <p>Here is the search as a game. The sliders are beta zero and beta one; the red segments are the residuals, and the readout is their sum of squares. Start where the video starts, 1,000 and 1,000, and try to make the number as small as you can. The right panel shows the sum of squared residuals as a function of the slope: a bowl with a single bottom, which is why a search can find it. When you are done, press the button to see the least-squares answer, and how close you came.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xl-solver" data-part="4 · Running a regression">
+  <div class="slide-card">
+    <h2>Method 1: Solver does the search</h2>
+    <div class="cols c-40">
+      <figure class="shot"><img src="img/v_solver_dialog.png" alt="Excel's Solver Parameters dialog: Set Objective, To: Min, By Changing Variable Cells"><figcaption>Data → <i>Solver</i> (an add-in: File → Options → Add-ins if you do not see it)</figcaption></figure>
+      <div>
+        <ol>
+          <li><b>Set Objective</b>: the SSR cell.</li>
+          <li><b>To</b>: Min.</li>
+          <li><b>By Changing Variable Cells</b>: the two cells beta0 and beta1.</li>
+          <li>Untick <i>Make Unconstrained Variables Non-Negative</i>: an intercept or a slope may well be negative.</li>
+          <li>Solve. Keep the Solver solution.</li>
+        </ol>
+        <p class="small">Solver is a general-purpose optimizer; it does not know this is a regression. It just tries values of the two cells until the objective stops falling.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The command is called Solver, in the Data ribbon. In its dialog you specify three things. The objective: the cell with the sum of squared residuals. What to do with it: minimize. And the variable cells: the cells Solver may change, which are beta zero and beta one. One more thing: uncheck make unconstrained variables non-negative, because an intercept or a slope can be negative. Then click Solve.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xl-solved" data-part="4 · Running a regression">
+  <div class="slide-card">
+    <h2>Solver's answer</h2>
+    <div class="cols c-60">
+      <figure class="shot"><img src="img/v_solved.png" alt="After Solver: beta0 = -1679.13, beta1 = 5573.233, objective 148,015,059"><figcaption>beta0 = −1,679.13, beta1 = 5,573.23; the SSR fell from 1.87 billion to 148,015,059</figcaption></figure>
+      <div>
+        <ul>
+          <li>Solver reports that it converged. The two cells now hold the least-squares estimates: \(\hat\beta_0 \approx -1{,}679\), \(\hat\beta_1 \approx 5{,}573\).</li>
+          <li>Check: nudge either cell and the objective goes <i>up</i>. You are at the bottom of the bowl.</li>
+          <li>Why bother? Because it makes the mapping visible: from the 380 rows of data to two numbers, through one criterion.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Solver reports that it has converged, and you keep its solution. The two cells now hold the estimates: beta zero about minus 1,679 and beta one about 5,573. You can verify that this is the minimum: change either cell a little, in any direction, and the objective goes up. So this is one way to solve a linear regression model: minimize the sum of squared residuals with the Solver. It is worth doing once in your life, because it shows the mapping from the data to the estimates.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xl-formula" data-part="4 · Running a regression">
+  <div class="slide-card">
+    <h2>Method 2: the formulas</h2>
+    <figure class="shot"><img src="img/v_formulas.png" alt="Excel: the formula picture pasted on the sheet; beta1_hat = 5573.343 from COVARIANCE.S / VAR.S"><figcaption>beta1_hat = <code class="xl">=COVARIANCE.S(B2:B381,C2:C381)</code> / <code class="xl">=VAR.S(B2:B381)</code> = 128.8459 / 0.023118 = 5,573.343</figcaption></figure>
+    <div class="cols">
+      <div>
+        $$ \hat\beta_1 = \frac{\sum (X_i-\bar X)(Y_i-\bar Y)}{\sum (X_i-\bar X)^2} = \frac{s_{XY}}{s_X^2}, \qquad \hat\beta_0 = \bar Y - \hat\beta_1 \bar X $$
+      </div>
+      <ul>
+        <li>These are the solutions of the minimization, found with calculus once and for all: the slope is the covariance of \(X\) and \(Y\) divided by the variance of \(X\).</li>
+        <li>Both inputs are Part 1 functions: <code class="xl">COVARIANCE.S</code> with carats first and price second, and <code class="xl">VAR.S</code> of carats.</li>
+        <li>5,573.343 vs Solver's 5,573.233: Solver stops when the improvement is tiny, so its answer is off in the fourth digit. The formula is exact.</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The second way uses the formulas we derived by setting the partial derivatives to zero. Beta one hat is the covariance between X and Y in the sample divided by the variance of X. In Excel, the covariance of carats and price is COVARIANCE dot S of the two columns, without the labels; the variance of carats is VAR dot S. Divide the two and you get 5,573, the same as Solver up to a small approximation error: Solver stops searching when the improvement is tiny, the formula is exact.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xl-beta0" data-part="4 · Running a regression">
+  <div class="slide-card">
+    <h2>The intercept from the means</h2>
+    <div class="cols c-60">
+      <figure class="shot"><img src="img/v_beta0.png" alt="Excel: mean(price) = 4036.076, mean(carats) = 1.025474, beta0_hat = -1679.24"><figcaption>beta0_hat = mean(price) − beta1_hat × mean(carats) = 4,036.076 − 5,573.343 × 1.025474 = −1,679.24</figcaption></figure>
+      <div>
+        <ul>
+          <li>The least-squares line always passes through the <b>point of means</b> \((\bar X, \bar Y)\). That is what \(\hat\beta_0=\bar Y-\hat\beta_1\bar X\) says.</li>
+          <li>So: <code class="xl">=AVERAGE(C2:C381)</code> for the mean price, <code class="xl">=AVERAGE(B2:B381)</code> for the mean size, and one multiplication.</li>
+          <li>−1,679.24 matches Solver's −1,679.13 (again, Solver's rounding).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>For the intercept we use a mathematical fact: the point of means, the average X and the average Y, always lies exactly on the regression line. So compute the mean price with AVERAGE, the mean carats the same way, and beta zero hat is the mean price minus beta one hat times the mean carats. That gives minus 1,679, the same as the Solver. Method one, the Solver; method two, the formulas. Two more to go.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xl-intercept" data-part="4 · Running a regression">
+  <div class="slide-card">
+    <h2>Method 3: INTERCEPT and SLOPE</h2>
+    <figure class="shot"><img src="img/v_intercept_typed.png" alt="Excel: =INTERCEPT(C2:C381,B2:B381) in the formula bar"><figcaption><code class="xl">=INTERCEPT(C2:C381,B2:B381)</code>: the \(Y\) range first, then the \(X\) range</figcaption></figure>
+    <div class="cols">
+      <figure class="shot"><img src="img/v_intercept.png" alt="Excel: Method 3 gives beta0_hat = -1679.24 and beta1_hat = 5573.343"><figcaption>Method 3: −1,679.24 and 5,573.343, identical to Method 2</figcaption></figure>
+      <ul>
+        <li>Excel stores the two formulas for you: <code class="xl">INTERCEPT(known_y's, known_x's)</code> and <code class="xl">SLOPE(known_y's, known_x's)</code>.</li>
+        <li>The only thing to remember is the order: \(Y\) first, \(X\) second. Swap them and you get the slope of carats on price, a different line.</li>
+        <li>Handy inside other formulas (a prediction, a chart), but you get no standard errors. For those, Method 4.</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The third method is a refinement of the second: Excel already stores the formulas. The function INTERCEPT takes the Y variable first and the X variable second, and returns beta zero hat. SLOPE, with the same two inputs in the same order, returns beta one hat. You can verify they match the numbers from the two previous methods.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xl-regression" data-part="4 · Running a regression">
+  <div class="slide-card">
+    <h2>Method 4: Data → Data Analysis → Regression</h2>
+    <div class="cols">
+      <div>
+        <figure class="shot"><img src="img/v_analysis_ribbon.png" alt="The Data ribbon with the Data Analysis button at the right"><figcaption>The <i>Data Analysis</i> button sits at the right end of the Data ribbon (Analysis ToolPak add-in)</figcaption></figure>
+        <figure class="shot"><img src="img/v_analysis_dialog.png" alt="The Data Analysis dialog with Regression selected in the list of Analysis Tools"><figcaption>Pick <i>Regression</i> from the list</figcaption></figure>
+      </div>
+      <div>
+        <figure class="shot"><img src="img/v_regdialog_only.png" alt="The Regression dialog: Input Y Range C2:C381, Input X Range B2:B381, output in a new worksheet"><figcaption><b>Input Y Range</b>: price (C2:C381). <b>Input X Range</b>: carats (B2:B381). Tick <i>Labels</i> only if you included the header row. Output: new worksheet.</figcaption></figure>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The last method is the one to use from now on: Excel's built-in Regression command. In the Data ribbon, click Data Analysis, choose Regression from the list, and fill in the dialog. The input Y range is the price column, C2 to C381; the input X range is carats, B2 to B381. We did not include the header row, so leave Labels unchecked. The confidence level you will understand in a few weeks. Choose where the output goes, a new worksheet is convenient, and if you like, ask for a residual plot. Click OK.</p>
+  </aside>
+</section>
+
+<section class="slide" id="xl-output" data-part="4 · Running a regression">
+  <div class="slide-card">
+    <h2>Reading the SUMMARY OUTPUT</h2>
+    <figure class="shot"><img src="img/v_coef.png" alt="Excel SUMMARY OUTPUT with the two coefficients highlighted: Intercept -1679.241, X Variable 1 5573.343"><figcaption>The bottom table is the one to read first. <b>Coefficients</b>: Intercept −1,679.241, X Variable 1 (carats) 5,573.343.</figcaption></figure>
+    <ul>
+      <li>Three blocks: <i>Regression Statistics</i> (R Square 0.648, 380 observations), <i>ANOVA</i>, and the <b>coefficient table</b>.</li>
+      <li>For now, read only the <b>Coefficients</b> column: the same two numbers as Methods 1–3. Excel calls the slope "X Variable 1" because the X range had no label.</li>
+      <li>Everything else, standard errors, t statistics, p-values, confidence bounds, R Square, is what the next sessions explain. It is why this method is the one to use: the coefficients come with their precision.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Excel creates a new worksheet called SUMMARY OUTPUT. There is a lot here that you will understand over the next few weeks; for now, focus on the column called Coefficients. The intercept row is beta zero hat, and the X Variable 1 row is beta one hat, the slope. They are exactly the numbers we got with the Solver, the formulas, and INTERCEPT and SLOPE. Four tools, the same two numbers. This is the preferred method because, besides the coefficients, it gives you a lot of additional information that will be very useful later.</p>
+  </aside>
+</section>
+
+<section class="slide" id="ols-lesson" data-part="4 · Running a regression">
+  <div class="slide-card">
+    <h2>No magic: the estimates are a computation on the sample</h2>
+    <div class="cols c-40">
+      <figure class="shot"><img src="img/xl_ols_methods.png" alt="Excel: Methods 1, 2 and 3 side by side give the same intercept and slope"><figcaption>The clean workbook (<i>OLS</i> sheet of A2_examples.xlsx): three methods, one answer</figcaption></figure>
+      <div>
+        <ul>
+          <li>Four routes, one destination: \(\hat\beta_0 = -1{,}679\), \(\hat\beta_1 = 5{,}573\).</li>
+          <li>The line: \(\widehat{\text{price}} = -1{,}679 + 5{,}573 \times \text{carats}\). One more carat goes with $5,573 more; a one-carat diamond is predicted at $3,894, a 1.2-carat diamond at $5,009.</li>
+          <li>\(\hat\beta_0\) and \(\hat\beta_1\) are functions of the data, like a sample mean. Change the sample and they change: they have standard errors, confidence intervals and t statistics, which is what the full output table reports.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Method four is the one you will use, but the point of the other three is the connection between the data and the estimates. The estimates are just a function applied to the sample, like a sample mean. Beta zero and beta one are not fancy, there is no magic: some computations on the data give you these two values. And because they are computed from a sample, they are random variables with standard errors, which is what the rest of the output table is about.</p>
+  </aside>
+</section>
+
+<section class="slide" id="py-ols" data-part="4 · Running a regression" data-pause>
+  <div class="slide-card">
+    <h2>In Python: one line, the same table</h2>
+    <div class="pycell" data-colab="ols-statsmodels"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+diamonds = pd.read_csv("diamonds.csv")
+model = smf.ols("price ~ carats", data=diamonds).fit()      # Y ~ X
+print(model.summary().tables[1])                             # the coefficient table (Excel's bottom block)
+print("intercept, slope:", model.params.round(2).tolist())
+print("predicted price at 1.0 and 1.2 carats:", model.predict(pd.DataFrame({"carats": [1.0, 1.2]})).round(0).tolist())
+
+# Method 2, in Python: the formulas give the same numbers
+x, y = diamonds.carats, diamonds.price
+print("slope = cov/var =", round(x.cov(y) / x.var(), 3), "  intercept =", round(y.mean() - x.cov(y) / x.var() * x.mean(), 3))
+</textarea></div>
+    <p class="small">Your turn: <code>print(model.summary())</code> shows the whole table. Then change the formula to <code>"carats ~ price"</code> and see that the slope is <i>not</i> 1/5,573: regressing \(X\) on \(Y\) is a different line. (This cell loads statsmodels, about 20 MB more, the first time.)</p>
+  </div>
+  <aside class="script">
+    <p>In Python the whole of Part four is one line. Statsmodels' ols takes a formula, price tilde carats, meaning price explained by carats, and the data; fit runs the regression. The summary has the same blocks as Excel's output, and tables one is the coefficient table: coef is Excel's Coefficients column, std err the Standard Error, and so on. The params are the intercept and the slope, and predict applies the line to new sizes. The last lines compute the formulas directly, to show once more that nothing is hidden.</p>
+    <p>Try printing the full summary. Then swap the formula to carats tilde price: regressing X on Y gives a different line, not the inverse slope.</p>
+  </aside>
+</section>
+
+<section class="slide" id="py-read" data-part="4 · Running a regression">
+  <div class="slide-card">
+    <h2>Excel and Python say the same thing in different words</h2>
+    <table class="t map">
+      <tr><th>What it is</th><th>Excel's SUMMARY OUTPUT</th><th>statsmodels <code>summary()</code></th><th>For now</th></tr>
+      <tr><td>the estimates</td><td>Coefficients (Intercept, X Variable 1)</td><td>coef (Intercept, carats)</td><td><b>read these</b></td></tr>
+      <tr><td>their precision</td><td>Standard Error</td><td>std err</td><td>next session</td></tr>
+      <tr><td>tests</td><td>t Stat, P-value, Lower / Upper 95%</td><td>t, P&gt;|t|, [0.025, 0.975]</td><td>next session</td></tr>
+      <tr><td>fit</td><td>R Square, Standard Error (of the regression)</td><td>R-squared, (scale)</td><td>next session</td></tr>
+      <tr><td>sample size</td><td>Observations</td><td>No. Observations</td><td>380</td></tr>
+      <tr><td>Solver's objective</td><td>ANOVA: Residual SS</td><td><code>model.ssr</code></td><td>148,015,059</td></tr>
+    </table>
+    <p class="small">Excel labels the slope "X Variable 1" (or the column header if you ticked <i>Labels</i>); Python uses the variable's name. Everything else lines up row by row.</p>
+  </div>
+  <aside class="script">
+    <p>The two outputs are the same table with different labels. Excel's Coefficients column is statsmodels' coef column; Standard Error is std err; t Stat and P-value are t and P greater than t; the 95 percent bounds are the interval in the last two columns; R Square is R-squared. Even Solver's objective is there, as the residual sum of squares in Excel's ANOVA block and as model dot ssr in Python. For now you only need the first row: the estimates. The rest is the subject of the next sessions.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-3" data-part="4 · Running a regression" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="b">
+      <div class="q">1. OLS chooses the intercept and the slope to minimize</div>
+      <button class="opt" data-k="a">the sum of the residuals</button>
+      <button class="opt" data-k="b">the sum of the squared residuals</button>
+      <button class="opt" data-k="c">the number of points above the line</button>
+      <div class="explain">The sum of residuals is zero for <i>any</i> line through the point of means (positives and negatives cancel). Squaring stops the cancellation and penalizes big misses.</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">2. Solver, the formulas, INTERCEPT/SLOPE, and the Regression tool give</div>
+      <button class="opt" data-k="a">the same intercept and slope (up to Solver's rounding)</button>
+      <button class="opt" data-k="b">different answers, because each makes different assumptions</button>
+      <button class="opt" data-k="c">the same slope but different intercepts</button>
+      <div class="explain">They all solve the same minimization. Solver stops when the improvement gets tiny, so its answer differs in the fourth digit; the others are exact.</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">3. At the OLS solution the SSR is 148 million. Move the slope a little away from 5,573 (keeping the intercept at its best value). The SSR</div>
+      <button class="opt" data-k="a">goes up, whichever way you move</button><button class="opt" data-k="b">goes down in one direction</button><button class="opt" data-k="c">stays the same</button>
+      <div class="explain">The SSR is a bowl with one bottom (the right panel of "find the line yourself"). At the bottom every move is uphill: that is how you know Solver found the minimum.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Before moving on, three quick questions to check your understanding. Click an answer to see whether you got it and why. Nothing here is graded.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= WRAP-UP -->
+<section class="slide" id="summary" data-part="Wrap-up">
+  <div class="slide-card">
+    <h2>Summary</h2>
+    <table class="t map">
+      <tr><th>Task</th><th>Idea</th><th>Excel</th><th>Python (pandas / statsmodels)</th></tr>
+      <tr><td>describe one variable</td><td>center (mean, median), spread (SD), range, count; histogram for the shape</td><td>AVERAGE, MEDIAN, STDEV.S, MIN, MAX, COUNT; Data Analysis → Descriptive Statistics; Insert → Histogram</td><td><code>df.describe()</code>, <code>df.x.hist()</code></td></tr>
+      <tr><td>two numeric variables</td><td>scatter plot; correlation \(r=s_{XY}/(s_Xs_Y)\), unit-free, \(-1\) to \(1\)</td><td>Insert → Scatter (+ trendline); CORREL, COVARIANCE.S</td><td><code>df.plot.scatter()</code>, <code>df.corr()</code></td></tr>
+      <tr><td>categorical variables: compare groups</td><td>crosstab = table of conditional means; check the cell sizes</td><td>Insert → PivotTable; Value Field Settings: Count / Average / % of Row Total</td><td><code>pd.crosstab()</code>, <code>df.pivot_table(aggfunc="mean")</code></td></tr>
+      <tr><td>fit a line</td><td>OLS minimizes \(\sum \hat e_i^2\); \(\hat\beta_1=s_{XY}/s_X^2\), \(\hat\beta_0=\bar Y-\hat\beta_1\bar X\)</td><td>Solver; the formulas; INTERCEPT, SLOPE; Data Analysis → Regression</td><td><code>smf.ols("y ~ x", data=df).fit()</code>, <code>.params</code>, <code>.summary()</code></td></tr>
+    </table>
+    <p class="small">Diamonds: \(r = 0.80\); \(\widehat{\text{price}} = -1{,}679 + 5{,}573 \times \text{carats}\), SSR 148,015,059, \(R^2 = 0.65 = r^2\). Titanic: women 73% vs men 21%. CPS: women earn 63% of men's earnings, within every education group.</p>
+  </div>
+  <aside class="script">
+    <p>Let's wrap up. To describe one variable, report a center, a spread, the range and the count, and draw a histogram. For two numeric variables, draw the scatter plot and compute the correlation, a unit-free number between minus one and one. For categorical variables, compare groups with a crosstab, which is a table of conditional means; and always check how many observations stand behind each cell. To fit a line, use OLS: it minimizes the sum of squared residuals, and whichever tool you use, Solver, the formulas, INTERCEPT and SLOPE, the Regression command, or one line of Python, you get the same two numbers.</p>
+  </aside>
+</section>
+
+<section class="slide" id="next" data-part="Wrap-up">
+  <div class="slide-card">
+    <h2>Practice, and what comes next</h2>
+    <div class="cols">
+      <div>
+        <h3>Practice notebook</h3>
+        <p>All the code from this module on the four data sets, plus short exercises: describe the wines, survival by age and gender, hours by education and gender, the wine regression, and a regression on a dummy variable.</p>
+        <div class="btn-row" data-notebook-links></div>
+        <p class="small">In Colab: <i>File → Save a copy in Drive</i> to keep your own version. The Excel workbook behind the screenshots is <a href="data/A2_examples.xlsx" download>A2_examples.xlsx</a>.</p>
+      </div>
+      <div>
+        <h3>Next</h3>
+        <p>The regression output has many more numbers than the two we read. The next live session takes the table apart: the standard error of the slope, confidence intervals, t statistics, and \(R^2\). Later modules add a second \(X\), then many, which is how regression keeps "everything else" fixed where the crosstab ran out of cells.</p>
+      </div>
+    </div>
+    <p class="src">References: Békés &amp; Kézdi, <i>Data Analysis for Business, Economics, and Policy</i>, chapters 3, 4 and 7; Stock &amp; Watson, <i>Introduction to Econometrics</i>, chapter 4. Data: the Titanic counts (Dawson 1995), the Current Population Survey 1999 (Stock &amp; Watson), and the diamonds and wines files of the course.</p>
+  </div>
+  <aside class="script">
+    <p>That's it for this module. If you want to keep the code, open the practice notebook.</p>
+  </aside>
+</section>
+
+</div><!-- deck -->
+</body>
+</html>
