@@ -1,0 +1,803 @@
+<!doctype html>
+<!--
+  Asynchronous module 3 for GBA 472 (Fall B 2026; written so it can be reused in other years):
+  regression with a binary X (a difference in means, its test, the treatment dummy of an experiment), and
+  running regressions in Python (two ways, the rest of Excel's output, three data sets, a dummy X).
+  Built 2026-11-09 (Tianli: "continue make the async 3 material on Binary X and OLS in python ... my recording
+  in GBA462Tianli\Asynchronous and slides accordingly"). Sources: the handout "Regression with a Binary X"
+  (GBA462Tianli/Handouts/handout8b.tex) and the course notebook "Simple Linear Regression" (Notebook 3);
+  Tianli's September 2024 videos 6_Binary_X.mp4 (Part 1) and 7_OLS_in_Python.mp4 (Part 2), cut by
+  code/make_audio.py; two screenshots of his Colab from the second video (code/make_frames.py); every number
+  re-estimated in code/A3_examples.py.
+
+  How this page works (details in ../README.md):
+  - every <section class="slide"> is one slide; its <aside class="script"> is the narration script, shown as
+    the transcript and read by a neutral US male text-to-speech voice (code/make_tts.py: Kokoro-82M, am_michael)
+    on the five slides without a 2024 recording;
+  - audio/<slide id>.m4a is the voice-over for that slide; open the page with ?record at the end of the
+    address to record takes in the browser;
+  - .widget[data-widget] blocks are simulations from assets/widgets.js (data in assets/a3data.js);
+    .pycell blocks run Python in the browser (pandas and statsmodels; the data files are fetched from data/).
+  Rule for student-facing text here (slides AND scripts): no course numbers, terms, or lecture numbers.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A binary X and OLS in Python</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Self-paced module: regression with a binary X (a difference in means), and running regressions in Python.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="assets/player.css">
+<style>
+  /* page-specific */
+  .parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-top: 12px; }
+  .parts button { text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 10px 12px; cursor: pointer; font-size: 15px; line-height: 1.35; }
+  .parts button:hover { border-color: var(--brand); }
+  .parts button b { display: block; color: var(--brand); font-size: 13px; text-transform: uppercase; letter-spacing: .05em; }
+  .feature { display: grid; grid-template-columns: 36px 1fr; gap: 6px 10px; align-items: start; margin: 8px 0; }
+  .feature .ic { width: 32px; height: 32px; border-radius: 8px; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  figure.shot { margin: 6px 0; }
+  figure.shot img { border: 1px solid var(--line); background: #fff; }
+  table.map th, table.map td { text-align: left; }
+  table.map td:first-child { color: var(--muted); }
+  table.t tr.hi td { font-weight: 650; background: var(--brand-soft); }
+  table.t td.num, table.t th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  code.xl { font-family: var(--mono); background: var(--code-bg); padding: 1px 6px; border-radius: 4px; font-size: 14px; white-space: nowrap; }
+  pre.codeview { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; font-size: 14px; overflow-x: auto; font-family: var(--mono); line-height: 1.45; }
+  pre.codeview.out { font-size: 12.5px; line-height: 1.35; }
+  pre.codeview mark { background: var(--brand-soft); color: inherit; border-radius: 3px; padding: 0 2px; outline: 1px solid var(--brand); }
+  .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .vs .box { margin: 0; }
+  .widget select { font: inherit; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  .data-list li { margin: 3px 0; }
+  @media (max-width: 760px) { .vs { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<script>
+  window.MODULE_CONFIG = {
+    moduleId: "GBA472-A3-binary-x-ols-python",
+    title: "A binary X, and running regressions in Python",
+    subtitle: "Causal and Predictive Analytics · Asynchronous module",
+    // Colab buttons: publish_site.py writes the GitHub location into the published copy.
+    colabUrl: "",
+    github: "tx58/causal-analytics/GBA472/A3",
+    notebook: "A3_notebook.ipynb",
+    pyPackages: ["numpy", "matplotlib", "pandas", "statsmodels"],
+    pySetup: async (py) => {
+      py.runPython("import warnings\nwarnings.filterwarnings('ignore')");   // pandas' pyarrow notice etc.
+      for (const f of ["cps12.csv", "hprices.csv", "diamonds.csv", "wines.csv", "resume.csv"]) {
+        const r = await fetch("data/" + f);
+        py.FS.writeFile(f, await r.text());
+      }
+    },
+  };
+</script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script defer src="assets/a3data.js"></script>
+<script defer src="assets/transcripts.js"></script>
+<script defer src="assets/widgets.js"></script>
+<script defer src="assets/player.js"></script>
+</head>
+<body>
+<div id="deck">
+
+<!-- ======================================================================= START -->
+<section class="slide title-slide" id="title" data-part="Start" data-title="Welcome">
+  <div class="slide-card">
+    <div class="eyebrow">Causal and Predictive Analytics · Asynchronous module</div>
+    <h1>A binary X, and running regressions in Python</h1>
+    <div class="who">Tianli Xia · Simon Business School, University of Rochester</div>
+    <div class="start-row">
+      <button class="btn primary" data-action="play-all">▶ Watch from the start (auto-advance)</button>
+      <button class="btn" data-action="next">Go at my own pace →</button>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Hello. This module explains how to run a regression when the regressor is a binary variable, and then shows you how to use Python to run regressions.</p>
+  </aside>
+</section>
+
+<section class="slide" id="how-to" data-part="Start">
+  <div class="slide-card">
+    <h2>How to use this page</h2>
+    <div class="cols">
+      <div>
+        <div class="feature"><span class="ic">▶</span><div><b>Listen.</b> Each slide has its own short voice-over. Press <kbd>Space</kbd> or the play button. Change the speed at the bottom right.</div></div>
+        <div class="feature"><span class="ic">⇄</span><div><b>Your pace.</b> Use <kbd>←</kbd> <kbd>→</kbd> or the contents on the left. Turn on <i>Auto-advance</i> to watch it like a video.</div></div>
+        <div class="feature"><span class="ic">≡</span><div><b>Read.</b> The transcript sits under each slide (<kbd>T</kbd> hides it). Click a sentence to jump there.</div></div>
+      </div>
+      <div>
+        <div class="feature"><span class="ic">✦</span><div><b>Try it.</b> Slides marked <i>try it</i> have simulations. Change the settings and see what happens.</div></div>
+        <div class="feature"><span class="ic">{ }</span><div><b>Code.</b> Python cells run right in the page. Edit them and press <i>Run</i>. The same code is in a Colab notebook.</div></div>
+        <div class="feature"><span class="ic">✓</span><div><b>Check.</b> Short self-checks end each part. They are not graded.</div></div>
+      </div>
+    </div>
+    <div class="box key">
+      <div class="label">What you need for the exam</div>
+      <p>Interpret the intercept and the coefficient when \(X\) is a 0/1 variable, test whether two group means differ, and run a regression in Python and read its output: coefficients, standard errors, \(t\), p-values, confidence intervals, \(R^2\). You will not be asked to write code from memory.</p>
+    </div>
+  </div>
+  <aside class="script">
+    <p>A quick tour of the page. Every slide has its own short voice-over. Press the space bar or the play button to hear it, and change the speed at the bottom right.</p>
+    <p>You decide the pace. Use the arrow keys or the list of slides on the left. If you prefer to sit back, turn on auto-advance and the page plays like a video. It stops on the slides where you have something to do.</p>
+    <p>The transcript is under each slide, so you can read instead of listening.</p>
+    <p>Slides marked try it have small simulations. The code cells run Python inside the page, so you do not need to install anything. The same code is in a Colab notebook if you want to keep it.</p>
+    <p>For the exam, focus on the ideas and on using the formulas. The derivations are there so you can see where the results come from. You will not have to reproduce them.</p>
+  </aside>
+</section>
+
+<section class="slide" id="roadmap" data-part="Start">
+  <div class="slide-card">
+    <h2>Two parts</h2>
+    <p class="lead">First the case where \(X\) takes only the values 0 and 1, where a regression turns into a comparison of two group means. Then the same regressions, and a few more, in Python.</p>
+    <div class="parts">
+      <button data-goto="bx-intro"><b>Part 1</b>A binary \(X\): the regression is a difference in means, with the same test. In an experiment, \(X\) is the treatment dummy.</button>
+      <button data-goto="py-roadmap"><b>Part 2</b>OLS in Python: load data, two ways to run the regression, the rest of Excel's output, three more examples, a dummy \(X\).</button>
+    </div>
+    <div class="box">
+      <div class="label">The data (the Python cells on the page load them for you)</div>
+      <ul class="data-list small">
+        <li><a href="data/cps12.csv" download>cps12.csv</a>: 3,955 full-time workers aged 25 to 34 with a college degree, 2012: hourly <code>earnings</code>, <code>male</code>, <code>female</code></li>
+        <li><a href="data/hprices.csv" download>hprices.csv</a>: 88 houses: <code>price</code> (in $1,000s) and size <code>sqrft</code></li>
+        <li><a href="data/diamonds.csv" download>diamonds.csv</a>: 380 diamonds: <code>price</code>, <code>carats</code>, <code>color</code> (1 = colorless or near-colorless)</li>
+        <li><a href="data/wines.csv" download>wines.csv</a>: 230 wines: <code>Price</code>, rating <code>Score</code>, <code>Year</code></li>
+        <li><a href="data/resume.csv" download>resume.csv</a>: 4,870 résumés from a hiring experiment: <code>callback</code>, <code>white_name</code></li>
+      </ul>
+    </div>
+  </div>
+  <aside class="script">
+    <p>This module has two parts. In part one, the X in the regression takes only two values, zero and one: men and women, or treated and untreated. You will see that the regression then compares two group means, and that its coefficient and its test are exactly the difference in means test you know from statistics. In an experiment, this X is the treatment dummy.</p>
+    <p>In part two, you run regressions in Python: loading the data, two ways to write the regression, the rest of the numbers in Excel's output, the same code on more data sets, and a dummy X. The five data files are listed here. The Python cells on the page load them for you.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 1 -->
+<section class="slide" id="bx-intro" data-part="1 · A binary X" data-title="When X takes two values">
+  <div class="slide-card">
+    <h2>When \(X\) takes only two values</h2>
+    <div class="cols c-60">
+      <div>
+        <ul>
+          <li>So far \(X\) was continuous: carats, square feet, wine ratings, stock returns.</li>
+          <li>Regression works just as well when \(X\) is a <b>binary</b> (or <b>dummy</b>, or <b>indicator</b>) variable, equal to 0 or 1:
+            <ul>
+              <li>gender: 1 = male, 0 = female</li>
+              <li>a drug trial: 1 = treated, 0 = control</li>
+              <li>a firm: 1 = publicly traded, 0 = private</li>
+            </ul>
+          </li>
+          <li>The OLS formulas for \(\hat\beta_0\) and \(\hat\beta_1\) do not change. The <b>interpretation</b> does: \(\beta_1\) is no longer a slope, since \(X\) cannot move by "one more unit" between 0 and 1.</li>
+        </ul>
+        <p class="small">"Dummy variable" is also used for sets of 0/1 variables that code more than two categories. A binary variable is the two-category case.</p>
+      </div>
+      <div class="box key">
+        <div class="label">The punchline</div>
+        <p>A regression on a binary \(X\) <b>is</b> a difference-in-means analysis: same estimate, same standard error, same test.</p>
+        <p class="small">Data for this part: <code>cps12.csv</code>, the Current Population Survey for 2012.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The data set for this part is cps12, the Current Population Survey for 2012. So far, the regressor was a continuous variable, like carats, stock returns, or wine ratings. Regression also works when X is a binary or dummy variable, which takes only the values zero and one: gender, treated versus control in a drug trial, a publicly traded versus a private firm. The formulas for the estimates do not change. What changes is the interpretation: beta one is no longer a slope, because X cannot move by one unit. Instead, a regression on a binary regressor is equivalent to a difference in means analysis.</p>
+  </aside>
+</section>
+
+<section class="slide" id="bx-data" data-part="1 · A binary X" data-title="Earnings of men and women">
+  <div class="slide-card">
+    <h2>Average hourly earnings of men and women</h2>
+    <table class="t">
+      <tr><th></th><th colspan="3">Men</th><th colspan="3">Women</th><th colspan="3">Difference, men vs. women</th></tr>
+      <tr><th>Year</th><th class="num">\(\bar Y_m\)</th><th class="num">\(s_m\)</th><th class="num">\(n_m\)</th><th class="num">\(\bar Y_w\)</th><th class="num">\(s_w\)</th><th class="num">\(n_w\)</th><th class="num">\(\bar Y_m-\bar Y_w\)</th><th class="num">SE</th><th class="num">95% CI</th></tr>
+      <tr><td>1992</td><td class="num">24.83</td><td class="num">10.85</td><td class="num">1,594</td><td class="num">21.39</td><td class="num">8.39</td><td class="num">1,368</td><td class="num">3.44</td><td class="num">0.35</td><td class="num">2.75–4.14</td></tr>
+      <tr><td>1996</td><td class="num">23.97</td><td class="num">10.79</td><td class="num">1,380</td><td class="num">20.26</td><td class="num">8.48</td><td class="num">1,230</td><td class="num">3.71</td><td class="num">0.38</td><td class="num">2.97–4.46</td></tr>
+      <tr><td>2000</td><td class="num">26.55</td><td class="num">12.38</td><td class="num">1,303</td><td class="num">22.13</td><td class="num">9.98</td><td class="num">1,181</td><td class="num">4.42</td><td class="num">0.45</td><td class="num">3.54–5.30</td></tr>
+      <tr><td>2004</td><td class="num">26.80</td><td class="num">12.81</td><td class="num">1,894</td><td class="num">22.43</td><td class="num">9.99</td><td class="num">1,735</td><td class="num">4.37</td><td class="num">0.38</td><td class="num">3.63–5.12</td></tr>
+      <tr><td>2008</td><td class="num">26.63</td><td class="num">12.57</td><td class="num">1,839</td><td class="num">22.26</td><td class="num">10.30</td><td class="num">1,871</td><td class="num">4.36</td><td class="num">0.38</td><td class="num">3.62–5.10</td></tr>
+      <tr class="hi"><td>2012</td><td class="num">25.30</td><td class="num">12.09</td><td class="num">2,004</td><td class="num">21.50</td><td class="num">9.99</td><td class="num">1,951</td><td class="num">3.80</td><td class="num">0.35</td><td class="num">3.11–4.49</td></tr>
+    </table>
+    <p class="small">Full-time workers aged 25–34 with a college degree, hourly earnings in 2012 dollars (Current Population Survey). The 2012 row is our file <code>cps12.csv</code>.</p>
+    <div class="box key"><p>In 2012 men earned <b>$3.80 an hour more</b> than women, on average in the sample. Is that difference statistically significant, or could it be sampling variation?</p></div>
+    <p class="src">Source: Stock &amp; Watson, <i>Introduction to Econometrics</i>, Table 3.1; the 2012 row re-computed from the data.</p>
+  </div>
+  <aside class="script">
+    <p>Here is an example. The table splits the CPS data into men and women and reports average hourly earnings for each group. If you care about the difference in earnings between men and women, take the sample average for men in 2012, the sample average for women, and subtract: the difference is 3.80 dollars an hour. That is the wage gap in the sample. But we also want to know whether this difference is statistically significant, or just the result of sampling variation. In other words, we want a statistical test on the difference between two group means.</p>
+  </aside>
+</section>
+
+<section class="slide" id="bx-econ" data-part="1 · A binary X" data-title="Statistical vs. economic significance">
+  <div class="slide-card">
+    <h2>A detour: statistical vs. economic significance</h2>
+    <div class="vs">
+      <div class="box">
+        <div class="label">Statistically significant</div>
+        <p>The estimate is large relative to its standard error, so it is unlikely to be zero. A sign of <b>precision</b>: with enough data, even a tiny difference can be "significant".</p>
+      </div>
+      <div class="box">
+        <div class="label">Economically significant</div>
+        <p>The estimate is large enough to <b>matter</b> for a decision, a budget, a life. A judgment about magnitude, in the units of \(Y\).</p>
+      </div>
+    </div>
+    <div class="box key">
+      <p>The 2012 wage gap: $3.80 an hour on top of women's $21.50, almost a fifth more (3.80 / 21.50 = 18%). Economically, a big gap, whatever the test says. Next: is it statistically significant?</p>
+    </div>
+  </div>
+  <aside class="script">
+    <p>A slight detour: statistical significance and economic significance are two different things. A coefficient can be statistically significant because it is precisely estimated, and still be so small that it has little economic meaning. The 3.80 wage gap is certainly economically significant: women's average earnings are 21.50 dollars an hour, so the gap is a sizable share of that. Whether it is statistically significant needs a test.</p>
+  </aside>
+</section>
+
+<section class="slide" id="bx-test" data-part="1 · A binary X" data-title="Testing the difference in means">
+  <div class="slide-card">
+    <h2>Testing the difference in means</h2>
+    <div class="cols c-60">
+      <div>
+        <p>\(H_0:\ \mu_m-\mu_w = 0\) vs. \(H_A:\ \mu_m-\mu_w \neq 0\)</p>
+        <p>The standard error of the difference:</p>
+        <p>\[ SE(\bar Y_m-\bar Y_w)=\sqrt{\frac{s_m^2}{n_m}+\frac{s_w^2}{n_w}}=\sqrt{\frac{12.09^2}{2004}+\frac{9.99^2}{1951}}=0.35 \]</p>
+        <ul>
+          <li>\(t=\dfrac{3.80-0}{0.35}=10.85\) (with unrounded numbers, 3.797 / 0.352 = 10.78)</li>
+          <li>p-value \(=2\,\Phi(-|t|)\approx 0\); in Excel: <code class="xl">=2*NORM.S.DIST(-10.85, TRUE)</code></li>
+          <li>99% CI: \(3.80 \pm 2.58\times 0.35 = (2.9,\ 4.7)\). Zero is far outside.</li>
+        </ul>
+        <p>Reject \(H_0\) at any conventional level: the gap is statistically significant.</p>
+      </div>
+      <div class="box">
+        <div class="label">Why this formula</div>
+        <p>The two sample means come from independent groups, so the variance of their difference is the <b>sum</b> of their variances, \(s_m^2/n_m + s_w^2/n_w\). The square root turns the variance back into a standard error.</p>
+        <p class="small">Testing one mean against 0 is the special case where the second "mean" is the constant 0: its variance term drops out and you are back to \(s/\sqrt{n}\).</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>To test whether the gap is statistically significant, the null hypothesis is that the men's and women's means are the same, so their difference is zero; the alternative is that they differ. The t statistic needs the standard error of the difference. Its formula looks ugly but is intuitive: the variance of the men's mean estimator plus the variance of the women's mean estimator, under a square root. A test of one mean against zero is the special case where the second term disappears. Plugging in the numbers gives a standard error of 0.35, and a t statistic of 10.85. The p-value is two times the normal CDF at minus the absolute t, essentially zero, so we reject the null hypothesis at any usual level. The 99 percent confidence interval, from 2.9 to 4.7, is far from zero.</p>
+  </aside>
+</section>
+
+<section class="slide" id="bx-model" data-part="1 · A binary X" data-title="The regression model">
+  <div class="slide-card">
+    <h2>The same question as a regression</h2>
+    <ul>
+      <li>\(Y_i\): average hourly earnings in 2012</li>
+      <li>\(D_i = 1\) if worker \(i\) is male, \(D_i = 0\) if female</li>
+    </ul>
+    <p>\[ Y_i=\beta_0+\beta_1 D_i+e_i \]</p>
+    <ul>
+      <li>\(D_i\) is not continuous: it takes two values, so there is no line to slide along and no "slope".</li>
+      <li>We call \(\beta_1\) the <b>coefficient on \(D_i\)</b>, not the slope.</li>
+      <li>How do we interpret it? Look at what the model says for each value of \(D_i\).</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Now let's use regression to do exactly the same analysis. Let Y be average hourly earnings in 2012, and D a dummy variable equal to one if the worker is male and zero if female. The population regression is Y equals beta zero plus beta one times D plus an error term. Since D takes only two values, there is no line in the usual sense, so we call beta one the coefficient on D instead of the slope. To interpret it, look at what the model says for each value of D.</p>
+  </aside>
+</section>
+
+<section class="slide" id="bx-means" data-part="1 · A binary X" data-title="β₀ and β₁ are group means">
+  <div class="slide-card">
+    <h2>The coefficients are group means</h2>
+    <p class="lead">\[ E(Y\mid D)=\beta_0+\beta_1 D \]</p>
+    <div class="cols">
+      <div class="box">
+        <div class="label">\(D = 0\): women</div>
+        <p>\[ E(Y_i\mid D_i=0)=\beta_0+\beta_1\cdot 0=\beta_0 \]</p>
+        <p>\(\beta_0\) is the population mean of earnings for <b>women</b>, the group with \(D=0\) (the <i>baseline</i> group).</p>
+      </div>
+      <div class="box">
+        <div class="label">\(D = 1\): men</div>
+        <p>\[ E(Y_i\mid D_i=1)=\beta_0+\beta_1\cdot 1=\beta_0+\beta_1 \]</p>
+        <p>\(\beta_0+\beta_1\) is the population mean of earnings for <b>men</b>.</p>
+      </div>
+    </div>
+    <div class="box key"><p>Subtract: \(\beta_1 = E(Y\mid D=1)-E(Y\mid D=0)\), the <b>difference between the two population means</b>. Testing \(\beta_1=0\) is testing whether men and women earn the same on average.</p></div>
+  </div>
+  <aside class="script">
+    <p>Remember that the linear regression model is a model of the conditional mean: the expected earnings given gender. When D is zero, a female worker, the expected earnings are beta zero plus beta one times zero, which is beta zero. When D is one, a male worker, they are beta zero plus beta one. Take the difference of the two equations: beta one equals the difference between the population mean for men and the population mean for women. So beta one is exactly what the difference in means test was about.</p>
+  </aside>
+</section>
+
+<section class="slide" id="bx-output" data-part="1 · A binary X" data-title="The regression output">
+  <div class="slide-card">
+    <h2>The regression on the 2012 data</h2>
+    <p class="small"><code>smf.ols("earnings ~ male", data=cps).fit().summary()</code></p>
+<pre class="codeview out">                            OLS Regression Results
+==============================================================================
+Dep. Variable:               earnings   R-squared:                       0.028
+Model:                            OLS   Adj. R-squared:                  0.028
+Method:                 Least Squares   F-statistic:                     115.6
+No. Observations:                3955   Prob (F-statistic):           1.36e-26
+Df Residuals:                    3953   Log-Likelihood:                -15131.
+Df Model:                           1
+Covariance Type:            nonrobust
+==============================================================================
+                 coef    std err          t      P>|t|      [0.025      0.975]
+------------------------------------------------------------------------------
+<mark>Intercept     21.5024      0.251     85.542      0.000      21.010      21.995</mark>
+<mark>male           3.7965      0.353     10.751      0.000       3.104       4.489</mark>
+==============================================================================</pre>
+    <ul>
+      <li><b>Intercept</b> = 21.50: average earnings of the baseline group, women (\(D=0\)).</li>
+      <li><b>male</b> = 3.80: men earn $3.80 an hour more than women on average.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Here is the output when we run that regression on the data. There are two coefficients, the intercept and the coefficient on male. The intercept is the average earnings of women, the baseline group, the value when the male dummy is zero. The coefficient on male is the difference between men and women: men earn 3.80 dollars an hour more on average.</p>
+  </aside>
+</section>
+
+<section class="slide" id="bx-compare" data-part="1 · A binary X" data-title="Regression = difference in means">
+  <div class="slide-card">
+    <h2>One-to-one: the regression and the difference in means</h2>
+    <p class="lead">\[ \widehat{\text{Earnings}}=\underset{(0.25)}{21.50}+\underset{(0.35)}{3.80}\cdot\text{Male} \]</p>
+    <table class="t map">
+      <tr><th>Regression</th><th>Difference in means (the table)</th><th>Value</th></tr>
+      <tr><td>\(\hat\beta_0\)</td><td>sample average for women, \(\bar Y_w\)</td><td>21.50</td></tr>
+      <tr><td>\(\hat\beta_0+\hat\beta_1\)</td><td>sample average for men, \(\bar Y_m\)</td><td>25.30</td></tr>
+      <tr><td>\(\hat\beta_1\)</td><td>the difference, \(\bar Y_m-\bar Y_w\)</td><td>3.80</td></tr>
+      <tr><td>\(SE(\hat\beta_1)\)</td><td>\(\sqrt{s_m^2/n_m+s_w^2/n_w}\)</td><td>0.35</td></tr>
+      <tr><td>95% CI: \(\hat\beta_1\pm1.96\,SE(\hat\beta_1)\)</td><td>\(3.80\pm1.96\sqrt{\tfrac{12.09^2}{2004}+\tfrac{9.99^2}{1951}}\)</td><td>(3.11, 4.49)</td></tr>
+    </table>
+    <p class="small">The two standard errors agree to two decimals (0.353 vs. 0.352). The regression's default standard error pools the two groups' variances; the table's formula keeps them separate. The table's version is what Python reports with heteroskedasticity-robust standard errors, a topic for later.</p>
+  </div>
+  <aside class="script">
+    <p>Now compare the regression output with the difference in means analysis: there is a one-to-one mapping. The intercept is exactly the sample average earnings for women. The intercept plus the coefficient is exactly the sample average for men. And the coefficient on male is exactly the difference between the two averages. The inference is the same too. From the table, the 95 percent confidence interval for the wage gap is the difference plus or minus 1.96 times the standard error of 0.35, which runs from 3.11 to 4.49. From the regression, beta one hat plus or minus 1.96 times its standard error of 0.35 gives the same interval.</p>
+  </aside>
+</section>
+
+<section class="slide" id="bx-ttest" data-part="1 · A binary X" data-title="The t-test on β₁">
+  <div class="slide-card">
+    <h2>The \(t\)-test on \(\beta_1\) is the difference-in-means test</h2>
+    <p>\(H_0:\ \beta_1=0\) vs. \(H_A:\ \beta_1\neq 0\)</p>
+    <p>\[ t^{act}=\frac{\hat\beta_1-0}{SE(\hat\beta_1)}=\frac{3.80}{0.35}=10.85,\qquad p\text{-value}=2\,\Phi\left(-|t^{act}|\right)=2\,\Phi(-10.85)\approx 0 \]</p>
+    <p>Reject \(H_0\) at any positive level of significance, just as before.</p>
+    <div class="box key">
+      <div class="label">Same numbers, same test, same conclusion</div>
+      <p>Running a regression on a binary \(X\) is the difference-in-means test between the group with \(X=1\) and the group with \(X=0\). The regression does it in one line, and it extends: next you can add other \(X\)'s to the same equation.</p>
+    </div>
+  </div>
+  <aside class="script">
+    <p>To summarize, you can also test the hypothesis on the coefficient: the t statistic is beta one hat over its standard error, 10.85, and the p-value is very close to zero, so we reject the null that the earnings difference is zero at basically any level of significance. Running a regression with a binary X is the same as a test of the difference in means between the two groups.</p>
+  </aside>
+</section>
+
+<section class="slide" id="bx-picture" data-part="1 · A binary X" data-title="Try it: the line through two means" data-pause>
+  <div class="slide-card">
+    <h2>Try it: a regression line through two group means</h2>
+    <div class="widget" data-widget="dummy"></div>
+    <p class="small">Each dot is a worker, spread sideways only so you can see them. Switch the coding, then pick a smaller sample and draw new samples: the right panel collects \(\hat\beta_1\) from each sample.</p>
+  </div>
+  <aside class="script">
+    <p>Here is the regression on the data, as a picture. Each dot is a worker. The dots are spread sideways only so you can see them. The short horizontal lines are the two group means, and the regression line goes through both of them. At D equal to zero, it sits at beta zero hat, the mean of the zero group. At D equal to one, it sits at beta zero hat plus beta one hat.</p>
+    <p>Switch the coding so that D equals one for women. The intercept becomes the men's mean and the coefficient changes sign, while the gap keeps its size.</p>
+    <p>Then pick a smaller sample, say two hundred workers, and draw new samples. The coefficient moves from sample to sample, and the spread of these estimates matches the standard error that the regression reports. That is what a standard error measures.</p>
+  </aside>
+</section>
+
+<section class="slide" id="bx-experiment" data-part="1 · A binary X" data-title="The treatment dummy" data-pause>
+  <div class="slide-card">
+    <h2>The binary \(X\) you will meet most: a treatment dummy</h2>
+    <div class="cols c-60">
+      <div>
+        <p>A hiring experiment (Bertrand &amp; Mullainathan, 2004): 4,870 fictitious résumés sent to job ads in Boston and Chicago. Each résumé got, <b>at random</b>, a White-sounding name (Emily, Greg) or an African-American-sounding name (Lakisha, Jamal).</p>
+        <ul>
+          <li>\(Y_i = 1\) if the employer called back, 0 if not; \(D_i = 1\) for a White-sounding name.</li>
+          <li>\(\widehat{\text{callback}} = \underset{(0.0055)}{0.0645} + \underset{(0.0078)}{0.0320}\cdot\text{white\_name}\), \(t = 4.1\)</li>
+          <li>The mean of a 0/1 variable is a share: 6.45% vs. 9.65% called back, a gap of 3.2 percentage points, about 50% more callbacks.</li>
+        </ul>
+      </div>
+      <div class="box key">
+        <div class="label">Same arithmetic, different meaning</div>
+        <p><b>Experiment:</b> the name was assigned at random, so \(\hat\beta_1\) estimates the <b>causal effect</b> of the name: the average treatment effect.</p>
+        <p><b>Earnings and gender:</b> nobody assigned gender at random; men and women in the data also differ in fields, jobs and hours. There \(\hat\beta_1\) <b>describes</b> the gap. It is not the effect of gender.</p>
+      </div>
+    </div>
+    <div class="pycell" data-colab="experiment"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+resume = pd.read_csv("resume.csv")
+print(resume.groupby("white_name").callback.agg(["mean", "count"]))   # callback rates by group
+est = smf.ols("callback ~ white_name", data=resume).fit()
+print(est.summary().tables[1])
+</textarea></div>
+  </div>
+  <aside class="script">
+    <p>The binary X you will meet most in this course is a treatment dummy. In this experiment, researchers sent close to five thousand made-up job applications to ads in Boston and Chicago. Each application got, at random, either a name that sounds White, like Emily or Greg, or a name that sounds African-American, like Lakisha or Jamal. The outcome is one if the employer called back.</p>
+    <p>Regress the outcome on the treatment dummy. The intercept, 0.0645, is the callback rate for African-American-sounding names, about six and a half percent. The coefficient, 0.032, is the difference: three point two percentage points, about fifty percent more callbacks, with a t statistic of about four.</p>
+    <p>Because the names were assigned at random, this difference in means estimates the causal effect of the name. The gender regression did the same arithmetic, but nobody assigned gender at random. Men and women in the data also differ in their jobs, fields and hours. There, the coefficient describes the gap. It is not the effect of gender. Run the cell to check the numbers.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-1" data-part="1 · A binary X" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="a">
+      <div class="q">1. \(\widehat{\text{earnings}} = 21.50 + 3.80\times\text{male}\). The average earnings of women in the sample are</div>
+      <button class="opt" data-k="a">21.50</button><button class="opt" data-k="b">25.30</button><button class="opt" data-k="c">3.80</button>
+      <div class="explain">Women have male = 0, so their prediction is the intercept. Men: 21.50 + 3.80 = 25.30. The coefficient is the gap.</div>
+    </div>
+    <div class="quiz" data-answer="b">
+      <div class="q">2. Same data, but the regressor is a <i>female</i> dummy: \(\widehat{\text{earnings}} = b_0 + b_1\times\text{female}\). Then</div>
+      <button class="opt" data-k="a">\(b_0 = 21.50,\ b_1 = 3.80\)</button><button class="opt" data-k="b">\(b_0 = 25.30,\ b_1 = -3.80\)</button><button class="opt" data-k="c">\(b_0 = 25.30,\ b_1 = 3.80\)</button>
+      <div class="explain">Now men are the baseline (female = 0), so the intercept is their mean, 25.30, and the coefficient is women minus men, −3.80. Same gap, same \(t\) in absolute value, same conclusion.</div>
+    </div>
+    <div class="quiz" data-answer="c">
+      <div class="q">3. In the hiring experiment, \(\hat\beta_1 = 0.032\) can be read as the causal effect of the name because</div>
+      <button class="opt" data-k="a">it is statistically significant</button><button class="opt" data-k="b">the regression has an intercept</button><button class="opt" data-k="c">the names were assigned at random</button>
+      <div class="explain">Significance says the gap is unlikely to be noise; it says nothing about why the groups differ. Random assignment makes the two groups alike in everything but the name, so the difference in means is the effect of the name.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Before moving on, three quick questions to check your understanding. Click an answer to see whether you got it and why. Nothing here is graded.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 2 -->
+<section class="slide" id="py-roadmap" data-part="2 · OLS in Python" data-title="Regressions in Python">
+  <div class="slide-card">
+    <h2>Running regressions in Python</h2>
+    <div class="cols c-60">
+      <ol>
+        <li>Load the packages and a data set (from the web)</li>
+        <li>Two ways to run a simple OLS regression: the <b>matrix</b> way and the <b>formula</b> way</li>
+        <li>The rest of Excel's output: the ANOVA table, TSS, MSE, the standard error of the regression</li>
+        <li>Two more data sets, and <b>one block of code with everything you need</b></li>
+        <li>A regression on a dummy variable</li>
+      </ol>
+      <div class="box">
+        <div class="label">Where to run it</div>
+        <p>The video uses Google Colab. On this page every cell runs in your browser; the practice notebook (last slide) opens the same code in Colab.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Now, how to use Python to run regressions. We will start with loading a data set, then two ways to run a simple OLS regression, then how to get the additional numbers that Excel reports, then the same thing on two more data sets, with one code block that has everything you need. In the future, if you want to run a regression, you can copy that block and change the data set and the variables. Finally, a regression with a dummy variable instead of a continuous one.</p>
+  </aside>
+</section>
+
+<section class="slide" id="py-load" data-part="2 · OLS in Python" data-title="Packages and data">
+  <div class="slide-card">
+    <h2>Step 1: the packages, then the data</h2>
+    <figure class="shot"><img src="img/colab_load.png" alt="Colab cells: import pandas as pd, numpy as np, statsmodels.api as sm; housedata = pd.read_csv(link to hprices.csv on the web); print(housedata.describe())"><figcaption>From the video (Google Colab): three packages, then the data read straight from a web address</figcaption></figure>
+    <div class="cols c-60">
+      <ul>
+        <li><code>pandas</code>: data tables. <code>numpy</code>: math. <code>statsmodels</code>: regressions. <code>import ... as sm</code> gives each a short name.</li>
+        <li><code>pd.read_csv(...)</code> takes a web address or a file on your computer (or in Colab's file panel).</li>
+        <li>88 houses: <code>sqrft</code> and <code>price</code>, <b>in thousands of dollars</b>.</li>
+      </ul>
+<pre class="codeview out">             sqrft       price
+count    88.000000   88.000000
+mean   2013.693182  293.546034
+std     577.191583  102.713445
+min    1171.000000  111.000000
+25%    1660.500000  230.000000
+50%    1845.000000  265.500000
+75%    2227.000000  326.250000
+max    3880.000000  725.000000</pre>
+    </div>
+  </div>
+  <aside class="script">
+    <p>As usual, we first import the packages: pandas and numpy, the basic ones, and statsmodels for the regressions, here its api module, called sm. Then the data: the house price data set, read directly from a web address with pandas' read_csv; you can also upload the file from your own machine. Describe prints the summary statistics: 88 houses, the square footage and the price, which is in thousands of dollars.</p>
+  </aside>
+</section>
+
+<section class="slide" id="py-matrix" data-part="2 · OLS in Python" data-title="Way 1: the matrix way">
+  <div class="slide-card">
+    <h2>Way 1: <code>sm.OLS</code>, the matrix way</h2>
+    <p>\(Y_i=\beta_0+\beta_1X_i+e_i\): estimate \(\beta_0\) and \(\beta_1\) from the data.</p>
+    <div class="cols c-60">
+<pre class="codeview"># Y and X as columns of the data
+y = housedata[["price"]]
+X = housedata[["sqrft"]]
+X = sm.add_constant(X)       # a column of 1s, for beta0
+est = sm.OLS(y, X).fit()     # fit the model, store it in est
+print(est.summary())</pre>
+      <div>
+        <p>\(\beta_0\) multiplies a constant 1, so it needs a column of ones in the \(X\) "matrix":</p>
+        <table class="t">
+          <tr><th>const</th><th>sqrft</th><th>price</th></tr>
+          <tr><td>1</td><td>2,438</td><td>300</td></tr>
+          <tr><td>1</td><td>2,076</td><td>370</td></tr>
+          <tr><td>1</td><td>…</td><td>…</td></tr>
+        </table>
+        <p class="small"><code>est</code> (for "estimation") is a common name for the results; any name works.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Recall the basic regression model with one X: Y on the left, X on the right, an intercept beta zero, a slope beta one, and an error term. The goal is to recover beta zero and beta one from the data. The first way uses the OLS function in statsmodels with matrix notation. Assign the price column to y and the square footage column to X, and add a constant to X: beta zero is beta zero times a constant one, a column of ones in the X matrix. Then call OLS with y and X, fit it, store the result in a variable called est, for estimation, and print its summary.</p>
+  </aside>
+</section>
+
+<section class="slide" id="py-read" data-part="2 · OLS in Python" data-title="Reading the output">
+  <div class="slide-card">
+    <h2>Reading the output</h2>
+    <div class="cols c-60">
+      <figure class="shot"><img src="img/colab_matrix.png" alt="Colab output of est.summary(): R-squared 0.621; const 11.2041 (24.743); sqrft 0.1402 (0.012), t 11.866, p 0.000, 95% CI 0.117 to 0.164"><figcaption>From the video: the summary (the row <code>const</code> is the intercept)</figcaption></figure>
+      <div>
+        <ul>
+          <li><b>sqrft = 0.1402</b>: one more square foot, \(0.1402\times\$1{,}000\approx\$140\) more, on average. Price is in thousands, so multiply by 1,000.</li>
+          <li>SE 0.012, \(t = 11.9\), p-value 0.000.</li>
+          <li>95% CI (0.117, 0.164): zero is far outside.</li>
+          <li>\(R^2 = 0.621\); the \(F\)-statistic is there too.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>We get a regression table with everything we have talked about: R squared, the F statistic, and, most importantly, the coefficients with their statistical inference. The constant is beta zero and square footage is beta one. The coefficient on square footage is 0.14: one more square foot raises the price by 140 dollars, because price is in thousands of dollars. The standard error is small, the t statistic is large, the p-value is zero, and zero is clearly outside the 95 percent confidence interval. So we are confident the coefficient is different from zero.</p>
+  </aside>
+</section>
+
+<section class="slide" id="py-formula" data-part="2 · OLS in Python" data-title="Way 2: the formula way" data-pause>
+  <div class="slide-card">
+    <h2>Way 2: <code>smf.ols</code>, the formula way (the one we use)</h2>
+    <div class="pycell" data-colab="formula"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+housedata = pd.read_csv("hprices.csv")    # in Colab: the file's web address, or upload the file
+est = smf.ols("price ~ sqrft", data=housedata).fit()     # formula "y ~ x"; the intercept is added for you
+print(est.summary())
+</textarea></div>
+    <p class="small">Same calculations, same table (the intercept row is now called <code>Intercept</code>). The formula <code>"y ~ x"</code> works as in R. Your turn: try <code>"price ~ sqrft - 1"</code>, which drops the intercept, and see how the slope changes.</p>
+  </div>
+  <aside class="script">
+    <p>That's one way, the matrix way, which is useful for later classes. The more popular way is the formula API: import statsmodels dot formula dot api as smf. It writes the regression as a formula, as in R, which many find easier than matrices. The output and the calculations are exactly the same as the matrix version, and this is the method we use for the rest of the course. The format is y tilde x. Call smf dot ols with the formula and the data, fit it, store it in est, and print the summary: the same table, in a more elegant syntax.</p>
+  </aside>
+</section>
+
+<section class="slide" id="py-more" data-part="2 · OLS in Python" data-title="The rest of Excel's output" data-pause>
+  <div class="slide-card">
+    <h2>The rest of Excel's output, on request</h2>
+    <div class="cols c-60">
+      <table class="t map">
+        <tr><th>Excel</th><th>Python (<code>est</code> = the house regression)</th><th>Value</th></tr>
+        <tr><td>ANOVA: SS Regression (ESS)</td><td><code>est.ess</code>, or <code>sm.stats.anova_lm(est, typ=2)</code></td><td>569,801</td></tr>
+        <tr><td>ANOVA: SS Residual (SSR)</td><td><code>est.ssr</code></td><td>348,053</td></tr>
+        <tr><td>ANOVA: SS Total (TSS)</td><td><code>est.ess + est.ssr</code></td><td>917,855</td></tr>
+        <tr><td>ANOVA: MS Residual (MSE \(=SSR/(n-2)\))</td><td><code>est.scale</code></td><td>4,047</td></tr>
+        <tr><td>Standard Error (SER \(=\sqrt{MSE}\))</td><td><code>np.sqrt(est.scale)</code></td><td>63.6</td></tr>
+        <tr><td>F, R Square</td><td><code>est.fvalue</code>, <code>est.rsquared</code></td><td>140.8, 0.621</td></tr>
+      </table>
+      <div class="pycell" data-colab="anova"><textarea>
+import numpy as np
+import pandas as pd
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+
+housedata = pd.read_csv("hprices.csv")
+est = smf.ols("price ~ sqrft", data=housedata).fit()
+print(sm.stats.anova_lm(est, typ=2))      # sum_sq: ESS (sqrft) and SSR (Residual), the F-test
+print("TSS =", est.ess + est.ssr)
+print("MSE =", est.scale, "  SER =", np.sqrt(est.scale))
+</textarea></div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Python gives you less output than Excel by default, but it computes and stores everything; you just ask for it. The ANOVA function, applied to est, prints the sum of squares explained by square feet, the sum of squared residuals, the degrees of freedom, the F statistic and its p-value. Python does not print the total sum of squares, but TSS is ESS plus SSR, so add est dot ess and est dot ssr. The mean squared error, as in Excel, is the sum of squared residuals over n minus two, because we estimate two parameters; it is est dot scale. And the standard error of the regression is its square root, with numpy's square root function.</p>
+  </aside>
+</section>
+
+<section class="slide" id="py-diamonds" data-part="2 · OLS in Python" data-title="The diamonds" data-pause>
+  <div class="slide-card">
+    <h2>The same two lines on the diamonds</h2>
+    <div class="cols">
+<pre class="codeview out">   color  carats  price
+0      1    0.75   2050
+1      1    1.00   4263
+2      1    1.00   4272
+3      1    1.01   4372
+4      1    1.01   4372</pre>
+      <ul>
+        <li>380 diamonds, \(R^2=0.65\)</li>
+        <li>\(\widehat{\text{price}} = -1{,}679 + 5{,}573\times\text{carats}\): one carat more, about $5,573 (roughly $5,500) more expensive</li>
+      </ul>
+    </div>
+    <div class="pycell" data-colab="diamonds"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+diamonds = pd.read_csv("diamonds.csv")
+print(diamonds.head())
+est = smf.ols("price ~ carats", data=diamonds).fit()
+print(est.summary().tables[1])      # just the coefficient table
+print("R-squared:", round(est.rsquared, 3), "  n =", int(est.nobs))
+</textarea></div>
+  </div>
+  <aside class="script">
+    <p>We can do the same with the diamonds data. Read it in, look at the first rows: color, carats and price. Then the same formula syntax, price on carats. There are 380 observations and the R squared is pretty good, 0.65. The coefficient on carats is large, about 5,500: a diamond one carat bigger is about 5,500 dollars more expensive.</p>
+  </aside>
+</section>
+
+<section class="slide" id="py-block" data-part="2 · OLS in Python" data-title="Everything you need in one block" data-pause>
+  <div class="slide-card">
+    <h2>Everything you need, in one block</h2>
+    <div class="pycell" data-colab="block"><textarea>
+# pandas is used to load the data
+import pandas as pd
+# statsmodels.formula.api is used to run the regression
+import statsmodels.formula.api as smf
+# read in the data and store it in a data frame called winedata
+winedata = pd.read_csv("wines.csv")        # in Colab: the file's web address, or upload the file
+# run the regression and store the results in est
+est = smf.ols("Price ~ Score", data=winedata).fit()
+# summarize and print the results
+print(est.summary())
+</textarea></div>
+    <p class="small">To reuse it: change the file name and the variable names. Here: 230 wines, \(R^2 = 0.35\); one more rating point goes with about $1.49 more on the price (SE 0.14).</p>
+  </div>
+  <aside class="script">
+    <p>Finally the wine data, and this time everything is in one block of code: importing the packages, loading the data, running the regression. In the future you can copy this block into any notebook, change the name of the data file and the variables, and get the regression for whatever setting you like. The output: wine prices on wine ratings, 230 observations, an R squared of about 0.35, so the model explains a reasonable but not huge share of the variation. The coefficient on the score is 1.49 and significantly different from zero: one more rating point, about a dollar fifty more expensive on average.</p>
+  </aside>
+</section>
+
+<section class="slide" id="py-dummy" data-part="2 · OLS in Python" data-title="A dummy X in Python" data-pause>
+  <div class="slide-card">
+    <h2>A dummy \(X\) in Python: same procedure, new interpretation</h2>
+    <div class="cols">
+<pre class="codeview out">   year  male   earnings  female
+0  2012     0  16.346153       1
+1  2012     1  16.105770       0
+2  2012     1   3.525641       0
+3  2012     0  17.307692       1
+4  2012     0  14.423077       1</pre>
+      <div class="box key">
+        <div class="label">How to say it</div>
+        <p>Not "if male goes up by one unit". The <b>baseline group</b> has male = 0 (women): men earn <b>$3.80 an hour more than women</b> on average. \(R^2\) is only 0.03: gender explains little of the variation in earnings, yet the gap is large and precisely estimated.</p>
+      </div>
+    </div>
+    <div class="pycell" data-colab="dummy"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+cps = pd.read_csv("cps12.csv")
+print(cps.head())
+est = smf.ols("earnings ~ male", data=cps).fit()
+print(est.summary().tables[1])
+print(cps.groupby("male").earnings.mean())     # the intercept and intercept + coefficient
+</textarea></div>
+  </div>
+  <aside class="script">
+    <p>Lastly, a regression on a dummy in Python: the procedure is the same, only the interpretation changes. The CPS 2012 data has two dummy variables, male and female, and the continuous variable earnings. Regress earnings on the male dummy. About four thousand observations; the R squared is low, so gender does not explain most of the variation; but the coefficient on male is large and significant: 3.8, with a standard error of about 0.35 and a t statistic around 10. To interpret it, think about the baseline group, the one with male equal to zero: women. We cannot say "male goes up by one unit". We say that men earn, on average, 3.80 dollars an hour more than women. And the intercept is the women's average earnings.</p>
+  </aside>
+</section>
+
+<section class="slide" id="py-female" data-part="2 · OLS in Python" data-title="Male or female dummy?" data-pause>
+  <div class="slide-card">
+    <h2>A male dummy or a female dummy? Either, if you read it right</h2>
+    <table class="t">
+      <tr><th></th><th class="num"><code>earnings ~ male</code></th><th class="num"><code>earnings ~ female</code></th></tr>
+      <tr><td>Intercept (the baseline group's mean)</td><td class="num">21.50 (women)</td><td class="num">25.30 (men)</td></tr>
+      <tr><td>Coefficient on the dummy</td><td class="num">+3.80</td><td class="num">−3.80</td></tr>
+      <tr><td>Standard error, \(t\)</td><td class="num">0.353, 10.75</td><td class="num">0.353, −10.75</td></tr>
+      <tr><td>95% CI</td><td class="num">(3.10, 4.49)</td><td class="num">(−4.49, −3.10)</td></tr>
+    </table>
+    <div class="pycell" data-colab="female"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+cps = pd.read_csv("cps12.csv")
+est_f = smf.ols("earnings ~ female", data=cps).fit()
+print(est_f.summary().tables[1])
+</textarea></div>
+    <p class="small">Why not both? <code>male + female</code> equals 1 for every worker, which is exactly the column of ones behind the intercept, so OLS cannot separate the three. Two groups need one dummy.</p>
+  </div>
+  <aside class="script">
+    <p>It is also fine to use the female dummy instead of the male dummy, as long as you interpret things correctly. Now the intercept is the men's average earnings, the coefficient on female is the exact negative of the male coefficient, minus 3.8, and the t statistic, p-value and confidence interval are the same in absolute value, the interval from minus 4.49 to minus 3.10. The economic meaning does not change. To study the gender difference in earnings you can run either regression; just make sure you know which group is the baseline.</p>
+  </aside>
+</section>
+
+<section class="slide" id="py-numbers" data-part="2 · OLS in Python" data-title="Pulling numbers out" data-pause>
+  <div class="slide-card">
+    <h2>Pulling numbers out of the results</h2>
+    <div class="cols c-40">
+      <table class="t map">
+        <tr><th>Excel's label</th><th><code>est.</code>…</th></tr>
+        <tr><td>Coefficients</td><td><code>params</code></td></tr>
+        <tr><td>Standard Error</td><td><code>bse</code></td></tr>
+        <tr><td>t Stat, P-value</td><td><code>tvalues</code>, <code>pvalues</code></td></tr>
+        <tr><td>Lower / Upper 95%</td><td><code>conf_int()</code></td></tr>
+        <tr><td>R Square</td><td><code>rsquared</code></td></tr>
+        <tr><td>Observations</td><td><code>nobs</code></td></tr>
+        <tr><td>(a prediction)</td><td><code>predict(new_data)</code></td></tr>
+      </table>
+      <div class="pycell" data-colab="numbers"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+housedata = pd.read_csv("hprices.csv")
+est = smf.ols("price ~ sqrft", data=housedata).fit()
+print(est.params)                 # the coefficients
+print(est.bse)                    # their standard errors
+print(est.conf_int())             # 95% confidence intervals
+print("R2 =", round(est.rsquared, 3), "  n =", int(est.nobs))
+print(est.predict(pd.DataFrame({"sqrft": [2000]})))   # predicted price of a 2,000 sq ft house ($1,000s)
+</textarea></div>
+    </div>
+    <div class="box"><div class="label">Your turn</div><p><code>diamonds.csv</code> has a dummy <code>color</code> (1 = colorless or near-colorless). Regress <code>price</code> on <code>color</code>. What are the intercept and the coefficient, in words?</p></div>
+  </div>
+  <aside class="script">
+    <p>The summary is for reading. When you want to use a number, in a calculation or a report, pull it out of the results directly. The table shows where each part of Excel's output lives in Python. params are the coefficients and bse their standard errors. tvalues and pvalues are the tests. conf_int gives the 95 percent confidence intervals. rsquared is the R squared and nobs the number of observations. And predict applies the fitted line to new values of X.</p>
+    <p>Run the cell. Then try one on your own. The diamonds file has a dummy called color, equal to one for colorless or near-colorless stones. Regress price on color, and say in words what the intercept and the coefficient mean.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-2" data-part="2 · OLS in Python" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="a">
+      <div class="q">1. In the matrix way, <code>sm.add_constant(X)</code></div>
+      <button class="opt" data-k="a">adds a column of ones, so the model has an intercept</button>
+      <button class="opt" data-k="b">adds 1 to every value of X</button>
+      <button class="opt" data-k="c">removes the mean from X</button>
+      <div class="explain">\(\beta_0\) multiplies a constant 1 in every row. Without that column, <code>sm.OLS</code> forces the line through the origin. <code>smf.ols</code> adds it for you.</div>
+    </div>
+    <div class="quiz" data-answer="c">
+      <div class="q">2. Python's summary does not show the total sum of squares. You get it as</div>
+      <button class="opt" data-k="a"><code>est.scale</code></button>
+      <button class="opt" data-k="b"><code>np.sqrt(est.ssr)</code></button>
+      <button class="opt" data-k="c"><code>est.ess + est.ssr</code></button>
+      <div class="explain">TSS = ESS + SSR. <code>est.scale</code> is the MSE, SSR/(n − 2); its square root is the standard error of the regression.</div>
+    </div>
+    <div class="quiz" data-answer="b">
+      <div class="q">3. In <code>earnings ~ female</code> the intercept is 25.30. It is</div>
+      <button class="opt" data-k="a">the average for women</button>
+      <button class="opt" data-k="b">the average for men</button>
+      <button class="opt" data-k="c">the gap between men and women</button>
+      <div class="explain">The intercept is the prediction when the dummy is 0, here female = 0: men. Women: 25.30 − 3.80 = 21.50.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Before moving on, three quick questions to check your understanding. Click an answer to see whether you got it and why. Nothing here is graded.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= WRAP-UP -->
+<section class="slide" id="summary" data-part="Wrap-up">
+  <div class="slide-card">
+    <h2>Summary</h2>
+    <table class="t map">
+      <tr><th>Topic</th><th>The idea</th><th>In Python</th></tr>
+      <tr><td>a binary \(X\)</td><td>\(\beta_0\) = mean of the \(D=0\) group; \(\beta_0+\beta_1\) = mean of the \(D=1\) group; \(\beta_1\) = the difference. Not a slope.</td><td><code>smf.ols("y ~ d", data=df)</code></td></tr>
+      <tr><td>its test</td><td>\(t\) on \(\beta_1\) = the difference-in-means test; same SE (to rounding) and same CI</td><td><code>est.tvalues</code>, <code>est.pvalues</code>, <code>est.conf_int()</code></td></tr>
+      <tr><td>which dummy</td><td>either coding works; the intercept is the baseline group's mean; never both dummies with an intercept</td><td><code>"y ~ male"</code> or <code>"y ~ female"</code></td></tr>
+      <tr><td>experiments</td><td>with random assignment, \(\hat\beta_1\) on the treatment dummy estimates the causal effect; without it, \(\hat\beta_1\) describes a gap</td><td>the same line</td></tr>
+      <tr><td>running OLS</td><td>two ways, same answer</td><td><code>sm.OLS(y, sm.add_constant(X)).fit()</code>; <code>smf.ols("y ~ x", data=df).fit()</code></td></tr>
+      <tr><td>the rest of the output</td><td>TSS = ESS + SSR; MSE = SSR/(n − 2); SER = √MSE</td><td><code>est.ess</code>, <code>est.ssr</code>, <code>est.scale</code>, <code>np.sqrt(est.scale)</code>, <code>sm.stats.anova_lm(est)</code></td></tr>
+    </table>
+  </div>
+  <aside class="script">
+    <p>Let's wrap up. When X is binary, the intercept is the mean of the group with X equal to zero, the intercept plus the coefficient is the mean of the group with X equal to one, and the coefficient is their difference. It is not a slope. The t test on the coefficient is the difference in means test, with the same estimate and the same confidence interval. Either coding of the dummy works, as long as you know which group is the baseline. In an experiment, where the treatment is assigned at random, the coefficient on the treatment dummy estimates the causal effect; without random assignment, it describes a gap.</p>
+    <p>In Python, the matrix way and the formula way give the same regression. The summary shows the main table; the rest of Excel's output, the sums of squares, the mean squared error and the standard error of the regression, are stored in the results and one line away.</p>
+  </aside>
+</section>
+
+<section class="slide" id="next" data-part="Wrap-up">
+  <div class="slide-card">
+    <h2>Practice, and what comes next</h2>
+    <div class="cols">
+      <div>
+        <h3>Practice notebook</h3>
+        <p>All the code from this module, plus short exercises: the wage gap by hand and by regression, the hiring experiment, the house, diamond and wine regressions, the rest of the output, and a dummy of your own (diamond color).</p>
+        <div class="btn-row" data-notebook-links></div>
+        <p class="small">In Colab: <i>File → Save a copy in Drive</i> to keep your own version.</p>
+      </div>
+      <div>
+        <h3>Next</h3>
+        <p>The standard errors, tests and intervals in these tables are right under some assumptions about how the data were generated. The next module states them and shows what happens when they fail. After that: predicting with a regression, with confidence and prediction intervals in Python.</p>
+      </div>
+    </div>
+    <p class="src">References: Stock &amp; Watson, <i>Introduction to Econometrics</i>, sections 3.4 and 5.3; Békés &amp; Kézdi, <i>Data Analysis for Business, Economics, and Policy</i>, chapters 7 and 9; Bertrand &amp; Mullainathan (2004), "Are Emily and Greg More Employable than Lakisha and Jamal?", <i>American Economic Review</i>. Data: the Current Population Survey 2012 (Stock &amp; Watson), the résumé audit (R package AER), and the house, diamond and wine files of the course.</p>
+  </div>
+  <aside class="script">
+    <p>That's it for this module. If you want to keep the code, open the practice notebook.</p>
+  </aside>
+</section>
+
+</div><!-- deck -->
+</body>
+</html>
