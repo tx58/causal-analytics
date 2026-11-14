@@ -1,0 +1,1041 @@
+<!doctype html>
+<!--
+  Asynchronous module 4 for GBA 472 (Fall B 2026; written so it can be reused in other years):
+  the OLS assumptions (why OLS can be trusted, the four assumptions one by one, their role, the standard
+  errors) and heteroskedasticity (what it is, robust standard errors, how to get them in Python).
+  Built 2026-11-10 (Tianli: "make asynchronous videos for week 4 ... OLS assumptions ... the related materials
+  in slides, and I think I have video recordings ... also discuss the heteroscedasticity in the assumptions").
+  Sources: the OLS-assumptions section of the Fall 2025 handout (Overleaf "GBA 472", handout5x.tex) and the
+  handout "Homoskedasticity vs. Heteroskedasticity" (GBA462Tianli/Handouts/handout9b.tex); Tianli's November
+  2024 video "OLS Assumptions.mp4" (Videos/, Parts 1-3) and his September 2024 videos 8_Heteroskedasticity.mp4
+  and 9_OLS_in_python2.mp4 (GBA462Tianli/Asynchronous, Part 4), cut by code/make_audio.py; every number
+  re-estimated in code/A4_examples.py. The textbook figures of the handouts are redrawn as widgets.
+  Voice since 2026-11-13: Tianli's new takes of a concise script (code/script_2026.txt), recorded on this page
+  and inserted with insert_recordings.py; they replaced the clips cut from the 2024 videos (kept in
+  ../archive_2024_audio/).
+
+  How this page works (details in ../README.md):
+  - every <section class="slide"> is one slide; its <aside class="script"> is the narration script, shown as
+    the transcript and read by a neutral US male text-to-speech voice (code/make_tts.py: Kokoro-82M, am_michael)
+    on the slides without a recording;
+  - audio/<slide id>.m4a is the voice-over for that slide; open the page with ?record at the end of the
+    address to record takes in the browser;
+  - .widget[data-widget] blocks are simulations from assets/widgets.js (data in assets/a4data.js);
+    .pycell blocks run Python in the browser (pandas and statsmodels; the data files are fetched from data/).
+  Rule for student-facing text here (slides AND scripts): no course numbers, terms, or lecture numbers.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The OLS assumptions</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Self-paced module: the OLS assumptions, when a regression has a causal interpretation, and heteroskedasticity-robust standard errors.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="assets/player.css">
+<style>
+  /* page-specific */
+  .parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-top: 12px; }
+  .parts button { text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 10px 12px; cursor: pointer; font-size: 15px; line-height: 1.35; }
+  .parts button:hover { border-color: var(--brand); }
+  .parts button b { display: block; color: var(--brand); font-size: 13px; text-transform: uppercase; letter-spacing: .05em; }
+  .feature { display: grid; grid-template-columns: 36px 1fr; gap: 6px 10px; align-items: start; margin: 8px 0; }
+  .feature .ic { width: 32px; height: 32px; border-radius: 8px; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  table.map th, table.map td { text-align: left; }
+  table.map td:first-child { color: var(--muted); }
+  table.t td.num, table.t th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.t tr.hi td { font-weight: 650; background: var(--brand-soft); }
+  code.xl { font-family: var(--mono); background: var(--code-bg); padding: 1px 6px; border-radius: 4px; font-size: 14px; white-space: nowrap; }
+  pre.codeview { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; font-size: 14px; overflow-x: auto; font-family: var(--mono); line-height: 1.45; }
+  pre.codeview.out { font-size: 12.5px; line-height: 1.35; }
+  pre.codeview mark { background: var(--brand-soft); color: inherit; border-radius: 3px; padding: 0 2px; outline: 1px solid var(--brand); }
+  .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .vs .box { margin: 0; }
+  .assume { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .assume .box { margin: 0; }
+  .assume .box .label b { color: var(--brand); }
+  .tag-tech { display: inline-block; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; margin-left: 8px; vertical-align: middle; font-weight: 600; }
+  .data-list li { margin: 3px 0; }
+  .derive p { margin: 6px 0; }
+  .widget .charts.three { grid-template-columns: repeat(3, 1fr); }
+  svg.plot .path.dflt { stroke: var(--c-true); stroke-dasharray: 5 4; stroke-width: 2; }
+  svg.plot .faint { stroke: var(--c-est); stroke-width: 1.2; opacity: .45; }
+  @media (max-width: 760px) { .vs, .assume, .widget .charts.three { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<script>
+  window.MODULE_CONFIG = {
+    moduleId: "GBA472-A4-ols-assumptions",
+    title: "The OLS assumptions",
+    subtitle: "Causal and Predictive Analytics · Asynchronous module",
+    // Colab buttons: publish_site.py writes the GitHub location into the published copy.
+    colabUrl: "",
+    github: "tx58/causal-analytics/GBA472/A4",
+    notebook: "A4_notebook.ipynb",
+    pyPackages: ["numpy", "matplotlib", "pandas", "statsmodels"],
+    pySetup: async (py) => {
+      py.runPython("import warnings\nwarnings.filterwarnings('ignore')");   // pandas' pyarrow notice etc.
+      for (const f of ["hprices.csv", "diamonds.csv", "wines.csv", "cps12.csv"]) {
+        const r = await fetch("data/" + f);
+        py.FS.writeFile(f, await r.text());
+      }
+    },
+  };
+</script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script defer src="assets/a4data.js"></script>
+<script defer src="assets/transcripts.js"></script>
+<script defer src="assets/widgets.js"></script>
+<script defer src="assets/player.js"></script>
+</head>
+<body>
+<div id="deck">
+
+<!-- ======================================================================= START -->
+<section class="slide title-slide" id="title" data-part="Start" data-title="Welcome">
+  <div class="slide-card">
+    <div class="eyebrow">Causal and Predictive Analytics · Asynchronous module</div>
+    <h1>The OLS assumptions</h1>
+    <div class="who">Tianli Xia · Simon Business School, University of Rochester</div>
+    <div class="start-row">
+      <button class="btn primary" data-action="play-all">▶ Watch from the start (auto-advance)</button>
+      <button class="btn" data-action="next">Go at my own pace →</button>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Hello. In this module we talk about the assumptions behind OLS: what they say, why we need them, and what to do when one of them fails.</p>
+  </aside>
+</section>
+
+<section class="slide" id="how-to" data-part="Start">
+  <div class="slide-card">
+    <h2>How to use this page</h2>
+    <div class="cols">
+      <div>
+        <div class="feature"><span class="ic">▶</span><div><b>Listen.</b> Each slide has its own short voice-over. Press <kbd>Space</kbd> or the play button. Change the speed at the bottom right.</div></div>
+        <div class="feature"><span class="ic">⇄</span><div><b>Your pace.</b> Use <kbd>←</kbd> <kbd>→</kbd> or the contents on the left. Turn on <i>Auto-advance</i> to watch it like a video.</div></div>
+        <div class="feature"><span class="ic">≡</span><div><b>Read.</b> The transcript sits under each slide (<kbd>T</kbd> hides it). Click a sentence to jump there.</div></div>
+      </div>
+      <div>
+        <div class="feature"><span class="ic">✦</span><div><b>Try it.</b> Slides marked <i>try it</i> have simulations. Change the settings and see what happens.</div></div>
+        <div class="feature"><span class="ic">{ }</span><div><b>Code.</b> Python cells run right in the page. Edit them and press <i>Run</i>. The same code is in a Colab notebook.</div></div>
+        <div class="feature"><span class="ic">✓</span><div><b>Check.</b> Short self-checks end each part. They are not graded.</div></div>
+      </div>
+    </div>
+    <div class="box key">
+      <div class="label">What you need for the exam</div>
+      <p>Say in words what each assumption requires. Explain why Assumption 1 decides whether a coefficient is a causal effect, and give an example where it fails. Know that under heteroskedasticity the estimates are fine but the default standard errors are not, and how to get robust standard errors in Python. The fourth-moment condition and the standard-error formulas (slides marked <i>technical</i>) are not tested.</p>
+    </div>
+  </div>
+  <aside class="script">
+    <p>A quick tour of the page. Every slide has its own short voice-over. Press the space bar or the play button to hear it, and change the speed at the bottom right.</p>
+    <p>You decide the pace. Use the arrow keys or the list of slides on the left. If you prefer to sit back, turn on auto-advance and the page plays like a video. It stops on the slides where you have something to do.</p>
+    <p>The transcript is under each slide, so you can read instead of listening.</p>
+    <p>Slides marked try it have small simulations. The code cells run Python inside the page, so you do not need to install anything. The same code is in a Colab notebook if you want to keep it.</p>
+    <p>For the exam, focus on the ideas and on using the formulas. The derivations are there so you can see where the results come from. You will not have to reproduce them.</p>
+  </aside>
+</section>
+
+<section class="slide" id="roadmap" data-part="Start">
+  <div class="slide-card">
+    <h2>Four parts</h2>
+    <p class="lead">So far we ran regressions and read their output. This module asks when that output can be trusted, and what "trusted" means.</p>
+    <div class="parts">
+      <button data-goto="why"><b>Part 1</b>Why trust OLS? Three properties of a good estimator, and the four assumptions behind them.</button>
+      <button data-goto="a1-linear"><b>Part 2</b>Assumption 1, the important one: when a coefficient is a causal effect, and when it is not.</button>
+      <button data-goto="a2"><b>Part 3</b>Assumptions 2, 3 and 4; what the assumptions are for; the standard errors.</button>
+      <button data-goto="het-def"><b>Part 4</b>Heteroskedasticity: when Assumption 4 fails, and robust standard errors in Python.</button>
+    </div>
+    <div class="box">
+      <div class="label">The data (the Python cells on the page load them for you)</div>
+      <ul class="data-list small">
+        <li><a href="data/hprices.csv" download>hprices.csv</a>: 88 houses: <code>price</code> (in $1,000s) and size <code>sqrft</code></li>
+        <li><a href="data/diamonds.csv" download>diamonds.csv</a>: 380 diamonds: <code>price</code>, <code>carats</code>, <code>color</code></li>
+        <li><a href="data/wines.csv" download>wines.csv</a>: 230 wines: <code>Price</code>, rating <code>Score</code>, <code>Year</code></li>
+        <li><a href="data/cps12.csv" download>cps12.csv</a>: 3,955 full-time workers, 2012: hourly <code>earnings</code>, <code>male</code>, <code>female</code></li>
+      </ul>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The module has four parts. Part one: why we can trust OLS, and the four assumptions behind it.</p>
+    <p>Part two: assumption one, which decides whether a coefficient is a causal effect.</p>
+    <p>Part three: the other three assumptions, and the standard errors.</p>
+    <p>Part four: heteroskedasticity, which is what happens when assumption four fails, and the one-line fix in Python.</p>
+    <p>The Python cells on the page load the four data files for you.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 1 -->
+<section class="slide" id="why" data-part="1 · Why trust OLS?" data-title="Why trust OLS?">
+  <div class="slide-card">
+    <h2>Why should we have faith in OLS?</h2>
+    <p>Do the OLS formulas have the desirable properties that the sample mean \(\bar X\) had?</p>
+    <div class="cols c-60">
+      <ol>
+        <li><b>Unbiasedness:</b> \(E(\hat\beta_i)=\beta_i\). On average across samples, the estimate equals the true value.</li>
+        <li><b>Consistency:</b> \(\hat\beta_i\overset{p}{\rightarrow}\beta_i\). With more and more data, the estimate converges to the true value.</li>
+        <li><b>Asymptotic normality:</b> for large \(n\), \(\hat\beta_i\) is normally distributed. This is what lets us build confidence intervals and tests.</li>
+      </ol>
+      <div class="box key">
+        <div class="label">The answer</div>
+        <p>Yes, <b>pending four assumptions</b>.</p>
+        <p>The assumptions also answer a second question: when does a regression have a <b>causal interpretation</b>? When is \(\beta_1\) in \(Y=\beta_0+\beta_1X+u\) the effect of \(X\) on \(Y\)?</p>
+      </div>
+    </div>
+    <p class="small">This module uses more math notation than usual. The math is light, and it is not the point: aim for the idea behind each assumption and why we need it.</p>
+  </div>
+  <aside class="script">
+    <p>Why should we trust OLS? We want three properties, the same three the sample mean had.</p>
+    <p>Unbiased: on average across samples, beta hat equals the true beta. Consistent: with more and more data, beta hat converges to the true beta. And asymptotically normal: in a large sample, beta hat is normally distributed, which gives us confidence intervals and tests.</p>
+    <p>OLS has all three, under four assumptions. They also tell us when beta one is a causal effect.</p>
+    <p>Focus on the idea behind each assumption, not on the math.</p>
+  </aside>
+</section>
+
+<section class="slide" id="try-sampling" data-part="1 · Why trust OLS?" data-title="Try it: OLS in repeated samples" data-pause>
+  <div class="slide-card">
+    <h2>Try it: the three properties, in a population where the assumptions hold</h2>
+    <div class="widget" data-widget="sampling"></div>
+    <p class="small">Centered on the truth = unbiased. Tighter with more houses per sample = consistent. Bell-shaped, even with skewed errors = asymptotically normal.</p>
+  </div>
+  <aside class="script">
+    <p>Let's see the three properties in a simulation. In this population of houses the assumptions hold, and the dashed line is the truth.</p>
+    <p>Draw one sample. OLS fits a line that is close to the truth, but not equal.</p>
+    <p>Now draw five hundred samples. The histogram of the slopes is centered on the true slope: that is unbiased.</p>
+    <p>Use more houses per sample, and it tightens: consistent.</p>
+    <p>And it follows the normal curve, even with skewed errors: asymptotically normal.</p>
+  </aside>
+</section>
+
+<section class="slide" id="four" data-part="1 · Why trust OLS?" data-title="The four assumptions">
+  <div class="slide-card">
+    <h2>The four OLS assumptions</h2>
+    <div class="assume">
+      <div class="box"><div class="label"><b>Assumption 1</b> · linear in parameters; zero conditional mean</div>
+        <p>The true model is \(Y_i=\beta_0+\beta_1X_i+u_i\) <b>and</b> \(E(u_i\mid X_i)=0\).</p></div>
+      <div class="box"><div class="label"><b>Assumption 2</b> · simple random sample</div>
+        <p>\((X_i,Y_i)\) are i.i.d. draws from their joint distribution.</p></div>
+      <div class="box"><div class="label"><b>Assumption 3</b> · no extreme outliers</div>
+        <p>\(X_i\) and \(u_i\) have nonzero, finite fourth moments: \(0&lt;E(X_i^4)&lt;\infty\), \(0&lt;E(u_i^4)&lt;\infty\).</p></div>
+      <div class="box"><div class="label"><b>Assumption 4</b> · homoskedastic errors</div>
+        <p>The variance of the error is the same for all values of \(X\): \(Var(u_i\mid X_i)=\sigma_u^2\).</p></div>
+    </div>
+    <p class="small">We go through them one by one, starting with the first, which matters most.</p>
+  </div>
+  <aside class="script">
+    <p>Here are the four assumptions. Don't try to memorize the formulas. We go through them one by one, starting with the first, which matters most.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 2 -->
+<section class="slide" id="a1-linear" data-part="2 · Assumption 1" data-title="Linear in parameters">
+  <div class="slide-card">
+    <h2>Assumption 1, first half: linear in parameters</h2>
+    <p class="lead">\[ Y_i=\beta_0+\beta_1X_i+u_i\quad\textbf{and}\quad E(u_i\mid X_i)=0 \]</p>
+    <p>In the true population, \(X\) and \(Y\) follow this relationship; \(u_i\) is the error term. The \(\beta\)'s enter <b>linearly</b>.</p>
+    <div class="vs">
+      <div class="box">
+        <div class="label">Violates it: nonlinear in the β's</div>
+        <p>\[ Y_i=\beta_0^{\,2}+\frac{\beta_0}{\beta_1}X_i+u_i \]</p>
+      </div>
+      <div class="box key">
+        <div class="label">Fine: nonlinear in X only</div>
+        <p>\[ Y_i=\beta_0+\beta_1X_i^{\,2}+u_i \]</p>
+        <p class="small">The assumption says nothing against a nonlinear function of the regressor.</p>
+      </div>
+    </div>
+    <p>So this half is not a strong assumption.</p>
+  </div>
+  <aside class="script">
+    <p>Assumption one has two halves. The first half: in the population, Y equals beta zero plus beta one times X, plus an error term u, and the betas enter in a linear way. Something like beta zero squared would violate it.</p>
+    <p>But notice: linear in the parameters, not in X. A model with X squared is fine, because the betas still enter linearly. So this half is not a strong assumption.</p>
+  </aside>
+</section>
+
+<section class="slide" id="a1-mean" data-part="2 · Assumption 1" data-title="Zero conditional mean">
+  <div class="slide-card">
+    <h2>Assumption 1, second half: zero conditional mean</h2>
+    <p class="lead">\[ E(u_i\mid X_i)=0 \]</p>
+    <div class="cols c-60">
+      <ul>
+        <li>The first half put no structure on \(u_i\): it is whatever makes up the difference between \(Y_i\) and \(\beta_0+\beta_1X_i\). This half does, and it is the critical one.</li>
+        <li>\(E(u_i)=0\): the error is zero on average. \(E(u_i\mid X_i)=0\) is <b>stronger</b>: the error is zero on average <i>at every value of \(X\)</i>.</li>
+        <li>In words: the factors we left out (the \(u\)'s) are unrelated to the one we put in (\(X\)). We say \(u\) is <b>mean independent</b> of \(X\).</li>
+      </ul>
+      <div class="box">
+        <div class="label">You will also see</div>
+        <p>"\(u_i\) and \(X_i\) are uncorrelated." That follows: \(E(u_i\mid X_i)=0\Rightarrow\rho_{Xu}=0\).</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The second half is the critical one: the expected value of u, given X, is zero.</p>
+    <p>The first half put no structure on the error. This half does. It says more than that the error is zero on average: the error is zero on average at every value of X.</p>
+    <p>In words: the factors we left out are unrelated to the X we put in. We say that u is mean independent of X.</p>
+  </aside>
+</section>
+
+<section class="slide" id="a1-implies" data-part="2 · Assumption 1" data-title="What it implies: E(Y | X) is a line">
+  <div class="slide-card">
+    <h2>Put the two halves together: the conditional mean is a line</h2>
+    <div class="cols c-60">
+      <div class="derive">
+        <p>From the first half: \(Y_i=\beta_0+\beta_1X_i+u_i\). Take \(E(\,\cdot\mid X_i)\) of both sides:</p>
+        <p>\[ \begin{aligned} E(Y_i\mid X_i)&=E(\beta_0+\beta_1X_i+u_i\mid X_i)\\ &=E(\beta_0+\beta_1X_i\mid X_i)+\underbrace{E(u_i\mid X_i)}_{=\,0\ \text{(second half)}}\\ &=\beta_0+\beta_1X_i \end{aligned} \]</p>
+        <p class="small">\(\beta_0\) is a constant, and once we condition on \(X_i\) we know \(X_i\), so \(E(\beta_1X_i\mid X_i)=\beta_1X_i\).</p>
+      </div>
+      <div class="box key">
+        <div class="label">Does this ring a bell?</div>
+        <p>\[ E(Y\mid X)=\beta_0+\beta_1X \]</p>
+        <p>It is where regression started. A crosstab estimates \(E(Y\mid X)\) cell by cell, which does not scale to many \(X\)'s or a continuous \(X\). So we put a functional form on the conditional mean: a line. Assumption 1 states the same thing, in terms of the error.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Put the two halves together. Take the expected value of both sides, given X. Beta zero plus beta one X stays, because once we know X it is just a number. And the expected value of u is zero, by the second half.</p>
+    <p>So the expected value of Y given X is a line.</p>
+    <p>Does this ring a bell? It is where regression started. A crosstab estimates the conditional mean cell by cell. Regression assumes it is a line. Assumption one says the same thing, in terms of the error.</p>
+  </aside>
+</section>
+
+<section class="slide" id="a1-picture" data-part="2 · Assumption 1" data-title="Assumption 1 in pictures">
+  <div class="slide-card">
+    <h2>Assumption 1 in pictures</h2>
+    <div class="cols c-60">
+      <div class="widget" data-widget="condDist" data-mode="a1"></div>
+      <ul>
+        <li>Every point is generated by the true relationship plus an error.</li>
+        <li>Fix a value of \(X\), say \(X=15\). Many values of \(Y\) are possible there, because the errors differ.</li>
+        <li>Assumption 1: the distribution of \(Y\) at \(X=15\), and at any other \(X\), is <b>centered exactly on the population regression line</b>. Given \(X\), the mean of \(u\) is 0.</li>
+        <li>Switch the picture to an error with mean 8 to see what "not centered" looks like.</li>
+      </ul>
+    </div>
+    <p class="src">After Stock &amp; Watson, <i>Introduction to Econometrics</i>, Figure 4.4 (test scores and class size), redrawn.</p>
+  </div>
+  <aside class="script">
+    <p>Here is assumption one in a picture. Fix a value of X, say fifteen. Many values of Y are possible there, because the errors differ.</p>
+    <p>The assumption says that the distribution of Y, at fifteen and at any other X, is centered exactly on the population regression line.</p>
+    <p>Switch the picture to an error with mean eight, to see what not centered looks like.</p>
+  </aside>
+</section>
+
+<section class="slide" id="a1-positive" data-part="2 · Assumption 1" data-title="When it goes wrong: a first example">
+  <div class="slide-card">
+    <h2>When Assumption 1 goes wrong: an error that is always positive</h2>
+    <div class="cols c-60">
+      <div class="widget" data-widget="epos"></div>
+      <div>
+        <p>Suppose the data follow \(Y_i=\beta_0+\beta_1X_i+\tilde e_i\) with \(\tilde e_i&gt;0\) always.</p>
+        <ul>
+          <li>An error that is always positive cannot have mean zero: \(E(\tilde e_i\mid X_i)\neq0\).</li>
+          <li>Every point lies <b>above</b> the true line (dashed).</li>
+          <li>OLS draws the line that is closest to the points (solid). It is <b>not</b> the true line.</li>
+        </ul>
+        <div class="box key"><p>If Assumption 1 fails, the estimated parameters differ from the true ones. That is why we impose \(E(u_i\mid X_i)=0\).</p></div>
+        <p class="small">Here the error's mean is the same at every \(X\), so the fitted line is shifted up: the intercept is off. When the mean of the error <i>changes with \(X\)</i>, the slope is off too. That case comes next.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>What if the assumption fails? Suppose the error is always positive. Then it cannot have mean zero, and every point lies above the true line, the dashed one.</p>
+    <p>OLS draws the line closest to the points, and that is not the true line. So when assumption one fails, our estimates differ from the true parameters.</p>
+    <p>Here only the intercept is off. When the mean of the error changes with X, the slope is off too.</p>
+  </aside>
+</section>
+
+<section class="slide" id="a1-causal" data-part="2 · Assumption 1" data-title="Assumption 1 and causality">
+  <div class="slide-card">
+    <h2>Assumption 1 and causal regression</h2>
+    <ul>
+      <li>Assumption 1 translates into the language of regression the requirement that, to estimate a causal effect, <b>\(X\) must be randomly assigned, or as-if randomly assigned</b>.</li>
+      <li>\(E(u_i\mid X_i)=0\) says formally that the "other factors" contained in \(u_i\) are unrelated to \(X_i\): given a value of \(X_i\), the mean of these other factors is 0. So they must be uncorrelated with \(X_i\).</li>
+      <li>In the potential-outcomes language: a difference in \(Y\) between values of \(X\) is a causal effect plus selection bias. If \(E(u_i\mid X_i)=0\), there is <b>no selection bias</b>.</li>
+    </ul>
+    <div class="box"><p>When is this likely to be the case? An example makes it concrete.</p></div>
+  </div>
+  <aside class="script">
+    <p>Why is assumption one about causality? To estimate a causal effect, X must be randomly assigned, or as if randomly assigned. Assumption one says exactly that, in the language of regression: the other factors, the ones in u, are unrelated to X.</p>
+    <p>In the language of potential outcomes: if the assumption holds, there is no selection bias. When is that likely? Let's take an example.</p>
+  </aside>
+</section>
+
+<section class="slide" id="a1-wage" data-part="2 · Assumption 1" data-title="Example: wages and education">
+  <div class="slide-card">
+    <h2>Example: wages, education, and ability</h2>
+    <div class="vs">
+      <div class="box">
+        <div class="label">The true population</div>
+        <p>\[ \text{Wage}_i=\beta_0+\beta_1\,\text{Education}_i+\underbrace{\text{Ability}_i+e_i}_{\text{we do not observe these}} \]</p>
+        <p>A wage depends on education, on innate ability, and on random noise \(e_i\).</p>
+      </div>
+      <div class="box">
+        <div class="label">What we can estimate</div>
+        <p>\[ \underbrace{\text{Wage}_i}_{Y}=\beta_0+\beta_1\,\underbrace{\text{Education}_i}_{X}+u_i \]</p>
+        <p>The data have wages and education only. Ability is not measured.</p>
+      </div>
+    </div>
+    <div class="box key">
+      <p>What is in the error term? \(u_i=\text{Ability}_i+e_i\). Everything that affects wages and is not in the regression gets thrown into \(u\).</p>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Suppose that in the population, a wage depends on education, on ability, and on random noise. We want the effect of education on the wage.</p>
+    <p>But our data have only wages and education. Ability is not measured. So we regress the wage on education, and everything else that affects wages goes into the error term. Here the error u is ability plus the noise.</p>
+  </aside>
+</section>
+
+<section class="slide" id="a1-wage2" data-part="2 · Assumption 1" data-title="Does Assumption 1 hold here?">
+  <div class="slide-card">
+    <h2>Does Assumption 1 hold in the wage regression?</h2>
+    <p>\[ E(u_i\mid X_i)=E(\text{Ability}_i+e_i\mid \text{Education}_i)=\underbrace{E(\text{Ability}_i\mid\text{Education}_i)}_{=\,0\ ?}+\underbrace{E(e_i\mid\text{Education}_i)}_{=\,0\ \text{if } e \text{ is pure noise}} \]</p>
+    <div class="cols c-60">
+      <ul>
+        <li>Is average ability the same at every level of education? Probably not: people with a PhD, MD or JD likely have higher ability, on average, than people who stopped after high school.</li>
+        <li>So \(E(\text{Ability}_i\mid\text{Education}_i)\neq0\): <b>Assumption 1 fails</b>.</li>
+        <li>The estimated \(\beta_1\) is then <b>not</b> the causal effect of education. It captures the effect of education <i>and</i> part of the effect of the ability that comes with it.</li>
+      </ul>
+      <div class="box key">
+        <div class="label">The source of the problem</div>
+        <p>Ability affects wages, we cannot measure it, so it sits in the error term, and it moves with \(X\).</p>
+        <p class="small">In the live session this was called omitted variable bias.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Does assumption one hold here? We need the expected value of u, given education, to be zero. The noise is fine. The question is ability: is average ability the same at every level of education?</p>
+    <p>Probably not. People with a PhD or an MD likely have higher ability, on average, than people who stopped after high school.</p>
+    <p>So assumption one fails, and beta one is not the causal effect of education. It picks up the effect of education, plus part of the effect of the ability that comes with it. This is the omitted variable bias from the live session.</p>
+  </aside>
+</section>
+
+<section class="slide" id="a1-try" data-part="2 · Assumption 1" data-title="Try it: ability in the error term" data-pause>
+  <div class="slide-card">
+    <h2>Try it: the wage regression when ability moves with education</h2>
+    <div class="widget" data-widget="a1bias"></div>
+    <p class="small">A simulation, so the truth is known: one more year of education raises the wage by exactly $2.00; one standard deviation of ability raises it by $4.</p>
+  </div>
+  <aside class="script">
+    <p>Here is the wage example as a simulation, so we know the truth: one more year of education raises the wage by exactly two dollars. Ability sits in the error term, and the slider sets how strongly it moves with education.</p>
+    <p>With a correlation of zero point six, draw two hundred samples. The estimates are centered near three, not two: OLS gives education the credit for ability. With a correlation of zero, they are centered on two.</p>
+    <p>Now go back to zero point six and raise the sample size to ten thousand. The histogram gets narrow, but it stays in the wrong place. More data makes the estimate precise, not right.</p>
+  </aside>
+</section>
+
+<section class="slide" id="a1-rce" data-part="2 · Assumption 1" data-title="The ideal: a randomized experiment">
+  <div class="slide-card">
+    <h2>The ideal: a randomized controlled experiment</h2>
+    <div class="cols c-60">
+      <ul>
+        <li>The deeper reason the wage regression is not causal: education is <b>not randomly assigned</b>. We cannot send people to college or to high school by the flip of a coin.</li>
+        <li>In a randomized controlled experiment with a treatment \(X\), subjects are assigned to conditions <b>at random</b>.</li>
+        <li>This ensures that receiving the treatment is unrelated to any other characteristic of the individuals, including everything in the error term that also determines \(Y\).</li>
+      </ul>
+      <div class="box key">
+        <div class="label">Why experiments work</div>
+        <p>Random assignment guarantees \(E(u_i\mid X_i)=0\). Assumption 1 holds by design, so OLS recovers the causal effect.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The deeper problem is that education is not randomly assigned. We cannot send people to college by the flip of a coin.</p>
+    <p>In a randomized experiment we can: subjects are assigned to the treatment at random. So the treatment is unrelated to every other characteristic of the people, including everything in the error term.</p>
+    <p>Random assignment guarantees assumption one. That is why, in an experiment, OLS recovers the causal effect.</p>
+  </aside>
+</section>
+
+<section class="slide" id="a1-obs" data-part="2 · Assumption 1" data-title="Observational data: as-if random?">
+  <div class="slide-card">
+    <h2>Observational data: is \(X\) "as if" randomly assigned?</h2>
+    <ul>
+      <li>In a non-experimental setting (observational data), \(X\) is not assigned by an experiment.</li>
+      <li>The best we can hope for is that \(X\) is <b>as if</b> randomly assigned, in the precise sense that \(E(u_i\mid X_i)=0\).</li>
+      <li>Whether that holds in a given application takes careful thought and judgment. We return to this question again and again.</li>
+    </ul>
+    <div class="box key">
+      <div class="label">The thought process, every time</div>
+      <ol>
+        <li>What else affects \(Y\) in real life?</li>
+        <li>Which of those factors are not in my regression, and therefore in the error term?</li>
+        <li>Could any of them be correlated with \(X\)? If yes, there is trouble.</li>
+      </ol>
+    </div>
+  </div>
+  <aside class="script">
+    <p>With observational data, nobody assigned X. The best we can hope for is that X is as if randomly assigned, in the sense that assumption one holds. That takes judgment, case by case.</p>
+    <p>The thought process is always the same. One: what else affects Y in real life? Two: which of those factors are not in my regression, and so sit in the error term? Three: could any of them be correlated with X? If yes, we are in trouble.</p>
+  </aside>
+</section>
+
+<section class="slide" id="a1-error" data-part="2 · Assumption 1" data-title="What is in the error term?">
+  <div class="slide-card">
+    <h2>What is in the error term? Noise and omitted variables</h2>
+    <div class="cols c-60">
+      <div class="widget" data-widget="gap"></div>
+      <div>
+        <p>For house \(i\), the error is the <b>gap</b> between its price and the regression line at its size. Two kinds of things are in that gap:</p>
+        <div class="box">
+          <div class="label">1. Noise</div>
+          <p>An owner who priced carelessly, or was overconfident about the house. Rounding: asking $160K for a house worth $163K.</p>
+        </div>
+        <div class="box key">
+          <div class="label">2. Omitted variables</div>
+          <p>Things that change the price and are not captured by size: downtown or rural, the neighborhood, the school district.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Let's look at the error term more closely, with the house prices. For each house, the error is the gap between its price and the regression line at its size. Click a house to see it.</p>
+    <p>Two kinds of things are in that gap. The first is noise: an owner who priced carelessly, or who rounded 163 thousand down to 160. The second is omitted variables: things that change the price and are not captured by size, like the neighborhood or the school district.</p>
+  </aside>
+</section>
+
+<section class="slide" id="a1-error2" data-part="2 · Assumption 1" data-title="Noise or omitted variables: which breaks it?">
+  <div class="slide-card">
+    <h2>Which part breaks Assumption 1: the noise or the omitted variables?</h2>
+    <p class="lead">\[ E(u_i\mid X_i)=E(\text{noise}_i\mid X_i)+E(\text{omitted variables}_i\mid X_i) \]</p>
+    <div class="vs">
+      <div class="box">
+        <div class="label">Noise: mean zero at every size</div>
+        <p>Rounding goes up as often as down, for small and for large houses. \(E(\text{noise}\mid X)=0\) is plausible.</p>
+      </div>
+      <div class="box key">
+        <div class="label">Omitted variables: not mean zero</div>
+        <p>A big house is more likely to be in a good school district: big houses are bought by families with children, who care about schools. Given a large \(X\), the omitted factor is above average, so \(E(\text{omitted}\mid X)\neq0\).</p>
+      </div>
+    </div>
+    <ul>
+      <li>Then the slope is <b>not</b> the effect of building a bigger house: adding 100 square feet does not move the house to a better school district.</li>
+      <li>Part of what size "does" to the price in the data runs through where big houses are.</li>
+      <li>The remedy: bring the omitted variable out of the error term and into the regression. That is multiple regression.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Which of the two breaks assumption one? Not the noise. Rounding goes up as often as down, for small houses and for large ones, so the noise has mean zero at every size.</p>
+    <p>The omitted variables are different. A big house is more likely to be in a good school district, because big houses are bought by families with kids, who care about schools. So given a large house, the omitted factor is above average, and the assumption fails.</p>
+    <p>Then the slope is not the effect of building a bigger house: adding a hundred square feet does not move my house to a better school district. The remedy is multiple regression: bring the omitted variable into the regression.</p>
+  </aside>
+</section>
+
+<section class="slide" id="a1-flexible" data-part="2 · Assumption 1" data-title="Not as restrictive as it seems">
+  <div class="slide-card">
+    <h2>Assumption 1 is not as restrictive as it seems</h2>
+    <div class="cols c-60">
+      <div>
+        <p>It is the single most important of the four. Still:</p>
+        <ul>
+          <li><b>The relationship can be complex.</b> Linear in parameters, not in regressors: nonlinear functions of \(X\) (and transformations of \(Y\)) are allowed.</li>
+          <li><b>More \(X\)'s can be added.</b> Whatever goes into the regression is no longer in the error term, so less is left there to be correlated with \(X\). This is one motivation for multiple regression.</li>
+        </ul>
+      </div>
+      <div class="box key">
+        <div class="label">And if it fails?</div>
+        <p>OLS still gives the <b>best linear prediction</b> of \(Y\) given \(X\), as long as the observations you want to predict come from the same population as your sample.</p>
+        <p>For <b>prediction</b>, Assumption 1 matters little. For the <b>effect of \(X\) on \(Y\)</b>, it is essential.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Assumption one is the most important of the four, but it is less restrictive than it seems.</p>
+    <p>First, the relationship can be nonlinear in X: we only need it linear in the parameters. Second, we can add more X's, and whatever goes into the regression is no longer in the error term.</p>
+    <p>And if it still fails, OLS still gives the best linear prediction of Y given X. So for prediction, assumption one matters little. For the effect of X on Y, it is essential.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-1" data-part="2 · Assumption 1" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="c">
+      <div class="q">1. Which model violates "linear in parameters"?</div>
+      <button class="opt" data-k="a">\(Y=\beta_0+\beta_1X^2+u\)</button><button class="opt" data-k="b">\(Y=\beta_0+\beta_1\ln X+u\)</button><button class="opt" data-k="c">\(Y=\beta_0+X^{\beta_1}+u\)</button>
+      <div class="explain">In the first two, \(X\) is transformed but the \(\beta\)'s enter linearly: regress \(Y\) on \(X^2\) or on \(\ln X\). In the third, \(\beta_1\) is an exponent.</div>
+    </div>
+    <div class="quiz" data-answer="b">
+      <div class="q">2. A regression of wages on education leaves ability in the error term, and ability rises with education. The coefficient on education then measures</div>
+      <button class="opt" data-k="a">the causal effect of education</button><button class="opt" data-k="b">the effect of education plus part of the effect of ability</button><button class="opt" data-k="c">nothing useful, not even for prediction</button>
+      <div class="explain">\(E(u\mid X)\neq0\): the error moves with \(X\), so OLS credits education with the ability that comes with it. As a prediction of wages from education, the line is still the best linear one.</div>
+    </div>
+    <div class="quiz" data-answer="b">
+      <div class="q">3. Can a much larger sample fix a violation of Assumption 1?</div>
+      <button class="opt" data-k="a">yes: by consistency the estimate converges to the true effect</button><button class="opt" data-k="b">no: the estimate becomes more precise, around the wrong number</button><button class="opt" data-k="c">yes, if you also use robust standard errors</button>
+      <div class="explain">Consistency itself needs Assumption 1. With 10,000 workers the simulated estimates were tightly packed around 2.96, not 2.00. Robust standard errors fix standard errors, not bias.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Before moving on, three quick questions to check your understanding. Click an answer to see whether you got it and why. Nothing here is graded.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 3 -->
+<section class="slide" id="a2" data-part="3 · Assumptions 2, 3 and 4" data-title="Assumption 2: a random sample">
+  <div class="slide-card">
+    <h2>Assumption 2: a simple random sample</h2>
+    <p class="lead">\((X_i,Y_i)\) are i.i.d. draws from their joint distribution.</p>
+    <div class="cols">
+      <ul>
+        <li>Intuition: you have a <b>random sample</b>, not a selected one.</li>
+        <li>To learn the effect of education on wages, do not sample only the students of one business school: they all have a lot of education. Sample people with less education too.</li>
+        <li>Likely to hold in <b>cross-sections</b> (many people, firms or stores at one point in time).</li>
+      </ul>
+      <div class="box">
+        <div class="label">Where it fails: time series</div>
+        <p>Inflation or unemployment, month after month: this month's value depends on last month's. The observations are not independent draws.</p>
+        <p class="small">Such data can be handled, with methods beyond this course.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The other three assumptions are quicker. Assumption two: the data are a random sample, independent draws from one population.</p>
+    <p>We want a random sample, not a selected one. To learn the effect of education on wages, don't sample only the students of one business school: they all have a lot of education.</p>
+    <p>This usually holds in cross-sections. It fails in time series, like monthly inflation, where this month depends on last month. We don't cover those.</p>
+  </aside>
+</section>
+
+<section class="slide" id="a3" data-part="3 · Assumptions 2, 3 and 4" data-title="Assumption 3: no extreme outliers">
+  <div class="slide-card">
+    <h2>Assumption 3: no extreme outliers <span class="tag-tech">technical</span></h2>
+    <p class="lead">\[ 0&lt;E(X_i^4)&lt;\infty\quad\text{and}\quad 0&lt;E(u_i^4)&lt;\infty \]</p>
+    <ul>
+      <li><b>Technical:</b> finite fourth moments are what the proofs of consistency and asymptotic normality need (the law of large numbers and the central limit theorem).</li>
+      <li><b>Intuition:</b> we do not want a few extreme observations driving the results.</li>
+      <li><b>Bottom line:</b> do not worry about this one. The condition itself is not tested.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Assumption three is technical: X and the error have finite fourth moments. The proofs of consistency and normality need it.</p>
+    <p>The intuition is that we don't want a few extreme observations to drive the results. Don't worry about the formula. I will not test you on it. But the next slide shows why extreme observations matter.</p>
+  </aside>
+</section>
+
+<section class="slide" id="a3-try" data-part="3 · Assumptions 2, 3 and 4" data-title="Try it: one extreme observation" data-pause>
+  <div class="slide-card">
+    <h2>Try it: what one extreme observation can do</h2>
+    <div class="widget" data-widget="outlier"></div>
+    <p class="small">An extreme observation does damage when it is far from the other values of \(X\) <i>and</i> far from the line. Plot your data, and check the extreme points: they are often errors.</p>
+  </div>
+  <aside class="script">
+    <p>The chart shows the 88 houses and their regression line. Click anywhere to add one more house, or use the buttons.</p>
+    <p>Try the typo: a large house entered at 50 thousand dollars instead of 500 thousand. One observation lowers the slope by about fifteen percent, and the R squared drops from 0.62 to 0.45.</p>
+    <p>Now try the big house on the line: it barely moves anything. An extreme point does damage when it is far from the other X's and also far from the line. So plot your data, and check the extreme points.</p>
+  </aside>
+</section>
+
+<section class="slide" id="a4" data-part="3 · Assumptions 2, 3 and 4" data-title="Assumption 4: homoskedastic errors">
+  <div class="slide-card">
+    <h2>Assumption 4: homoskedastic errors</h2>
+    <p class="lead">\[ Var(u_i\mid X_i)=\sigma_u^2\quad\text{(the same for all values of } X) \]</p>
+    <div class="widget" data-widget="clouds" data-panels="2"></div>
+    <div class="cols">
+      <ul>
+        <li><i>Homo</i> = same, <i>skedastic</i> = scattered: the points scatter around the line in the same way at every \(X\).</li>
+        <li>On the right, Assumption 1 still holds (the points are centered on the line), but the spread grows with \(X\): Assumption 4 fails.</li>
+      </ul>
+      <ul>
+        <li><b>Not essential.</b> It only simplifies the formulas for the standard errors. If it fails, the point estimates do not change.</li>
+        <li>Excel's Regression command assumes it. Python can relax it with one extra argument (Part 4).</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Assumption four: homoskedastic errors. The word is Greek. Homo means same, and skedastic means scattered: the points scatter around the line in the same way at every X. Formally, the variance of the error does not depend on X.</p>
+    <p>Compare the two pictures. On the left, the spread is the same everywhere. On the right, the points are still centered on the line, so assumption one holds, but the spread grows with X.</p>
+    <p>This assumption is not essential. It only simplifies the formulas for the standard errors. If it fails, the estimates do not change. Excel assumes it. Python can relax it with one extra argument, as we see in part four.</p>
+  </aside>
+</section>
+
+<section class="slide" id="role" data-part="3 · Assumptions 2, 3 and 4" data-title="The role of the assumptions">
+  <div class="slide-card">
+    <h2>What the assumptions are for</h2>
+    <div class="vs">
+      <div class="box key">
+        <div class="label">1. They justify the inference</div>
+        <p>Under the four assumptions we can derive the distribution of the \(\hat\beta\)'s: consistent and normal.</p>
+        <p>That is what allowed us to build confidence intervals and test hypotheses, just as for a population mean \(\mu\).</p>
+      </div>
+      <div class="box key">
+        <div class="label">2. They tell us where to look for trouble</div>
+        <p>Each assumption marks a situation in which OLS can go wrong, and has its remedies.</p>
+        <p>Much of what follows in the course deals with these situations, above all with Assumption 1, the one that guarantees a causal interpretation.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>What are the assumptions for? Two things.</p>
+    <p>First, they justify the inference: under the assumptions, the estimates are consistent and normal, and that is what gave us confidence intervals and tests.</p>
+    <p>Second, they tell us where to look for trouble. Each assumption marks a situation where OLS can go wrong. Assumption one matters most, because it is behind the causal interpretation.</p>
+  </aside>
+</section>
+
+<section class="slide" id="se-formula" data-part="3 · Assumptions 2, 3 and 4" data-title="The standard errors of the betas">
+  <div class="slide-card">
+    <h2>The standard errors of the betas <span class="tag-tech">technical</span></h2>
+    <p>Under Assumptions 1 to 4, the standard errors that Excel and Python report are</p>
+    <p>\[ SE(\hat\beta_1)=\frac{SER}{\sqrt{n}\;s_X}\qquad\qquad SE(\hat\beta_0)=\sqrt{\frac1n\sum_{i=1}^nX_i^2}\cdot\frac{SER}{\sqrt{n}\;s_X} \]</p>
+    <div class="cols c-60">
+      <ul>
+        <li><b>SER</b>, the standard error of the regression, is the estimated standard deviation of the error term. More noise around the line, larger standard error.</li>
+        <li><b>\(\sqrt n\)</b>: more data, smaller standard error. To halve it you need four times the sample.</li>
+        <li><b>\(s_X\)</b>, the standard deviation of \(X\): more variation in \(X\), smaller standard error. (Next slide.)</li>
+      </ul>
+      <div class="box">
+        <div class="label">House prices</div>
+        <p>\(SER=63.6\), \(n=88\), \(s_X=577\):</p>
+        <p>\(SE(\hat\beta_1)\approx\dfrac{63.6}{\sqrt{88}\times577}=0.0118\)</p>
+        <p class="small">The 0.012 next to <code>sqrft</code> in the output.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>One last thing in this part: where do the standard errors come from? Under the four assumptions, the standard error of the slope is the standard error of the regression, divided by the square root of n times the standard deviation of X.</p>
+    <p>So more noise around the line means a larger standard error. More data means a smaller one: to cut it in half, you need four times the sample. And more variation in X also means a smaller one.</p>
+    <p>For the houses, the formula gives 0.0118, the number in the regression output.</p>
+  </aside>
+</section>
+
+<section class="slide" id="se-precision" data-part="3 · Assumptions 2, 3 and 4" data-title="Why variation in X helps">
+  <div class="slide-card">
+    <h2>Which scatter plot would you rather fit a line through?</h2>
+    <div class="widget" data-widget="precision"></div>
+    <p>\(SE(\hat\beta_1)=\dfrac{SER}{\sqrt n\,s_X}\): the more \(X\) varies, the smaller the standard error. When you collect data, go for a broad range of \(X\).</p>
+  </div>
+  <aside class="script">
+    <p>Why does variation in X help? Look at the two panels. On the left, the X's sit in a narrow range, and the lines from different samples point in many directions. On the right, X varies a lot, and the lines almost coincide.</p>
+    <p>So when you collect data, go for a broad range of X. Your estimates will be more precise.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 4 -->
+<section class="slide" id="het-def" data-part="4 · Heteroskedasticity" data-title="Homoskedasticity vs. heteroskedasticity">
+  <div class="slide-card">
+    <h2>Homoskedasticity and heteroskedasticity</h2>
+    <p class="lead">\[ Y_i=\beta_0+\beta_1X_i+u_i \]</p>
+    <p>The \(u_i\)'s determine how scattered the data are around the regression line.</p>
+    <div class="vs">
+      <div class="box">
+        <div class="label">Homoskedasticity</div>
+        <p>\[ Var(u_i\mid X_i)=\sigma_u^2\quad\text{(a constant)} \]</p>
+        <p>This is OLS Assumption 4.</p>
+      </div>
+      <div class="box">
+        <div class="label">Heteroskedasticity</div>
+        <p>\[ Var(u_i\mid X_i)=f(X_i)\quad\text{(it depends on } X) \]</p>
+        <p>This violates Assumption 4, and with it some of the inference we have done so far.</p>
+      </div>
+    </div>
+    <p class="small">"Skedasticity" (sometimes spelled "scedasticity") comes from a Greek word meaning "to scatter": heteroskedastic errors scatter differently, homoskedastic errors scatter in the same way.</p>
+  </div>
+  <aside class="script">
+    <p>Now part four: what if assumption four fails? The error term decides how scattered the data are around the line.</p>
+    <p>If its variance is the same at every X, the errors are homoskedastic. If the variance depends on X, they are heteroskedastic: scattered differently. That violates assumption four, and it affects some of the inference we have done so far.</p>
+  </aside>
+</section>
+
+<section class="slide" id="het-dist" data-part="4 · Heteroskedasticity" data-title="Same spread, or not">
+  <div class="slide-card">
+    <h2>All conditional distributions with the same spread, or not</h2>
+    <div class="cols c-60">
+      <div class="widget" data-widget="condDist" data-mode="a4"></div>
+      <ul>
+        <li><b>Homoskedasticity:</b> the distribution of \(Y\) around the line has the same variance at \(X=15\), at \(X=20\), at any \(X\).</li>
+        <li><b>Heteroskedasticity:</b> the conditional distributions can have different variances. In this example the errors are more scattered when \(X\) is larger.</li>
+        <li>In both pictures the distributions are <b>centered on the line</b>: Assumption 1 is untouched.</li>
+      </ul>
+    </div>
+    <p class="src">After Stock &amp; Watson, <i>Introduction to Econometrics</i>, Figures 4.4 and 4.7, redrawn.</p>
+  </div>
+  <aside class="script">
+    <p>Here are the two cases; you can switch between them. Under homoskedasticity, the distribution of Y around the line has the same spread at every X.</p>
+    <p>Under heteroskedasticity, the spread differs: here the errors are more scattered when X is larger.</p>
+    <p>In both cases the distributions are centered on the line, so assumption one is untouched.</p>
+  </aside>
+</section>
+
+<section class="slide" id="het-clouds" data-part="4 · Heteroskedasticity" data-title="What it looks like in a scatter plot">
+  <div class="slide-card">
+    <h2>What it looks like in a scatter plot</h2>
+    <div class="widget" data-widget="clouds"></div>
+    <ul>
+      <li>Homoskedastic: the level of scatter is roughly the same at every \(X\).</li>
+      <li>Heteroskedastic: the points scatter more widely at large \(X\), or more widely at small \(X\).</li>
+      <li>In all three, the points are <b>on average on the regression line</b>.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>In a scatter plot it looks like this. Homoskedastic: about the same scatter at every X. Heteroskedastic: more scatter at large X, or more scatter at small X.</p>
+    <p>In all three, the points are on average on the regression line.</p>
+  </aside>
+</section>
+
+<section class="slide" id="het-robust" data-part="4 · Heteroskedasticity" data-title="Robust standard errors">
+  <div class="slide-card">
+    <h2>Heteroskedasticity-robust standard errors</h2>
+    <p>If the errors are heteroskedastic, the simpler <b>homoskedasticity-only</b> formulas for the standard errors are incorrect. Fortunately:</p>
+    <div class="vs">
+      <div class="box key">
+        <div class="label">1. The estimates are still fine</div>
+        <p>The conditional mean is still a line: Assumption 1 does not depend on how the points scatter.</p>
+      </div>
+      <div class="box key">
+        <div class="label">2. There are standard errors that allow for it</div>
+        <p>More complicated formulas, called <b>heteroskedasticity-robust</b> standard errors. They are right whether or not the errors are homoskedastic.</p>
+      </div>
+    </div>
+    <ul>
+      <li>Excel will not compute them. Python or R will.</li>
+      <li>If you are <b>paid</b> to analyze data, report robust standard errors. In research they are almost always reported.</li>
+      <li>In this course we use the simpler formulas (the default output) in most cases. Keep in mind what they assume.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>So what goes wrong? With heteroskedastic errors, the simple formulas for the standard errors are incorrect. But there is good news.</p>
+    <p>First, the estimates themselves are still fine, because the conditional mean is still a line. Second, there are standard errors that allow for heteroskedasticity. They are called robust standard errors, and they are right whether or not the errors are homoskedastic.</p>
+    <p>Excel does not compute them. Python does. If you are paid to analyze data, report robust standard errors. In this course we mostly use the default output, but keep in mind what it assumes.</p>
+  </aside>
+</section>
+
+<section class="slide" id="het-houses" data-part="4 · Heteroskedasticity" data-title="House prices: default vs. robust">
+  <div class="slide-card">
+    <h2>House prices: the default and the robust standard errors</h2>
+<pre class="codeview out">Covariance Type:            nonrobust
+==============================================================================
+                 coef    std err          t      P>|t|      [0.025      0.975]
+------------------------------------------------------------------------------
+Intercept     11.2041     <mark>24.743</mark>      0.453      0.652     -37.983      60.391
+sqrft          0.1402      <mark>0.012</mark>     11.866      0.000       0.117       0.164
+==============================================================================
+
+Covariance Type:                  HC1
+==============================================================================
+                 coef    std err          z      P>|z|      [0.025      0.975]
+------------------------------------------------------------------------------
+Intercept     11.2041     <mark>36.806</mark>      0.304      0.761     -60.934      83.342
+sqrft          0.1402      <mark>0.020</mark>      7.154      0.000       0.102       0.179
+==============================================================================</pre>
+    <div class="cols">
+      <ul>
+        <li>Same coefficients: 11.2041 and 0.1402.</li>
+        <li>The robust standard errors are larger: 0.0196 against 0.0118 for <code>sqrft</code>, about two thirds more.</li>
+        <li>So the confidence interval is wider: (0.102, 0.179) instead of (0.117, 0.164).</li>
+      </ul>
+      <ul>
+        <li>The conclusion survives: the slope is still far from zero (7.2 standard errors).</li>
+        <li>The test statistic is now labeled <code>z</code> instead of <code>t</code>. You do not need to know why.</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Take the house prices. The two tables have the same coefficients. Only the standard errors differ. For square feet, the robust standard error is 0.0196, against 0.0118: about two thirds larger. So the confidence interval is wider.</p>
+    <p>The conclusion survives: the slope is still about seven standard errors from zero. And the statistic is now called z instead of t. You don't need to know why.</p>
+  </aside>
+</section>
+
+<section class="slide" id="het-others" data-part="4 · Heteroskedasticity" data-title="Three more examples">
+  <div class="slide-card">
+    <h2>Three more examples: little changes</h2>
+    <table class="t">
+      <tr><th>Regression</th><th class="num">\(n\)</th><th class="num">Coefficient</th><th class="num">Default SE</th><th class="num">Robust SE (HC1)</th><th class="num">Robust / default</th></tr>
+      <tr class="hi"><td>House price ($1,000s) on square feet</td><td class="num">88</td><td class="num">0.1402</td><td class="num">0.0118</td><td class="num">0.0196</td><td class="num">1.66</td></tr>
+      <tr><td>Diamond price ($) on carats</td><td class="num">380</td><td class="num">5,573.3</td><td class="num">211.4</td><td class="num">187.1</td><td class="num">0.89</td></tr>
+      <tr><td>Wine price ($) on rating</td><td class="num">230</td><td class="num">1.4917</td><td class="num">0.1358</td><td class="num">0.1463</td><td class="num">1.08</td></tr>
+      <tr><td>Hourly earnings ($) on a male dummy</td><td class="num">3,955</td><td class="num">3.7965</td><td class="num">0.3531</td><td class="num">0.3522</td><td class="num">1.00</td></tr>
+    </table>
+    <ul>
+      <li>For the diamonds, the wines and the earnings, the two standard errors are close, and for the earnings practically identical: the data are close to homoskedastic.</li>
+      <li>A robust standard error can also be <b>smaller</b> than the default one (the diamonds).</li>
+      <li>The houses are the exception. Part of it is a few large houses far from the line (see the residual plot below).</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Here are three more examples. For the diamonds, the wines and the earnings, the two standard errors are close: these data are nearly homoskedastic.</p>
+    <p>A robust standard error can even be smaller than the default one, as for the diamonds. The houses are the exception, partly because of a few large houses far from the line.</p>
+  </aside>
+</section>
+
+<section class="slide" id="het-python" data-part="4 · Heteroskedasticity" data-title="Robust standard errors in Python" data-pause>
+  <div class="slide-card">
+    <h2>In Python: one more argument in <code>fit()</code></h2>
+    <div class="pycell" data-colab="robust"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+housedata = pd.read_csv("hprices.csv")
+est = smf.ols("price ~ sqrft", data=housedata).fit()                      # default: homoskedasticity-only
+est_r = smf.ols("price ~ sqrft", data=housedata).fit(cov_type="HC1")      # heteroskedasticity-robust
+print(est.summary().tables[1])
+print(est_r.summary().tables[1])
+</textarea></div>
+    <ul class="small">
+      <li><code>cov_type="HC1"</code>: "heteroskedasticity-consistent, type 1", the usual choice. The summary then says <code>Covariance Type: HC1</code> instead of <code>nonrobust</code>.</li>
+      <li>Same coefficients, different standard errors, and p-values from the normal distribution (<code>z</code>, <code>P>|z|</code>).</li>
+      <li>The robust standard errors are correct whether the errors are homoskedastic or heteroskedastic.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>In Python it takes one more argument. Until now we called fit with empty brackets. Now we write cov type equals HC1 inside. HC1 is the usual type of robust standard error.</p>
+    <p>Run the cell. The two tables have the same coefficients and different standard errors, and the summary now says covariance type HC1 instead of nonrobust.</p>
+  </aside>
+</section>
+
+<section class="slide" id="het-compare" data-part="4 · Heteroskedasticity" data-title="The other data sets in Python" data-pause>
+  <div class="slide-card">
+    <h2>The same comparison for all four data sets</h2>
+    <div class="pycell" data-colab="compare"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+examples = [("hprices.csv", "price ~ sqrft", "sqrft"), ("diamonds.csv", "price ~ carats", "carats"),
+            ("wines.csv", "Price ~ Score", "Score"), ("cps12.csv", "earnings ~ male", "male")]
+for file, formula, x in examples:
+    df = pd.read_csv(file)
+    est = smf.ols(formula, data=df).fit()
+    est_r = smf.ols(formula, data=df).fit(cov_type="HC1")
+    print(f"{formula:16s} coef {est.params[x]:10.4f}   default SE {est.bse[x]:9.4f}   robust SE {est_r.bse[x]:9.4f}"
+          f"   t {est.tvalues[x]:6.2f}   z {est_r.tvalues[x]:6.2f}")
+</textarea></div>
+    <p class="small">In every case the coefficient is the same and the conclusion of the test does not change: the gender gap in earnings, for example, is significant with either standard error.</p>
+  </div>
+  <aside class="script">
+    <p>This cell makes the same comparison for all four data sets. In every case the coefficient is the same, and the conclusion of the test does not change. The gender gap in earnings, for example, is significant with either standard error.</p>
+  </aside>
+</section>
+
+<section class="slide" id="het-try" data-part="4 · Heteroskedasticity" data-title="Try it: which standard error is right?" data-pause>
+  <div class="slide-card">
+    <h2>Try it: which standard error is right?</h2>
+    <div class="widget" data-widget="het"></div>
+    <p class="small">A simulation with a known slope of 2. The actual spread of the estimates across samples is what a standard error is supposed to measure.</p>
+  </div>
+  <aside class="script">
+    <p>Which standard error is right? Here is a simulation with a true slope of two, where the spread of the errors grows with X. Draw five hundred samples.</p>
+    <p>One: the histogram is centered on two, so the estimates are fine. Two: the default standard error, the dashed curve, is too small. It claims more precision than we have. Three: the robust standard error, the solid curve, matches the actual spread.</p>
+    <p>As a result, the default 95 percent intervals contain the truth less than 95 percent of the time.</p>
+    <p>Now switch to the same spread at every X: the two agree. With a spread that shrinks, the default is too large. The robust one is right in all three cases.</p>
+  </aside>
+</section>
+
+<section class="slide" id="het-check" data-part="4 · Heteroskedasticity" data-title="Looking for it: the residual plot" data-pause>
+  <div class="slide-card">
+    <h2>How to look for heteroskedasticity: plot the residuals</h2>
+    <div class="pycell" data-colab="residplot"><textarea>
+import pandas as pd
+import matplotlib.pyplot as plt
+import statsmodels.formula.api as smf
+
+housedata = pd.read_csv("hprices.csv")
+est = smf.ols("price ~ sqrft", data=housedata).fit()
+housedata["resid"] = est.resid                       # the residuals, one per house
+
+plt.scatter(housedata.sqrft, housedata.resid, s=18)
+plt.axhline(0, color="gray", lw=1)
+plt.xlabel("size (square feet)"); plt.ylabel("residual ($1,000s)")
+plt.show()
+
+housedata["size"] = pd.qcut(housedata.sqrft, 3, labels=["small", "middle", "large"])
+print(housedata.groupby("size", observed=True).resid.std().round(1))     # the spread of the residuals, by size
+</textarea></div>
+    <p class="small">Homoskedastic residuals form an even band around zero. Here the largest third of the houses has residuals with a standard deviation of 83, against 56 and 41 for the small and middle thirds. In practice you do not need a test: report robust standard errors, which are right either way.</p>
+  </div>
+  <aside class="script">
+    <p>How do you look for heteroskedasticity? Plot the residuals against X. With homoskedastic errors you see an even band around zero. For the houses you don't: the largest houses have much larger residuals.</p>
+    <p>Their standard deviation is 83 for the largest third of the houses, against 56 and 41 for the other two.</p>
+    <p>In practice you don't need a test. Just report robust standard errors. They are right either way.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-2" data-part="4 · Heteroskedasticity" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="b">
+      <div class="q">1. Assumptions 1 to 3 hold, but the errors are heteroskedastic. Then</div>
+      <button class="opt" data-k="a">the OLS estimates are biased</button><button class="opt" data-k="b">the estimates are fine; the default standard errors are wrong</button><button class="opt" data-k="c">both the estimates and the default standard errors are fine</button>
+      <div class="explain">How the points scatter around the line does not move the line. It changes how precisely the line is estimated, which the homoskedasticity-only formula gets wrong.</div>
+    </div>
+    <div class="quiz" data-answer="b">
+      <div class="q">2. In Python, heteroskedasticity-robust standard errors come from</div>
+      <button class="opt" data-k="a"><code>smf.ols(..., robust=True).fit()</code></button><button class="opt" data-k="b"><code>smf.ols(...).fit(cov_type="HC1")</code></button><button class="opt" data-k="c">a different regression formula</button>
+      <div class="explain">The model and the formula stay the same; only the way the standard errors are computed changes, through the argument of <code>fit</code>.</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">3. House prices: default SE 0.0118, robust SE 0.0196 for the slope 0.1402. With robust standard errors the 95% confidence interval for the slope is</div>
+      <button class="opt" data-k="a">wider, and still far from zero</button><button class="opt" data-k="b">narrower</button><button class="opt" data-k="c">the same, because the coefficient is the same</button>
+      <div class="explain">0.1402 ± 1.96 × 0.0196 = (0.102, 0.179), against (0.117, 0.164). Same center, wider interval, same conclusion.</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">4. Which assumption has to hold for the coefficient to be a causal effect?</div>
+      <button class="opt" data-k="a">Assumption 1, \(E(u\mid X)=0\)</button><button class="opt" data-k="b">Assumption 3, no extreme outliers</button><button class="opt" data-k="c">Assumption 4, homoskedasticity</button>
+      <div class="explain">Assumption 1 says that what is left in the error term is unrelated to \(X\), as it would be if \(X\) were randomly assigned. The others are about sampling and precision.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Before moving on, a few quick questions to check your understanding. Click an answer to see whether you got it and why. Nothing here is graded.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= WRAP-UP -->
+<section class="slide" id="multi" data-part="Wrap-up" data-title="With more than one X">
+  <div class="slide-card">
+    <h2>With more than one \(X\): the same assumptions, and one more</h2>
+    <p class="lead">\[ Y_i=\beta_0+\beta_1X_{1i}+\dots+\beta_pX_{pi}+u_i \]</p>
+    <div class="assume">
+      <div class="box"><div class="label"><b>1</b> · linear in parameters; zero conditional mean</div><p>\(E(u_i\mid X_{1i},\dots,X_{pi})=0\): the error has mean zero given <i>all</i> the \(X\)'s. Each control you add leaves less in the error term.</p></div>
+      <div class="box"><div class="label"><b>2 and 3</b> · random sample; no extreme outliers</div><p>As before, for \((Y_i,X_{1i},\dots,X_{pi})\).</p></div>
+      <div class="box key"><div class="label"><b>New</b> · no perfect collinearity</div><p>No regressor is an exact linear function of the others: not size in square feet <i>and</i> in square meters; not a male <i>and</i> a female dummy with an intercept.</p></div>
+      <div class="box"><div class="label"><b>Optional</b> · homoskedasticity</div><p>\(Var(u_i\mid X_{1i},\dots,X_{pi})=\sigma_u^2\). Without it: <code>fit(cov_type="HC1")</code>, exactly as with one \(X\).</p></div>
+    </div>
+    <p class="small">For a causal reading of <i>one</i> coefficient, the weaker condition from the live session is enough: conditional mean independence, given the controls.</p>
+  </div>
+  <aside class="script">
+    <p>Everything carries over to a regression with more than one X, with one addition.</p>
+    <p>Assumption one now says that the error has mean zero given all the X's. That is why controls help: what you put into the regression is no longer in the error term. Assumptions two and three are as before.</p>
+    <p>The new one is no perfect collinearity: no regressor is an exact linear function of the others. For example, not the size in square feet and in square meters together.</p>
+    <p>And homoskedasticity is again optional: without it, use robust standard errors.</p>
+  </aside>
+</section>
+
+<section class="slide" id="summary" data-part="Wrap-up">
+  <div class="slide-card">
+    <h2>Summary</h2>
+    <table class="t map">
+      <tr><th>Assumption</th><th>In words</th><th>If it fails</th><th>What to do</th></tr>
+      <tr><td><b>1</b> \(E(u\mid X)=0\), linear in parameters</td><td>what is left out of the regression is unrelated to \(X\)</td><td>the estimate is <b>not the causal effect</b>, at any sample size (still the best linear prediction)</td><td>randomize; add the omitted variables; think hard about what is in \(u\)</td></tr>
+      <tr><td><b>2</b> random sample</td><td>independent draws from one population</td><td>time series, selected samples: the usual inference breaks</td><td>sample at random; special methods otherwise</td></tr>
+      <tr><td><b>3</b> no extreme outliers</td><td>no observation is wildly far from the rest</td><td>a few observations drive the results</td><td>plot the data; check the extreme points</td></tr>
+      <tr><td><b>4</b> homoskedasticity</td><td>the same scatter around the line at every \(X\)</td><td>estimates fine; <b>default standard errors wrong</b></td><td><code>.fit(cov_type="HC1")</code></td></tr>
+    </table>
+    <p class="small">Under Assumptions 1 to 3, OLS is unbiased, consistent and approximately normal in large samples; Assumption 4 only decides which standard-error formula is right. With several \(X\)'s, add: no perfect collinearity.</p>
+  </div>
+  <aside class="script">
+    <p>Let's wrap up. Assumption one: linear in the parameters, and the error has mean zero at every X. This is the important one. If it fails, the estimate is not the causal effect, at any sample size. Randomizing guarantees it. With observational data, you have to argue for it.</p>
+    <p>Assumption two: a random sample. Assumption three: no extreme outliers, so plot your data.</p>
+    <p>Assumption four: the same scatter at every X. If it fails, the estimates are fine, but the default standard errors are wrong. The fix is cov type equals HC1.</p>
+  </aside>
+</section>
+
+<section class="slide" id="next" data-part="Wrap-up">
+  <div class="slide-card">
+    <h2>Practice, and what comes next</h2>
+    <div class="cols">
+      <div>
+        <h3>Practice notebook</h3>
+        <p>All the code from this module, plus short exercises: the three properties by simulation, the wage regression with ability left out, put in, and with education assigned at random, one typo in the house data, robust standard errors on four data sets, and the residual plot.</p>
+        <div class="btn-row" data-notebook-links></div>
+        <p class="small">In Colab: <i>File → Save a copy in Drive</i> to keep your own version.</p>
+      </div>
+      <div>
+        <h3>Next</h3>
+        <p>Regression lines that are not straight: quadratic terms, logarithms, dummy variables and interactions. All of them keep the model linear in the parameters, so everything in this module still applies. Then: predicting with a regression, with confidence and prediction intervals in Python.</p>
+      </div>
+    </div>
+    <p class="src">References: Stock &amp; Watson, <i>Introduction to Econometrics</i>, sections 4.4, 4.5 and 5.4; Békés &amp; Kézdi, <i>Data Analysis for Business, Economics, and Policy</i>, chapters 9 and 21. Data: the house, diamond and wine files of the course and the Current Population Survey 2012 (Stock &amp; Watson).</p>
+  </div>
+  <aside class="script">
+    <p>That's it for this module. If you want to keep the code, open the practice notebook.</p>
+  </aside>
+</section>
+
+</div><!-- deck -->
+</body>
+</html>
