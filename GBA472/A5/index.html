@@ -1,0 +1,1110 @@
+<!doctype html>
+<!--
+  Asynchronous module 5 for GBA 472 (Fall B 2026; written so it can be reused in other years):
+  regression in Python, continued: predictions with confidence and prediction intervals, multiple regression
+  (orange juice demand, perfect and near-perfect collinearity), and joint hypothesis tests (F-tests).
+  Built 2026-11-16 (Tianli: "make an asynchronous module 5 webpage, based on GBA462Tianli/Asynchronous 9-11").
+  Sources: Tianli's September 2024 videos 9_OLS_in_python2.mp4 (prediction intervals; its robust-standard-error
+  part is in module 4), 10_Multi regression.mp4 and 11_joint F test.mp4 (GBA462Tianli/Asynchronous), cut slide by
+  slide by code/make_audio.py; the notebooks they show (GBA462 Notebook 3b and Notebook 4) and the handout
+  "Testing Joint Hypotheses" (GBA462Tianli/Handouts/handout10b.tex). Every number is re-estimated in
+  code/A5_examples.py; the statsmodels screenshots of the handout are replaced by text output and tables.
+
+  How this page works (details in ../README.md):
+  - every <section class="slide"> is one slide; its <aside class="script"> is a concise narration script: the
+    recording prompter shows it (open the page with ?record at the end of the address), and a neutral US male
+    text-to-speech voice (code/make_tts.py: Kokoro-82M, am_michael) reads it on the slides without a recording;
+  - audio/<slide id>.m4a is the voice-over for that slide, assets/transcripts.js what is said in it;
+  - assets/cues.js (written by code/make_cues.py from code/cues.txt) says what to highlight on the slide, or what
+    to mark as "click here", while the voice-over plays; the player applies the classes cue-hl and cue-click;
+  - .widget[data-widget] blocks are simulations from assets/widgets.js (data in assets/a5data.js);
+    .pycell blocks run Python in the browser (pandas and statsmodels; the data files are fetched from data/).
+  Rule for student-facing text here (slides AND scripts): no course numbers, terms, or lecture numbers.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prediction, multiple regression and F-tests in Python</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Self-paced module: prediction intervals, multiple regression, collinearity and joint F-tests in Python.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="assets/player.css">
+<style>
+  /* page-specific */
+  .parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-top: 12px; }
+  .parts button { text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 10px 12px; cursor: pointer; font-size: 15px; line-height: 1.35; }
+  .parts button:hover { border-color: var(--brand); }
+  .parts button b { display: block; color: var(--brand); font-size: 13px; text-transform: uppercase; letter-spacing: .05em; }
+  .feature { display: grid; grid-template-columns: 36px 1fr; gap: 6px 10px; align-items: start; margin: 8px 0; }
+  .feature .ic { width: 32px; height: 32px; border-radius: 8px; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  table.t td.num, table.t th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.t tr.hi td { font-weight: 650; background: var(--brand-soft); }
+  table.t th.ci, table.t td.ci { background: rgba(234, 88, 12, .10); }
+  table.t th.pi, table.t td.pi { background: var(--c-band); }
+  table.t code { font-size: 13px; }
+  pre.codeview { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; font-size: 14px; overflow-x: auto; font-family: var(--mono); line-height: 1.45; }
+  pre.codeview.out { font-size: 12.5px; line-height: 1.35; }
+  pre.codeview mark { background: var(--brand-soft); color: inherit; border-radius: 3px; padding: 0 2px; outline: 1px solid var(--brand); }
+  .vs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .vs .box { margin: 0; }
+  .steps3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .steps3 .box { margin: 0; }
+  .steps3 .box .label b, .vs .box .label b { color: var(--brand); }
+  .data-list li { margin: 3px 0; }
+  .widget .charts.three { grid-template-columns: repeat(3, 1fr); }
+  .widget .controls label.chk { gap: 5px; }
+  svg.plot .band-pi { fill: var(--c-band); }
+  svg.plot .band-ci { fill: var(--c-est); opacity: .30; }
+  svg.plot .pick { stroke: var(--c-true); stroke-width: 1.2; stroke-dasharray: 3 3; }
+  svg.plot .bar-ci { stroke: var(--c-est); stroke-width: 7; stroke-linecap: butt; }
+  svg.plot .bar-pi { stroke: var(--c-sample); stroke-width: 7; stroke-linecap: butt; opacity: .55; }
+  svg.plot .tail { fill: var(--c-est); opacity: .45; }
+  svg.plot .dot-truth { fill: var(--c-true); }
+  svg.plot .dot-est { fill: var(--c-est); opacity: .55; }
+  @media (max-width: 760px) { .vs, .steps3, .widget .charts.three { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<script>
+  window.MODULE_CONFIG = {
+    moduleId: "GBA472-A5-prediction-multireg-ftests",
+    title: "Prediction, multiple regression and F-tests in Python",
+    subtitle: "Causal and Predictive Analytics · Asynchronous module",
+    // Colab buttons: publish_site.py writes the GitHub location into the published copy.
+    colabUrl: "",
+    github: "tx58/causal-analytics/GBA472/A5",
+    notebook: "A5_notebook.ipynb",
+    pyPackages: ["numpy", "matplotlib", "pandas", "statsmodels"],
+    pySetup: async (py) => {
+      py.runPython("import warnings\nwarnings.filterwarnings('ignore')");   // pandas' pyarrow notice etc.
+      for (const f of ["hprices2.csv", "rfj_small.csv", "suv.csv"]) {
+        const r = await fetch("data/" + f);
+        py.FS.writeFile(f, await r.text());
+      }
+    },
+  };
+</script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script defer src="assets/a5data.js"></script>
+<script defer src="assets/transcripts.js"></script>
+<script defer src="assets/cues.js"></script>
+<script defer src="assets/widgets.js"></script>
+<script defer src="assets/player.js"></script>
+</head>
+<body>
+<div id="deck">
+
+<!-- ======================================================================= START -->
+<section class="slide title-slide" id="title" data-part="Start" data-title="Welcome">
+  <div class="slide-card">
+    <div class="eyebrow">Causal and Predictive Analytics · Asynchronous module</div>
+    <h1>Prediction, multiple regression and F-tests in Python</h1>
+    <div class="who">Tianli Xia · Simon Business School, University of Rochester</div>
+    <div class="start-row">
+      <button class="btn primary" data-action="play-all">▶ Watch from the start (auto-advance)</button>
+      <button class="btn" data-action="next">Go at my own pace →</button>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Hello. In this module we use Python for three things: predictions and their intervals, regressions with more than one X, and tests of several coefficients at once.</p>
+  </aside>
+</section>
+
+<section class="slide" id="how-to" data-part="Start">
+  <div class="slide-card">
+    <h2>How to use this page</h2>
+    <div class="cols">
+      <div>
+        <div class="feature"><span class="ic">▶</span><div><b>Listen.</b> Each slide has its own short voice-over. Press <kbd>Space</kbd> or the play button. Change the speed at the bottom right.</div></div>
+        <div class="feature"><span class="ic">⇄</span><div><b>Your pace.</b> Use <kbd>←</kbd> <kbd>→</kbd> or the contents on the left. Turn on <i>Auto-advance</i> to watch it like a video.</div></div>
+        <div class="feature"><span class="ic">≡</span><div><b>Read.</b> The transcript sits under each slide (<kbd>T</kbd> hides it). Click a sentence to jump there.</div></div>
+      </div>
+      <div>
+        <div class="feature"><span class="ic">✦</span><div><b>Try it.</b> Slides marked <i>try it</i> have simulations. Change the settings and see what happens.</div></div>
+        <div class="feature"><span class="ic">{ }</span><div><b>Code.</b> Python cells run right in the page. Edit them and press <i>Run</i>. The same code is in a Colab notebook.</div></div>
+        <div class="feature"><span class="ic">✓</span><div><b>Check.</b> Short self-checks end each part. They are not graded.</div></div>
+      </div>
+    </div>
+    <div class="box key">
+      <div class="label">What you need for the exam</div>
+      <p>Read a <code>get_prediction</code> table and say which interval answers which question. Run a multiple regression in Python and interpret its coefficients. Recognize perfect and near-perfect collinearity in the output, and know the fix. Write down a joint hypothesis, compute the F-statistic from two \(R^2\)'s, and run the test with <code>f_test</code>.</p>
+    </div>
+  </div>
+  <aside class="script">
+    <p>A quick tour of the page. Every slide has its own short voice-over. Press the space bar or the play button to hear it, and change the speed at the bottom right.</p>
+    <p>You decide the pace. Use the arrow keys or the list of slides on the left. If you prefer to sit back, turn on auto-advance and the page plays like a video. It stops on the slides where you have something to do.</p>
+    <p>The transcript is under each slide, so you can read instead of listening.</p>
+    <p>Slides marked try it have small simulations. The code cells run Python inside the page, so you do not need to install anything. The same code is in a Colab notebook if you want to keep it.</p>
+    <p>For the exam, focus on the ideas and on using the formulas. The derivations are there so you can see where the results come from. You will not have to reproduce them.</p>
+  </aside>
+</section>
+
+<section class="slide" id="roadmap" data-part="Start">
+  <div class="slide-card">
+    <h2>Three parts</h2>
+    <p class="lead">You can run a regression in Python and read its output. This module adds three things you will use all the time.</p>
+    <div class="parts">
+      <button data-goto="pi-intro"><b>Part 1</b>Prediction: a point prediction, the confidence interval for the average, and the prediction interval for one case.</button>
+      <button data-goto="mr-formula"><b>Part 2</b>Multiple regression in Python: house prices, orange juice demand, and what collinearity does to the output.</button>
+      <button data-goto="f-why"><b>Part 3</b>Joint hypotheses: testing several coefficients at once with an F-test, by hand and with <code>f_test</code>.</button>
+    </div>
+    <div class="box">
+      <div class="label">The data (the Python cells on the page load them for you)</div>
+      <ul class="data-list small">
+        <li><a href="data/hprices2.csv" download>hprices2.csv</a>: 88 houses: <code>price</code> (in $1,000s), size <code>sqrft</code>, <code>lotsize</code> (square feet), <code>bdrms</code></li>
+        <li><a href="data/rfj_small.csv" download>rfj_small.csv</a>: orange juice in 218 store-weeks: Tropicana's quantity <code>q1</code> and the prices <code>p1</code> (Tropicana), <code>p2</code> (Minute Maid), <code>p3</code> (private label)</li>
+        <li><a href="data/suv.csv" download>suv.csv</a>: 70 SUV models: market share <code>mshare</code>, <code>Invoice</code> price and <code>MSRP</code> (in $1,000s)</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The module has three parts. Part one is prediction: a point prediction, and the two intervals around it.</p>
+    <p>Part two is multiple regression in Python, with house prices and orange juice, and what happens when two X's carry the same information.</p>
+    <p>Part three is the F-test: how to test several coefficients at the same time.</p>
+    <p>The Python cells on the page load the three data files for you.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 1 -->
+<section class="slide" id="pi-intro" data-part="1 · Prediction" data-title="Prediction in three steps">
+  <div class="slide-card">
+    <h2>Prediction in Python: three steps</h2>
+<pre class="codeview">import pandas as pd
+import numpy as np
+import statsmodels.formula.api as smf
+
+housedata = pd.read_csv("hprices2.csv")     # 88 houses: price in $1,000s, sqrft, lotsize, bdrms</pre>
+    <div class="steps3">
+      <div class="box"><div class="label"><b>1.</b> Run the regression</div><p>The same <code>smf.ols(...).fit()</code> as before. Keep the result in a variable.</p></div>
+      <div class="box"><div class="label"><b>2.</b> Choose the X values</div><p>Put the values you want predictions for in a small data frame.</p></div>
+      <div class="box key"><div class="label"><b>3.</b> <code>get_prediction</code></div><p>It returns the prediction, its standard error, and both intervals.</p></div>
+    </div>
+    <p class="small">The ideas are those of the live session: a <b>confidence interval</b> for the average of all cases with a given X, and a wider <b>prediction interval</b> for one particular case. Here are the mechanics.</p>
+  </div>
+  <aside class="script">
+    <p>As always, we start by loading the packages: pandas, NumPy and statsmodels. Then we load the house data.</p>
+    <p>Prediction intervals are easy in Python. There are three steps. First, run the regression. Second, tell Python the X values you want predictions for. Third, call get prediction, a built-in function that does the rest.</p>
+  </aside>
+</section>
+
+<section class="slide" id="pi-byhand" data-part="1 · Prediction" data-title="A prediction by hand" data-pause>
+  <div class="slide-card">
+    <h2>The regression, and one prediction by hand</h2>
+    <div class="pycell" data-colab="pi-byhand"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+housedata = pd.read_csv("hprices2.csv")
+est = smf.ols("price ~ sqrft", data=housedata).fit()
+print(est.summary().tables[1])
+
+# a 2,500 square foot house: plug its size into the regression line
+print(11.2041 + 0.1402 * 2500)
+</textarea></div>
+    <ul class="small">
+      <li>The line: \(\widehat{\text{price}} = 11.2041 + 0.1402\times\text{sqrft}\), with the price in $1,000s.</li>
+      <li>For 2,500 square feet: \(11.2041 + 0.1402\times 2{,}500 = 361.7\), about $362,000.</li>
+      <li>This is a <b>point prediction</b>. It does not say how far off we might be. The intervals do.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>First we run the regression of price on square feet. This is the output we have seen several times.</p>
+    <p>Now suppose we want to predict the price of a house of a given size, say 2,500 square feet. We plug the size into the regression line: the intercept, plus the slope times 2,500. That gives about 362 thousand dollars. You can do this with plain arithmetic in Python.</p>
+  </aside>
+</section>
+
+<section class="slide" id="pi-getpred" data-part="1 · Prediction" data-title="get_prediction" data-pause>
+  <div class="slide-card">
+    <h2>Let Python do it: <code>get_prediction</code></h2>
+    <div class="pycell" data-colab="pi-getpred"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+housedata = pd.read_csv("hprices2.csv")
+est = smf.ols("price ~ sqrft", data=housedata).fit()
+
+# the house sizes we want predictions for
+d = {"sqrft": [1500, 2000, 2500, 3000, 3500, 4000]}
+df = pd.DataFrame(data=d)
+
+predictions = est.get_prediction(df)
+print(predictions.summary_frame(alpha=0.05).round(1))     # alpha = 0.05: 95% intervals
+</textarea></div>
+    <ul class="small">
+      <li>The columns of the new data frame must have the <b>same names</b> as the X's in the formula (here <code>sqrft</code>).</li>
+      <li><code>alpha</code> is one minus the confidence level: 0.05 for 95% intervals, 0.10 for 90%.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>We can automate this. First we tell Python which house sizes we are interested in. We write them in a dictionary, six sizes from 1,500 to 4,000 square feet, and turn the dictionary into a data frame.</p>
+    <p>Then we take the regression we just estimated, call get prediction, and evaluate it at these six points. We want 95 percent intervals, so alpha is 0.05. Summary frame prints the table.</p>
+  </aside>
+</section>
+
+<section class="slide" id="pi-read" data-part="1 · Prediction" data-title="Reading the table">
+  <div class="slide-card">
+    <h2>Reading the table: one prediction, two intervals</h2>
+    <table class="t small">
+      <thead><tr><th class="num">sqrft</th><th class="num">mean</th><th class="num">mean_se</th><th class="num ci">mean_ci_lower</th><th class="num ci">mean_ci_upper</th><th class="num pi">obs_ci_lower</th><th class="num pi">obs_ci_upper</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1,500</td><td class="num">221.5</td><td class="num">9.1</td><td class="num ci">203.4</td><td class="num ci">239.6</td><td class="num pi">93.8</td><td class="num pi">349.3</td></tr>
+        <tr><td class="num">2,000</td><td class="num">291.6</td><td class="num">6.8</td><td class="num ci">278.1</td><td class="num ci">305.1</td><td class="num pi">164.4</td><td class="num pi">418.8</td></tr>
+        <tr class="hi"><td class="num">2,500</td><td class="num">361.7</td><td class="num">8.9</td><td class="num ci">344.1</td><td class="num ci">379.4</td><td class="num pi">234.0</td><td class="num pi">489.4</td></tr>
+        <tr><td class="num">3,000</td><td class="num">431.8</td><td class="num">13.5</td><td class="num ci">405.0</td><td class="num ci">458.6</td><td class="num pi">302.6</td><td class="num pi">561.1</td></tr>
+        <tr><td class="num">3,500</td><td class="num">501.9</td><td class="num">18.8</td><td class="num ci">464.5</td><td class="num ci">539.4</td><td class="num pi">370.1</td><td class="num pi">633.8</td></tr>
+        <tr><td class="num">4,000</td><td class="num">572.0</td><td class="num">24.4</td><td class="num ci">523.5</td><td class="num ci">620.6</td><td class="num pi">436.6</td><td class="num pi">707.5</td></tr>
+      </tbody>
+    </table>
+    <div class="vs">
+      <div class="box"><div class="label"><code>mean_ci</code>: the confidence interval</div><p>For the <b>average</b> price of all houses of that size. It tells us how precisely we know the line. At 2,500 square feet: $344K to $379K.</p></div>
+      <div class="box key"><div class="label"><code>obs_ci</code>: the prediction interval</div><p>For <b>one</b> house of that size. It adds the scatter of individual houses around the line, so it is always wider. At 2,500 square feet: $234K to $489K.</p></div>
+    </div>
+    <p class="small"><code>mean</code> is the point prediction and <code>mean_se</code> its standard error. Python builds the intervals with the t distribution (1.99 standard errors with 86 degrees of freedom) where we used 1.96, so its intervals are a touch wider than ours.</p>
+  </div>
+  <aside class="script">
+    <p>Python gives us the mean, which is the point prediction, and the standard error of that mean. Then come two intervals. Mean C I is the confidence interval. Obs C I is the prediction interval.</p>
+    <p>We explained the difference before. The confidence interval tells us how precise our estimate of the mean is. The prediction interval describes the variation in the underlying population. So the prediction interval is much wider than the confidence interval, at every value of X.</p>
+  </aside>
+</section>
+
+<section class="slide" id="pi-robust" data-part="1 · Prediction" data-title="With robust standard errors" data-pause>
+  <div class="slide-card">
+    <h2>The same with robust standard errors</h2>
+    <div class="pycell" data-colab="pi-robust"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+housedata = pd.read_csv("hprices2.csv")
+df = pd.DataFrame({"sqrft": [1500, 2000, 2500, 3000, 3500, 4000]})
+
+est_r = smf.ols("price ~ sqrft", data=housedata).fit(cov_type="HC1")      # heteroskedasticity-robust
+print(est_r.get_prediction(df).summary_frame(alpha=0.05).round(1))
+</textarea></div>
+    <div class="cols">
+      <ul class="small">
+        <li>The predictions (<code>mean</code>) are the same: robust standard errors do not move the line.</li>
+        <li><code>mean_se</code> changes: 14.0 instead of 8.9 at 2,500 square feet, 42.5 instead of 24.4 at 4,000. The confidence intervals for large houses get wider.</li>
+      </ul>
+      <ul class="small">
+        <li>The prediction intervals change little: $422K to $722K instead of $437K to $708K at 4,000 square feet. Most of their width comes from the scatter of the houses, not from the line.</li>
+        <li>With robust standard errors Python uses the normal distribution, 1.96.</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="script">
+    <p>We can also use robust standard errors in the predictions. We estimate the regression with cov type equals HC1, and call get prediction on that result.</p>
+    <p>The predictions are the same, because robust standard errors do not change the coefficients. The standard error of the mean is larger, so the confidence intervals are wider. The prediction intervals are only slightly wider, because their width mostly comes from the variation in the data.</p>
+  </aside>
+</section>
+
+<section class="slide" id="pi-bigger" data-part="1 · Prediction" data-title="What a larger sample changes">
+  <div class="slide-card">
+    <h2>What does a larger sample change?</h2>
+    <div class="vs">
+      <div class="box"><div class="label">Confidence interval: shrinks</div><p>\[\hat y \pm 1.96\times SE(\hat y)\]</p><p>\(SE(\hat y)\) measures how well we know the line. More data, better line: it falls like \(1/\sqrt n\).</p></div>
+      <div class="box key"><div class="label">Prediction interval: hardly moves</div><p>\[\hat y \pm 1.96\times\sqrt{SER^2+SE(\hat y)^2}\]</p><p>\(SER\) is the scatter of individual houses around the line. That is a feature of the population. More data does not reduce it.</p></div>
+    </div>
+    <div class="box">
+      <div class="label">A quick and lazy experiment</div>
+      <p>Pretend that every house stands for 100 houses exactly like it: stack 100 copies of the data, 8,800 rows instead of 88. <b>Never do this with real data.</b> A truly larger sample would bring new sizes and prices. Here it only shows what the sample size does to the two intervals.</p>
+    </div>
+  </div>
+  <aside class="script">
+    <p>One more illustration: what happens to the two intervals when the sample grows? A confidence interval gets smaller and smaller with more data. A prediction interval does not, because it reflects the variation in the population, and that does not depend on our sample size.</p>
+    <p>To see it, I do something lazy. I pretend we have a larger data set by copying the same data one hundred times: 8,800 observations instead of 88. You should never do this in real life. Think of each house as standing for one hundred houses exactly like it.</p>
+  </aside>
+</section>
+
+<section class="slide" id="pi-bigger2" data-part="1 · Prediction" data-title="100 copies of the data" data-pause>
+  <div class="slide-card">
+    <h2>100 copies of the data</h2>
+    <div class="pycell" data-colab="pi-bigger"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+housedata = pd.read_csv("hprices2.csv")
+df = pd.DataFrame({"sqrft": [1500, 2000, 2500, 3000, 3500, 4000]})
+
+housedata_bigger = pd.concat([housedata] * 100, ignore_index=True)       # 8,800 rows
+est_b = smf.ols("price ~ sqrft", data=housedata_bigger).fit()
+print(est_b.summary().tables[1])
+print(est_b.get_prediction(df).summary_frame(alpha=0.05).round(1))
+</textarea></div>
+    <table class="t small">
+      <thead><tr><th></th><th class="num">slope</th><th class="num">SE of the slope</th><th class="num ci">width of the CI at 2,500 sq ft</th><th class="num pi">width of the PI at 2,500 sq ft</th></tr></thead>
+      <tbody>
+        <tr><td>88 houses</td><td class="num">0.1402</td><td class="num">0.0118</td><td class="num ci">35.3</td><td class="num pi">255.4</td></tr>
+        <tr><td>8,800 "houses"</td><td class="num">0.1402</td><td class="num">0.0012</td><td class="num ci">3.4</td><td class="num pi">246.6</td></tr>
+      </tbody>
+    </table>
+    <p class="small">One hundred times the data: the standard error and the confidence interval are ten times smaller (\(\sqrt{100}=10\)). The prediction interval is almost as wide as before.</p>
+  </div>
+  <aside class="script">
+    <p>In the code, house data bigger is the house data repeated one hundred times. We run the regression on it. The point estimates are exactly the same. The standard errors are much smaller.</p>
+    <p>Then we repeat the predictions. The confidence intervals are now very tight around the mean. The prediction intervals have hardly changed. The confidence interval shrinks as our estimate gets more precise. The prediction interval captures the variation in the population, which does not depend on the sample size.</p>
+  </aside>
+</section>
+
+<section class="slide" id="pi-try" data-part="1 · Prediction" data-title="Try it: the two intervals" data-pause>
+  <div class="slide-card">
+    <h2>Try it: the two intervals, and the sample size</h2>
+    <div class="widget" data-widget="bands"></div>
+    <p class="small">The narrow band is the confidence interval for the average house of each size, the wide band the prediction interval for one house. Both are narrowest at the average size and widen as you move away from it.</p>
+  </div>
+  <aside class="script">
+    <p>Here are both intervals as bands around the regression line. The narrow band is the confidence interval for the average house of each size. The wide band is the prediction interval for one house.</p>
+    <p>Move the slider to pick a house size, and read the two intervals below the chart. Both are narrowest near the average size, about two thousand square feet, and widen as you move away.</p>
+    <p>Now multiply the sample: let each house stand for four, twenty-five, or one hundred houses. The narrow band collapses onto the line. The wide band stays where it is. More data tells you more about the average. It does not make individual houses more alike.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-1" data-part="1 · Prediction" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="b">
+      <div class="q">1. In the output of <code>summary_frame</code>, which columns give the interval for <i>one particular</i> house of 2,500 square feet?</div>
+      <button class="opt" data-k="a"><code>mean_ci_lower</code>, <code>mean_ci_upper</code></button><button class="opt" data-k="b"><code>obs_ci_lower</code>, <code>obs_ci_upper</code></button><button class="opt" data-k="c"><code>mean</code> ± <code>mean_se</code></button>
+      <div class="explain"><code>obs_ci</code> is the prediction interval for one observation: $234K to $489K. <code>mean_ci</code> is the confidence interval for the average of all houses of that size: $344K to $379K.</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">2. With 100 times as many houses, which interval shrinks to about a tenth of its width?</div>
+      <button class="opt" data-k="a">the confidence interval for the average</button><button class="opt" data-k="b">the prediction interval for one house</button><button class="opt" data-k="c">both</button>
+      <div class="explain">The confidence interval went from 35.3 to 3.4, the prediction interval only from 255.4 to 246.6. The scatter of individual houses around the line (the SER) does not fall with the sample size.</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">3. <code>predictions.summary_frame(alpha=0.10)</code> returns</div>
+      <button class="opt" data-k="a">90% intervals</button><button class="opt" data-k="b">10% intervals</button><button class="opt" data-k="c">95% intervals with 10% wider bands</button>
+      <div class="explain"><code>alpha</code> is one minus the confidence level, so 0.10 means 90%. The intervals are narrower than the 95% ones.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Before moving on, three quick questions to check your understanding. Click an answer to see whether you got it and why. Nothing here is graded.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 2 -->
+<section class="slide" id="mr-formula" data-part="2 · Multiple regression" data-title="More X's: add them with +" data-pause>
+  <div class="slide-card">
+    <h2>Multiple regression in Python: add the X's with <code>+</code></h2>
+    <div class="pycell" data-colab="mr-formula"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+housedata = pd.read_csv("hprices2.csv")
+
+# formula: response ~ predictor1 + predictor2 + predictor3 + ...
+est = smf.ols("price ~ sqrft + lotsize + bdrms", data=housedata).fit()
+print(est.summary())
+</textarea></div>
+    <div class="cols">
+      <ul class="small">
+        <li><code>sqrft</code> 0.1228 (0.013): one more square foot goes with $123 more, comparing houses with the <b>same lot size and number of bedrooms</b>.</li>
+        <li><code>lotsize</code> 0.0021 (0.0006): about $2 per square foot of lot.</li>
+      </ul>
+      <ul class="small">
+        <li><code>bdrms</code> 13.85 (9.01): t = 1.54, p = 0.128. Not significant, even at 10%.</li>
+        <li>\(R^2 = 0.672\), and the F-statistic 57.46 that Part 3 explains.</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Now multiple regression. We load the same packages and the house data, which has the price, the square feet, the lot size and the number of bedrooms.</p>
+    <p>The formula is simple. We put more X's on the right-hand side and connect them with a plus sign: square feet plus lot size plus bedrooms. Then we fit the model and print the summary, as before. The table has one row for every X.</p>
+  </aside>
+</section>
+
+<section class="slide" id="mr-bdrms" data-part="2 · Multiple regression" data-title="Why are bedrooms not significant?" data-pause>
+  <div class="slide-card">
+    <h2>Why is the number of bedrooms not significant?</h2>
+    <div class="cols c-60">
+      <div class="pycell" data-colab="mr-bdrms"><textarea>
+import pandas as pd
+import matplotlib.pyplot as plt
+
+housedata = pd.read_csv("hprices2.csv")
+print(housedata.bdrms.value_counts().sort_index())
+
+housedata.bdrms.hist(bins=range(2, 9), align="left", rwidth=0.8)
+plt.xlabel("bedrooms"); plt.ylabel("houses")
+plt.show()
+</textarea></div>
+      <div>
+        <ul class="small">
+          <li>One would expect more bedrooms to mean a higher price. The estimate agrees: $13,850 per bedroom.</li>
+          <li>But 75 of the 88 houses (85%) have <b>three or four</b> bedrooms. With so little variation in an X, its coefficient is estimated imprecisely: a large standard error.</li>
+          <li>And bedrooms move with size, which is already in the regression. Little is left for bedrooms to explain.</li>
+        </ul>
+        <div class="box key"><div class="label">Not significant is not "no effect"</div><p>The 95% interval runs from −$4,100 to +$31,800 per bedroom. The data cannot tell.</p></div>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>One thing you may notice: the bedroom coefficient has a large standard error and a small t statistic. It is not significant, even at the ten percent level. That is a little counterintuitive, because more bedrooms should mean a higher price.</p>
+    <p>One reason is that the number of bedrooms varies very little. Plot the histogram: most houses have three or four bedrooms. With so little variation in an X, its coefficient is imprecise. So we get a fairly large coefficient that is not significant.</p>
+  </aside>
+</section>
+
+<section class="slide" id="mr-pred" data-part="2 · Multiple regression" data-title="Robust standard errors and predictions" data-pause>
+  <div class="slide-card">
+    <h2>Robust standard errors and predictions work as before</h2>
+    <div class="pycell" data-colab="mr-pred"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+housedata = pd.read_csv("hprices2.csv")
+est = smf.ols("price ~ sqrft + lotsize + bdrms", data=housedata).fit()
+
+# robust standard errors: the same extra argument
+est_r = smf.ols("price ~ sqrft + lotsize + bdrms", data=housedata).fit(cov_type="HC1")
+print(est_r.summary().tables[1])
+
+# predictions: now every X needs a value. Two houses:
+d = {"sqrft": [2000, 3000], "lotsize": [4000, 5000], "bdrms": [3, 4]}
+df = pd.DataFrame(data=d)
+print(est.get_prediction(df).summary_frame(alpha=0.05).round(1))
+</textarea></div>
+    <table class="t small">
+      <thead><tr><th>House</th><th class="num">prediction</th><th class="num ci">confidence interval (average)</th><th class="num pi">prediction interval (one house)</th></tr></thead>
+      <tbody>
+        <tr><td>2,000 sq ft, lot 4,000, 3 bedrooms</td><td class="num">273.6</td><td class="num ci">256.4 to 290.8</td><td class="num pi">153.4 to 393.8</td></tr>
+        <tr><td>3,000 sq ft, lot 5,000, 4 bedrooms</td><td class="num">412.3</td><td class="num ci">384.9 to 439.7</td><td class="num pi">290.2 to 534.4</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <aside class="script">
+    <p>Robust standard errors work exactly as in the simple regression. In fit, we set cov type equal to HC1, and the table reports the robust standard errors.</p>
+    <p>Predictions also work as before, with one difference: we now have to give a value for every X. Here are two houses. The first has 2,000 square feet, a lot of 4,000, and three bedrooms. The second has 3,000 square feet, a lot of 5,000, and four bedrooms. We put them in a data frame and call get prediction. Python returns the confidence interval and the prediction interval for each house.</p>
+  </aside>
+</section>
+
+<section class="slide" id="oj-data" data-part="2 · Multiple regression" data-title="A new example: orange juice">
+  <div class="slide-card">
+    <h2>A new example: the demand for orange juice</h2>
+    <div class="cols c-60">
+      <div>
+        <p>Refrigerated orange juice in a supermarket chain, 218 store-weeks. Three brands compete on the shelf. We model the sales of <b>Tropicana</b>.</p>
+        <table class="t small">
+          <thead><tr><th>Variable</th><th>What it is</th><th class="num">Mean</th></tr></thead>
+          <tbody>
+            <tr><td><code>q1</code></td><td>Tropicana sold, in thousands of 64-ounce cartons</td><td class="num">61.5</td></tr>
+            <tr><td><code>p1</code></td><td>price of Tropicana, per 64-ounce carton</td><td class="num">$2.50</td></tr>
+            <tr><td><code>p2</code></td><td>price of Minute Maid</td><td class="num">$2.08</td></tr>
+            <tr><td><code>p3</code></td><td>price of the store's private label</td><td class="num">$1.55</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="box">
+        <div class="label">Units</div>
+        <p>The original file has ounces and prices per ounce. Here quantities are divided by 1,000 and by 64, and prices are multiplied by 64.</p>
+        <p>Changing units changes the size of the coefficients, not the conclusions. It makes them easier to read: dollars per carton, thousands of cartons.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Let's switch to a new example: the demand for orange juice. To make the numbers easier to read, I converted the quantity to thousands of 64-ounce cartons, and the prices to dollars per 64-ounce carton. This does not change any conclusion.</p>
+    <p>The data have the quantity and the price of brand one, Tropicana, and the prices of two competing brands, brand two and brand three.</p>
+  </aside>
+</section>
+
+<section class="slide" id="oj-reg" data-part="2 · Multiple regression" data-title="Own price, then the rivals' prices" data-pause>
+  <div class="slide-card">
+    <h2>Own price first, then the rivals' prices</h2>
+    <div class="pycell" data-colab="oj-reg"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+ojdata = pd.read_csv("rfj_small.csv")
+est1 = smf.ols("q1 ~ p1", data=ojdata).fit()
+est3 = smf.ols("q1 ~ p1 + p2 + p3", data=ojdata).fit()
+print(est1.summary().tables[1])
+print(est3.summary().tables[1])
+</textarea></div>
+    <table class="t small">
+      <thead><tr><th></th><th class="num">p1 (Tropicana)</th><th class="num">p2 (Minute Maid)</th><th class="num">p3 (private label)</th><th class="num">\(R^2\)</th></tr></thead>
+      <tbody>
+        <tr><td>q1 on p1</td><td class="num">−80.93 (4.84)</td><td class="num"></td><td class="num"></td><td class="num">0.564</td></tr>
+        <tr class="hi"><td>q1 on p1, p2, p3</td><td class="num">−85.01 (4.87)</td><td class="num">12.00 (4.96)</td><td class="num">15.58 (6.90)</td><td class="num">0.591</td></tr>
+      </tbody>
+    </table>
+    <ul class="small">
+      <li>Own price: a dollar more for Tropicana goes with 85 thousand fewer cartons, holding the rivals' prices fixed.</li>
+      <li>Rivals' prices: positive. When a rival raises its price, some of its customers switch to Tropicana. The brands are substitutes.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>First a simple regression: the quantity of Tropicana on its own price. The coefficient is minus 80.</p>
+    <p>Now add the prices of the other two brands. Both have a positive coefficient, and the own-price coefficient is even more negative: minus 85 instead of minus 80.</p>
+    <p>How do we read this? My quantity falls when I raise my price. When a rival raises its price, my quantity rises, because some of its customers switch to my brand. That is competition.</p>
+  </aside>
+</section>
+
+<section class="slide" id="oj-ovb" data-part="2 · Multiple regression" data-title="Omitted variable bias, again" data-pause>
+  <div class="slide-card">
+    <h2>Why the own-price coefficient moved: omitted variable bias</h2>
+    <div class="cols">
+      <div>
+        <div class="pycell" data-colab="oj-ovb"><textarea>
+import pandas as pd
+
+ojdata = pd.read_csv("rfj_small.csv")
+print(ojdata[["p1", "p2", "p3"]].corr().round(3))
+</textarea></div>
+        <p class="small">All three correlations are positive (0.12, 0.24, 0.23): the prices tend to move together, for example when the whole category is on sale.</p>
+      </div>
+      <div>
+        <div class="box key">
+          <div class="label">The bias, piece by piece</div>
+          <p>\[\underbrace{-80.93}_{\text{p1 alone}}=\underbrace{-85.01}_{\text{with p2, p3}}+\underbrace{12.00\times0.115}_{+1.38}+\underbrace{15.58\times0.173}_{+2.70}\]</p>
+          <p class="small">0.115 and 0.173 are the slopes from regressing p2 and p3 on p1.</p>
+        </div>
+        <ul class="small">
+          <li>When Tropicana is expensive, the rivals tend to be expensive too, and that <b>raises</b> Tropicana's sales.</li>
+          <li>Leave the rivals out, and the own price gets the credit for their help: its effect looks smaller than it is.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Why does the own-price coefficient become more negative when we add the rivals' prices? It suggests that the three prices are positively correlated. You can check with the correlation matrix: all the correlations are positive. Prices tend to move in the same direction, for example because sales events happen at the same time.</p>
+    <p>So when my price is high, my rivals' prices tend to be high too, and that raises my demand. If we leave the rival prices out, we underestimate the effect of my own price: minus 80 instead of minus 85. That is omitted variable bias.</p>
+  </aside>
+</section>
+
+<section class="slide" id="pc-perfect" data-part="2 · Multiple regression" data-title="Perfect collinearity">
+  <div class="slide-card">
+    <h2>Perfect collinearity: the same size, twice</h2>
+    <div class="cols">
+      <div>
+        <p>Back to the house prices, with one X: \(\widehat{\text{price}}=11.2+0.1402\times\text{sqrft}\).</p>
+        <p>What if we also include the size in <b>square meters</b>?</p>
+<pre class="codeview">housedata["sqrmt"] = 1 / 10.764 * housedata["sqrft"]
+housedata[["sqrft", "sqrmt"]].corr()</pre>
+<pre class="codeview out">       sqrft  sqrmt
+sqrft    1.0    1.0
+sqrmt    1.0    1.0</pre>
+      </div>
+      <div>
+        <div class="box key">
+          <div class="label">Perfect collinearity</div>
+          <p>One X is an exact linear function of the others. Here \(\text{sqrmt}=\text{sqrft}/10.764\): the two columns carry the same information, and their correlation is exactly 1.</p>
+        </div>
+        <p class="small">A coefficient answers "what if this X changes and the others stay fixed?" With square meters held fixed, square feet cannot change. The question has no answer, and the regression has no unique solution.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>For the rest of this part, we look at collinearity. Recall the simple house regression, with square feet as the only X. It looks fine.</p>
+    <p>What if we also include the size in square meters? Square meters are just square feet divided by 10.764. The two variables are perfectly correlated, and you can verify it: the correlation is exactly one. Including both gives us perfect collinearity.</p>
+  </aside>
+</section>
+
+<section class="slide" id="pc-perfect2" data-part="2 · Multiple regression" data-title="What Python does with it" data-pause>
+  <div class="slide-card">
+    <h2>What Python does with it</h2>
+    <div class="pycell" data-colab="pc-perfect"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+housedata = pd.read_csv("hprices2.csv")
+housedata["sqrmt"] = 1 / 10.764 * housedata["sqrft"]
+
+est = smf.ols("price ~ sqrft + sqrmt", data=housedata).fit()
+print(est.summary())
+</textarea></div>
+<pre class="codeview out">                 coef    std err          t      P>|t|      [0.025      0.975]
+Intercept     11.2041     24.743      0.453      0.652     -37.983      60.391
+sqrft          <mark>0.1390</mark>      0.012     <mark>11.866</mark>      0.000       0.116       0.162
+sqrmt          <mark>0.0129</mark>      0.001     <mark>11.866</mark>      0.000       0.011       0.015
+
+[2] <mark>The smallest eigenvalue is 5.85e-26. This might indicate that there are
+strong multicollinearity problems or that the design matrix is singular.</mark></pre>
+    <ul class="small">
+      <li>Python does not stop. It picks <b>one</b> of infinitely many ways to split the effect: \(0.1390+0.0129/10.764=0.1402\), the old slope. Neither number means anything on its own.</li>
+      <li>The warning signs: two identical t statistics, and the note about the smallest eigenvalue. The numbers themselves can differ from one version of Python to the next. Excel and R drop one of the two variables instead.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Let's see what happens if we run the regression with both. We know it is going to be a problem.</p>
+    <p>Python still reports a coefficient for square feet and one for square meters. But look: the two have exactly the same t value, which tells you they describe the same thing. And in the notes under the table, Python warns that the smallest eigenvalue is very small, which may indicate strong multicollinearity, or a singular design matrix.</p>
+    <p>You should be worried here. Do not interpret these coefficients as effects. When you see a note like this, the regression has a problem.</p>
+  </aside>
+</section>
+
+<section class="slide" id="pc-drop" data-part="2 · Multiple regression" data-title="The fix: keep one">
+  <div class="slide-card">
+    <h2>The fix: keep one of them</h2>
+    <div class="vs">
+      <div class="box"><div class="label"><code>price ~ sqrft</code></div><p>Slope 0.1402 (0.0118): $140 per square foot. t = 11.87, \(R^2=0.621\).</p></div>
+      <div class="box"><div class="label"><code>price ~ sqrmt</code></div><p>Slope 1.5092 (0.1272): $1,509 per square meter. t = 11.87, \(R^2=0.621\).</p></div>
+    </div>
+    <p>It is the same regression in two units: \(1.5092=0.1402\times10.764\). Same fit, same t statistic. Either one is fine. Both together are not.</p>
+    <div class="box key">
+      <div class="label">Where you will meet it</div>
+      <ul>
+        <li>The same quantity in two units, or a total together with all of its parts.</li>
+        <li>A dummy for every category <b>and</b> an intercept: male + female = 1 for everyone. Leave one category out.</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The solution is to drop one of them. With square feet only, the regression is fine. With square meters only, it is also fine.</p>
+    <p>With both, Python reports some mix of the two, and warns you. Pay attention to that warning.</p>
+  </aside>
+</section>
+
+<section class="slide" id="pc-near" data-part="2 · Multiple regression" data-title="Near-perfect collinearity" data-pause>
+  <div class="slide-card">
+    <h2>Near-perfect collinearity: two prices of the same car</h2>
+    <div class="pycell" data-colab="pc-near"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+suv = pd.read_csv("suv.csv")
+print(suv[["model", "mshare", "Invoice", "MSRP"]].head())
+
+est = smf.ols("mshare ~ Invoice + MSRP", data=suv).fit()
+print(est.summary())
+</textarea></div>
+    <div class="cols">
+      <ul class="small">
+        <li>70 SUV models: the market share, the invoice price (what the dealer pays), and the MSRP (the list price), in $1,000s.</li>
+        <li><code>Invoice</code> −0.0027 (0.0021), p = 0.20. <code>MSRP</code> +0.0020 (0.0018), p = 0.27.</li>
+      </ul>
+      <ul class="small">
+        <li><b>Opposite signs, and neither is significant.</b> A higher list price raises the market share?</li>
+        <li>Yet the F-statistic of the regression is 6.14 (p = 0.004): the two prices together do explain something.</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The other case is near-perfect collinearity. Take the SUV data. We regress the market share of each model on two prices: the invoice price, which is what the dealer pays, and the MSRP, the price suggested by the manufacturer.</p>
+    <p>Look at the result. Neither coefficient is significant: the t values are small and both p-values are above ten percent. And the signs are odd: negative for the invoice price, positive for the MSRP. Python also notes a large condition number, which is another hint of collinearity.</p>
+  </aside>
+</section>
+
+<section class="slide" id="pc-near2" data-part="2 · Multiple regression" data-title="Check the correlation, drop one" data-pause>
+  <div class="slide-card">
+    <h2>Check the correlation, then drop one</h2>
+    <div class="pycell" data-colab="pc-near2"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+suv = pd.read_csv("suv.csv")
+print(suv[["Invoice", "MSRP"]].corr().round(4))
+
+est = smf.ols("mshare ~ MSRP", data=suv).fit()
+print(est.summary().tables[1])
+</textarea></div>
+    <div class="cols">
+      <ul class="small">
+        <li>The correlation between the two prices is <b>0.998</b>. Not exactly 1, so Python can compute the coefficients, but the data cannot tell the two prices apart.</li>
+        <li>With MSRP alone: −0.00034 (0.00011), t = −3.24, p = 0.002. A car that lists $1,000 higher has a market share lower by 0.034 percentage points.</li>
+      </ul>
+      <div class="box key">
+        <div class="label">The symptoms</div>
+        <p>Large standard errors, odd signs, nothing significant one by one, and still a large F. Look at the correlations of the X's, and keep one of the near-twins.</p>
+        <p class="small">The note about the condition number also appears when the X's are just on very different scales, as in the house regression. It is a hint, not a verdict.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Check the correlation between the invoice price and the MSRP: it is 0.998. So here, too, we drop one of the variables.</p>
+    <p>We regress the market share on the MSRP alone. Now the coefficient is negative and significant, and it makes sense: a higher price goes with lower sales. With strong multicollinearity, drop one of the variables, and the results make a lot more sense.</p>
+  </aside>
+</section>
+
+<section class="slide" id="pc-try" data-part="2 · Multiple regression" data-title="Try it: two X's that move together" data-pause>
+  <div class="slide-card">
+    <h2>Try it: two X's that move together</h2>
+    <div class="widget" data-widget="collin"></div>
+    <p class="small">A simulation with known effects: \(Y=1+1\times X_1+1\times X_2+u\), 100 observations per sample. The slider sets the correlation between \(X_1\) and \(X_2\).</p>
+  </div>
+  <aside class="script">
+    <p>Here is collinearity in a simulation where we know the truth: both X's have an effect of exactly one. The slider sets how strongly the two X's are correlated.</p>
+    <p>Start with a correlation of zero and draw two hundred samples. Each dot on the right is one sample's pair of estimates. The cloud is round and tight around the truth.</p>
+    <p>Now move the correlation to 0.99. The cloud stretches into a long, thin line. Each coefficient alone is very imprecise, and can even have the wrong sign. But along the line, the sum of the two is still close to two. The data know the combined effect. They cannot say which X deserves the credit.</p>
+    <p>That is why the two t-tests often find nothing, while the joint test, in the last line, still finds a clear effect.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-2" data-part="2 · Multiple regression" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="a">
+      <div class="q">1. In <code>price ~ sqrft + lotsize + bdrms</code>, the coefficient on <code>sqrft</code> is 0.1228 (price in $1,000s). It says that one more square foot goes with</div>
+      <button class="opt" data-k="a">$123 more, comparing houses with the same lot size and bedrooms</button><button class="opt" data-k="b">$123 more, whatever else differs between the houses</button><button class="opt" data-k="c">a 12.28% higher price</button>
+      <div class="explain">Each coefficient in a multiple regression holds the other X's in the regression fixed. Without them the slope was 0.1402: bigger houses also have bigger lots and more bedrooms.</div>
+    </div>
+    <div class="quiz" data-answer="b">
+      <div class="q">2. A regression with two X's shows opposite signs, two insignificant coefficients, and a large F-statistic. The first thing to check is</div>
+      <button class="opt" data-k="a">whether the sample is too small</button><button class="opt" data-k="b">the correlation between the two X's</button><button class="opt" data-k="c">whether Y should be in logs</button>
+      <div class="explain">These are the symptoms of near-perfect collinearity. For the SUVs the correlation between invoice price and MSRP is 0.998; with one of them dropped, the other is clearly significant.</div>
+    </div>
+    <div class="quiz" data-answer="c">
+      <div class="q">3. Adding the rivals' prices changed the coefficient on Tropicana's own price from −80.9 to −85.0. This happened because the rivals' prices</div>
+      <button class="opt" data-k="a">are measured in different units</button><button class="opt" data-k="b">are unrelated to Tropicana's price</button><button class="opt" data-k="c">raise Tropicana's sales and move together with Tropicana's price</button>
+      <div class="explain">Omitted variable bias needs both: the omitted variable affects Y (12.00 and 15.58), and it is correlated with the X that stays in (0.12 and 0.24). The bias is +1.38 + 2.70 = +4.08.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Before moving on, three quick questions to check your understanding. Click an answer to see whether you got it and why. Nothing here is graded.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= PART 3 -->
+<section class="slide" id="f-why" data-part="3 · Joint tests" data-title="Testing several coefficients at once">
+  <div class="slide-card">
+    <h2>Testing more than one coefficient at a time</h2>
+    <p>With more than one X, some questions involve several coefficients at once. A t-test cannot answer them.</p>
+    <div class="steps3">
+      <div class="box"><div class="label">Could all the X's be useless?</div><p>\(H_0:\beta_1=\beta_2=\dots=\beta_p=0\). This is the F-statistic that Excel, R and Python print with every regression.</p></div>
+      <div class="box"><div class="label">Can a smaller model do as well?</div><p>You ran a regression with 10 X's. Would 4 of them do? Test whether the other 6 coefficients are all zero.</p></div>
+      <div class="box"><div class="label">Are two coefficients equal?</div><p>\(H_0:\beta_2=\beta_3\). For example: do two competitors' prices affect my sales equally?</p></div>
+    </div>
+    <div class="box key">
+      <div class="label">The tool: an F-test</div>
+      <p>An F-test checks several <b>restrictions</b> on a more general, <b>unrestricted</b> model at the same time.</p>
+    </div>
+  </div>
+  <aside class="script">
+    <p>In this part we discuss the F-test: how to test joint hypotheses in a regression.</p>
+    <p>With more than one X, we sometimes want to test a hypothesis about several coefficients at once. For example: could all the X's in the regression be useless? The F-statistic in the regression output tests exactly that.</p>
+    <p>Or suppose we run a regression with ten X's, and wonder whether four would do. We can test whether the other six are jointly useful. Or we may want to know whether two coefficients are equal to each other. An F-test does all of these.</p>
+  </aside>
+</section>
+
+<section class="slide" id="f-idea" data-part="3 · Joint tests" data-title="The idea: compare the R²'s">
+  <div class="slide-card">
+    <h2>The idea: how much does the fit suffer?</h2>
+    <p>Take a regression with three X's:</p>
+    <p>\[Y_i=\beta_0+\beta_1X_{1i}+\beta_2X_{2i}+\beta_3X_{3i}+u_i\]</p>
+    <p>\[H_0:\ \beta_2=\beta_3=0\qquad\text{against}\qquad H_A:\ \beta_2\neq0\ \text{and/or}\ \beta_3\neq0\]</p>
+    <div class="cols">
+      <div class="box"><div class="label">What the null says</div><p>The model with \(X_1\) alone is just as good as the model with all three.</p></div>
+      <div class="box key"><div class="label">How we test it</div><p>Compare the \(R^2\)'s. Force \(H_0\) to hold and see how much the \(R^2\) falls. If it falls a lot, reject the null. The F-statistic says whether the fall is large enough.</p></div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>To fix ideas, start with a regression with three X's. We want to test whether beta two and beta three are both zero. The alternative is that at least one of them is not zero.</p>
+    <p>If the null is true, the model with X one alone is just as good as the model with all three. So we compare the R squared of the two models. We force the null to hold, and see how much the R squared falls. If it falls a lot, X two and X three explain a good share of the data, and we reject the null. If it hardly changes, we cannot reject. The F-test gives us the criterion.</p>
+  </aside>
+</section>
+
+<section class="slide" id="f-unrestricted" data-part="3 · Joint tests" data-title="Step 1: the unrestricted model">
+  <div class="slide-card">
+    <h2>Step 1: the unrestricted model</h2>
+    <p>The full model, with all \(p\) regressors:</p>
+    <p>\[Y_i=\beta_0+\beta_1X_{1i}+\dots+\beta_pX_{pi}+u_i\qquad(1)\]</p>
+    <ul>
+      <li>It is called <b>unrestricted</b> because we estimate every coefficient freely, with no restriction imposed yet.</li>
+      <li>Estimate it by OLS and note its \(R^2\). Call it \(R^2_U\).</li>
+      <li>Then ask: <i>how much worse do we fit the data if we force \(H_0\) to hold?</i></li>
+    </ul>
+    <p class="small">Two ways to do the test follow: by hand, with a formula, and with one line of Python. The formula assumes that the OLS assumptions hold, including homoskedasticity.</p>
+  </div>
+  <aside class="script">
+    <p>How does it work exactly? I will show you two ways: by hand with a formula, and then with Python. We assume the OLS assumptions hold, and here we do need homoskedasticity.</p>
+    <p>Suppose the full model has p variables. This is the unrestricted model: we estimate all the coefficients without imposing anything on them. We compute its R squared, and call it R squared U, U for unrestricted.</p>
+  </aside>
+</section>
+
+<section class="slide" id="f-restricted" data-part="3 · Joint tests" data-title="Step 2: the restricted model">
+  <div class="slide-card">
+    <h2>Step 2: impose the null. The restricted model</h2>
+    <p>The restricted model is what the regression looks like <b>if the null is true</b>. It depends on the null. A fancy example:</p>
+    <p>\[H_0:\ \beta_1=0,\ \ \beta_2=0,\ \ \beta_3=\beta_4\]</p>
+    <p>Drop \(X_1\) and \(X_2\), and give \(X_3\) and \(X_4\) one common coefficient:</p>
+    <p>\[Y_i=\beta_0+\beta_3\,(X_{3i}+X_{4i})+\beta_5X_{5i}+\dots+\beta_pX_{pi}+u_i\qquad(2)\]</p>
+    <div class="box key">
+      <div class="label">How many restrictions? Count the equal signs</div>
+      <p>This null has three equal signs, so \(q=3\) restrictions.</p>
+    </div>
+  </div>
+  <aside class="script">
+    <p>The second step asks: how much worse do we fit the data if we force the null to hold? Here is a fancy null: beta one equals zero, beta two equals zero, and beta three equals beta four.</p>
+    <p>The restricted model is what the regression looks like if the null is true. Beta one and beta two are zero, so those two terms disappear. Beta three equals beta four, so we collect X three and X four and estimate one coefficient for their sum.</p>
+    <p>How many restrictions is that? The easiest way is to count the equal signs in the null. There are three.</p>
+  </aside>
+</section>
+
+<section class="slide" id="f-r2" data-part="3 · Joint tests" data-title="The fit can only get worse">
+  <div class="slide-card">
+    <h2>The fit can only get worse</h2>
+    <ul>
+      <li>Estimate the restricted model (2) by OLS and note its \(R^2\). Call it \(R^2_R\).</li>
+      <li>Always: \(R^2_U\ \ge\ R^2_R\).</li>
+    </ul>
+    <div class="box">
+      <div class="label">Why?</div>
+      <p>The unrestricted model is more flexible. At worst, OLS can choose exactly the values the null prescribes, and then the two models fit equally well. If other values fit better, OLS takes them.</p>
+    </div>
+    <div class="box key">
+      <div class="label">So a drop in \(R^2\) alone proves nothing</div>
+      <p>The fit falls mechanically when we restrict the model. To reject the null, the difference \(R^2_U-R^2_R\) must be <b>large</b>. The F-statistic tells us what "large" means.</p>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Now that we have forced the null to hold, we estimate the restricted equation by OLS and compute its R squared. We call it R squared R, R for restricted.</p>
+    <p>R squared U is always at least as large as R squared R, because the unrestricted model is more flexible. In the worst case, the coefficients take exactly the values of the null, and the two models fit equally well. So mechanically, the unrestricted model fits better. To reject the null, we need the difference to be substantially large.</p>
+  </aside>
+</section>
+
+<section class="slide" id="f-formula" data-part="3 · Joint tests" data-title="The F-statistic">
+  <div class="slide-card">
+    <h2>The F-statistic</h2>
+    <p>\[F=\frac{\left(R^2_U-R^2_R\right)/q}{\left(1-R^2_U\right)/\left(n-p-1\right)}\ \sim\ F_{q,\;n-p-1}\qquad(3)\]</p>
+    <div class="cols">
+      <ul>
+        <li>\(q\): the number of restrictions under the null</li>
+        <li>\(n\): the number of observations</li>
+        <li>\(p\): the number of regressors in the <b>unrestricted</b> model</li>
+      </ul>
+      <ul>
+        <li>If the null is true, \(F\) is small: the two \(R^2\)'s are close. A large \(F\) rejects the null.</li>
+        <li>The p-value comes from the F distribution with \(q\) and \(n-p-1\) degrees of freedom.</li>
+      </ul>
+    </div>
+    <div class="box">
+      <div class="label">The p-value</div>
+      <p>Excel: <code>=F.DIST.RT(F, q, n-p-1)</code> (in older versions <code>FDIST</code>). Python: <code>scipy.stats.f.sf(F, q, n-p-1)</code>.</p>
+    </div>
+    <p class="small">The derivation assumes errors that are homoskedastic and normally distributed. Tests that need neither exist; they are beyond this module.</p>
+  </div>
+  <aside class="script">
+    <p>Here is the F-statistic. The numerator is the difference between the two R squareds, divided by q, the number of restrictions. The denominator is one minus the unrestricted R squared, divided by n minus p minus one, which you can think of as the effective sample size.</p>
+    <p>This statistic follows an F distribution, which is governed by two numbers: the number of restrictions, and the effective sample size.</p>
+    <p>If the null is true, the two R squareds are close, and F is small. If F is large, we reject the null. The p-value comes from the F distribution. In Excel there is a command for it.</p>
+  </aside>
+</section>
+
+<section class="slide" id="f-overall" data-part="3 · Joint tests" data-title="The F in every regression output">
+  <div class="slide-card">
+    <h2>The F-statistic in every regression output</h2>
+<pre class="codeview out">Dep. Variable:                  price   R-squared:                       <mark>0.672</mark>
+Model:                            OLS   Adj. R-squared:                  0.661
+Method:                 Least Squares   F-statistic:                     <mark>57.46</mark>
+No. Observations:                  88   Prob (F-statistic):           <mark>2.70e-20</mark>
+Df Residuals:                      <mark>84</mark>   Df Model:                            <mark>3</mark></pre>
+    <p>The house-price regression on <code>sqrft</code>, <code>lotsize</code> and <code>bdrms</code>. Python reports one F-test by itself. It tests whether <b>all the slopes are zero</b>:</p>
+    <p>\[H_0:\ \beta_1=0,\ \beta_2=0,\ \beta_3=0\qquad\Rightarrow\qquad F=\frac{(0.672-0)/3}{(1-0.672)/84}=57.4\]</p>
+    <ul class="small">
+      <li>The trick: under this null there is no X left, and a regression with no X's has \(R^2_R=0\).</li>
+      <li>\(q=3\) (three equal signs) and \(n-p-1=88-3-1=84\), the "Df Residuals" of the output.</li>
+      <li>With the unrounded \(R^2\) the result is 57.46, as in the output. The p-value is \(2.7\times10^{-20}\): the three X's are certainly not all useless.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Let's start with one particular example: the test that all the coefficients, beta one, beta two and beta three, are zero. It is the extreme case, because under the null all three variables drop out of the model.</p>
+    <p>So the restricted model has no X at all, and its R squared is zero. The unrestricted R squared is 0.672. We have three restrictions, three equal signs. The effective sample size is the residual degrees of freedom in the output, 84.</p>
+    <p>Plug everything in, and you get the F value in the output. The p-value is tiny, so we are sure the three coefficients are not all zero. The trick here is that a regression with no X has an R squared of zero.</p>
+  </aside>
+</section>
+
+<section class="slide" id="f-two" data-part="3 · Joint tests" data-title="Do lot size and bedrooms matter, jointly?">
+  <div class="slide-card">
+    <h2>Do lot size and bedrooms matter, jointly?</h2>
+    <p>\[H_0:\ \beta_{\text{lotsize}}=\beta_{\text{bdrms}}=0\]</p>
+    <div class="vs">
+      <div class="box"><div class="label">Unrestricted</div><p><code>price ~ sqrft + lotsize + bdrms</code></p><p>\(R^2_U=0.672\)</p></div>
+      <div class="box"><div class="label">Restricted: run it</div><p><code>price ~ sqrft</code></p><p>\(R^2_R=0.621\)</p></div>
+    </div>
+    <p>\[F=\frac{(0.672-0.621)/2}{(1-0.672)/84}=6.5\qquad\text{p-value}=0.002\]</p>
+    <ul class="small">
+      <li>This time a coefficient is left under the null (\(\beta_1\), on <code>sqrft</code>), so the restricted regression has to be run.</li>
+      <li>With the unrounded \(R^2\)'s (0.6724 and 0.6208), \(F=6.61\). The p-value is below 1%: reject the null. Lot size and bedrooms together add something.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>Now a more difficult test: are beta two and beta three both zero? This time we need to run a restricted regression, because under the null beta one is still there. It is the coefficient on square feet.</p>
+    <p>So we run the regression on square feet alone, and get the restricted R squared, 0.621. The unrestricted one is 0.672. Plug both into the formula: F is 6.61, and the p-value is 0.002. That is small, so we reject the null at the one percent level. Beta two and beta three are not both zero.</p>
+  </aside>
+</section>
+
+<section class="slide" id="f-python" data-part="3 · Joint tests" data-title="f_test in Python" data-pause>
+  <div class="slide-card">
+    <h2>In Python: <code>f_test</code></h2>
+    <div class="pycell" data-colab="f-python"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+housedata = pd.read_csv("hprices2.csv")
+
+# the full (unrestricted) model
+modelUR = smf.ols("price ~ sqrft + lotsize + bdrms", data=housedata).fit()
+
+# tell it the null hypothesis
+print(modelUR.f_test("lotsize = 0, bdrms = 0"))
+</textarea></div>
+<pre class="codeview out">&lt;F test: F=<mark>6.61</mark>, p=<mark>0.00216</mark>, df_denom=84, df_num=2&gt;</pre>
+    <ul class="small">
+      <li>No restricted regression, no formula. You write the null as text, with the names of the variables, and separate the restrictions with commas.</li>
+      <li><code>df_num</code> is \(q\) and <code>df_denom</code> is \(n-p-1\). The answer is the one we computed by hand.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>That was by hand, with two regressions. Fortunately, Python can compute an F-statistic without running the restricted regression.</p>
+    <p>We run the full model and save the result. I call it model U R, for unrestricted. Then we call its f test function and write the restrictions: the lot size coefficient equals zero, and the bedrooms coefficient equals zero.</p>
+    <p>Python returns the F-statistic, the p-value, and the two degrees of freedom. It is exactly what we computed ourselves. The p-value is small, so we reject the null at the one percent level.</p>
+  </aside>
+</section>
+
+<section class="slide" id="f-try" data-part="3 · Joint tests" data-title="Try it: choose the restrictions" data-pause>
+  <div class="slide-card">
+    <h2>Try it: choose the restrictions</h2>
+    <div class="widget" data-widget="ftest"></div>
+    <p class="small">The unrestricted model is always <code>price ~ sqrft + lotsize + bdrms</code> (\(R^2_U=0.6724\), 84 residual degrees of freedom). Tick the coefficients that the null sets to zero.</p>
+  </div>
+  <aside class="script">
+    <p>Try the F-test yourself, with the house regression. Tick the coefficients that the null hypothesis sets to zero. The page runs the restricted regression, and shows the two R squareds, the F-statistic and its p-value.</p>
+    <p>The curve is the F distribution that the statistic follows if the null is true. The shaded area to the right of the statistic is the p-value.</p>
+    <p>Start with bedrooms alone: F is 2.4, and the p-value is 0.13, the same as the t-test in the regression table. Add lot size: the R squared falls from 0.672 to 0.621, and F is 6.6. Tick all three, and you get the 57 of the regression output, far off the chart.</p>
+  </aside>
+</section>
+
+<section class="slide" id="f-oj" data-part="3 · Joint tests" data-title="Orange juice: equally strong rivals?">
+  <div class="slide-card">
+    <h2>Orange juice: are the two rivals equally strong competitors?</h2>
+    <p>The demand for Tropicana, with its own price and the two rivals' prices:</p>
+    <p>\[q_{1i}=\beta_0+\beta_1p_{1i}+\beta_2p_{2i}+\beta_3p_{3i}+u_i\]</p>
+    <div class="cols">
+      <div>
+        <p>\[H_0:\ \beta_2=\beta_3\qquad\text{against}\qquad H_A:\ \beta_2\neq\beta_3\]</p>
+        <p>In words: a price increase by Minute Maid and a price increase by the private label have the <b>same</b> effect on Tropicana's sales.</p>
+      </div>
+      <div class="box key">
+        <div class="label">Why test this?</div>
+        <p>To find out who the main competitor is. If one rival's price moves Tropicana's sales more, that is the rival to watch when setting prices.</p>
+        <p class="small">The estimates are 12.00 for Minute Maid and 15.58 for the private label. Different, but is the difference more than noise?</p>
+      </div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Let's see the F-test in a different context: the orange juice data. We model the demand for Tropicana as a function of its own price and the prices of its two rivals, Minute Maid and the store's private label.</p>
+    <p>One thing we may want to test is whether beta two equals beta three: does a price increase by Minute Maid have the same effect on my sales as a price increase by the private label? We are testing whether the two brands are the same type of competitor, or whether one of them is stronger. That matters for Tropicana's pricing strategy.</p>
+  </aside>
+</section>
+
+<section class="slide" id="f-oj-hand" data-part="3 · Joint tests" data-title="By hand: a restricted model with p2 + p3">
+  <div class="slide-card">
+    <h2>By hand: the restricted model uses \(p_2+p_3\)</h2>
+    <p>Under \(H_0\), both rivals' prices share one coefficient. Write \(\beta_2\) for \(\beta_3\) and collect terms:</p>
+    <p>\[q_{1i}=\beta_0+\beta_1p_{1i}+\beta_2p_{2i}+\beta_2p_{3i}+u_i=\beta_0+\beta_1p_{1i}+\beta_2\,(p_{2i}+p_{3i})+u_i\]</p>
+    <ol class="small">
+      <li>Create a new variable, <code>p2 + p3</code>.</li>
+      <li>Regress <code>q1</code> on <code>p1</code> and the new variable: \(R^2_R=0.5903\). The unrestricted model had \(R^2_U=0.5906\).</li>
+      <li>One restriction (\(q=1\)), and \(n-p-1=218-3-1=214\):</li>
+    </ol>
+    <p>\[F=\frac{(R^2_U-R^2_R)/1}{(1-R^2_U)/214}=0.148\qquad\text{p-value}=0.70\]</p>
+    <div class="box key">
+      <div class="label">Conclusion</div>
+      <p>With a p-value of 0.70 we cannot reject the null at any usual level. The data do not distinguish the two rivals.</p>
+    </div>
+    <p class="small">The two \(R^2\)'s differ only in the fourth decimal. Do not round them before you put them into the formula: 0.148 is computed from the unrounded values.</p>
+  </div>
+  <aside class="script">
+    <p>First by hand. The unrestricted model has the three prices, and gives us the unrestricted R squared.</p>
+    <p>For the restricted model, we impose beta two equals beta three. We write beta two in place of beta three, collect the two terms, and get a new variable: p two plus p three. The restricted model is a regression on two regressors: p one, and p two plus p three. We create that variable, run the regression, and take its R squared.</p>
+    <p>Plug the two R squareds into the formula. F is 0.148, which is small, and the p-value is 0.7. With such a large p-value, we cannot reject the null at any significance level.</p>
+  </aside>
+</section>
+
+<section class="slide" id="f-oj-python" data-part="3 · Joint tests" data-title="In Python: one line" data-pause>
+  <div class="slide-card">
+    <h2>In Python: one line</h2>
+    <div class="pycell" data-colab="f-oj"><textarea>
+import pandas as pd
+import statsmodels.formula.api as smf
+
+ojdata = pd.read_csv("rfj_small.csv")
+modelUR = smf.ols("q1 ~ p1 + p2 + p3", data=ojdata).fit()
+
+print(modelUR.f_test("p2 - p3 = 0"))          # the same test: "p2 = p3"
+</textarea></div>
+<pre class="codeview out">&lt;F test: F=<mark>0.148</mark>, p=<mark>0.701</mark>, df_denom=214, df_num=1&gt;</pre>
+    <ul class="small">
+      <li>By hand we had to rewrite the model and build a new variable. Here we write the null directly: <code>"p2 - p3 = 0"</code>.</li>
+      <li>Same F, same p-value, one restriction, 214 degrees of freedom. We cannot reject that the two rivals' prices have the same effect.</li>
+    </ul>
+  </div>
+  <aside class="script">
+    <p>You can do it by hand, but it is complicated: you have to rewrite the regression and create a new variable. In Python it is easy again.</p>
+    <p>We estimate the full model and call it model U R. U R is for unrestricted, not for University of Rochester. Then we use its f test function and write the null directly: p two minus p three equals zero.</p>
+    <p>Python returns the F value, the p-value, the number of restrictions and the degrees of freedom. Here we cannot reject the null. And the answer matches what we computed by hand.</p>
+  </aside>
+</section>
+
+<section class="slide" id="check-3" data-part="3 · Joint tests" data-pause>
+  <div class="slide-card">
+    <h2>Self-check</h2>
+    <div class="quiz" data-answer="c">
+      <div class="q">1. How many restrictions does \(H_0:\ \beta_1=0,\ \beta_2=0,\ \beta_3=\beta_4\) impose?</div>
+      <button class="opt" data-k="a">2</button><button class="opt" data-k="b">4</button><button class="opt" data-k="c">3</button>
+      <div class="explain">Count the equal signs: three. Four coefficients are involved, but \(\beta_3=\beta_4\) is one restriction.</div>
+    </div>
+    <div class="quiz" data-answer="a">
+      <div class="q">2. \(R^2_U=0.672\), \(R^2_R=0.621\), two restrictions, and \(n-p-1=84\). The F-statistic is about</div>
+      <button class="opt" data-k="a">6.5</button><button class="opt" data-k="b">0.05</button><button class="opt" data-k="c">57</button>
+      <div class="explain">\((0.672-0.621)/2=0.0255\) and \((1-0.672)/84=0.0039\); their ratio is 6.5. 0.05 is only the difference of the two \(R^2\)'s, and 57 is the test that all three slopes are zero.</div>
+    </div>
+    <div class="quiz" data-answer="b">
+      <div class="q">3. <code>modelUR.f_test("p2 - p3 = 0")</code> returns F = 0.148 and p = 0.70. We conclude that</div>
+      <button class="opt" data-k="a">the two rivals' prices have no effect on Tropicana's sales</button><button class="opt" data-k="b">we cannot reject that the two rivals' prices have the same effect</button><button class="opt" data-k="c">the two effects are proven to be equal</button>
+      <div class="explain">The null was \(\beta_2=\beta_3\), not \(\beta_2=\beta_3=0\). (That one is rejected: F = 6.95, p = 0.001.) And failing to reject is not proof: the data are compatible with equal effects.</div>
+    </div>
+  </div>
+  <aside class="script">
+    <p>Before moving on, three quick questions to check your understanding. Click an answer to see whether you got it and why. Nothing here is graded.</p>
+  </aside>
+</section>
+
+<!-- ======================================================================= WRAP-UP -->
+<section class="slide" id="summary" data-part="Wrap-up">
+  <div class="slide-card">
+    <h2>Summary</h2>
+    <table class="t small">
+      <thead><tr><th>You want</th><th>In Python</th><th>How to read it</th></tr></thead>
+      <tbody>
+        <tr><td>A prediction with its intervals</td><td><code>est.get_prediction(df).summary_frame(alpha=0.05)</code></td><td><code>mean</code>: the prediction. <code>mean_ci</code>: confidence interval for the average. <code>obs_ci</code>: prediction interval for one case, always wider, and it does not shrink with more data.</td></tr>
+        <tr><td>More than one X</td><td><code>smf.ols("y ~ x1 + x2 + x3", data=d).fit()</code></td><td>Each coefficient holds the other X's fixed. Leaving out a relevant X that moves with yours biases your coefficient.</td></tr>
+        <tr><td>Robust standard errors</td><td><code>.fit(cov_type="HC1")</code></td><td>Same coefficients; standard errors, intervals and tests that allow for heteroskedasticity.</td></tr>
+        <tr><td>To spot collinearity</td><td><code>d[["x1", "x2"]].corr()</code></td><td>Odd signs, large standard errors, nothing significant one by one but a large F, a warning under the table. Keep one of the twins.</td></tr>
+        <tr><td>A test of several coefficients</td><td><code>est.f_test("x2 = 0, x3 = 0")</code></td><td>\(F=\dfrac{(R^2_U-R^2_R)/q}{(1-R^2_U)/(n-p-1)}\). A small p-value rejects the restrictions.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <aside class="script">
+    <p>Let's wrap up. For a prediction, call get prediction. Mean C I is the confidence interval for the average. Obs C I is the prediction interval for one case. It is always wider, and it does not shrink with more data.</p>
+    <p>For a multiple regression, add the X's with a plus sign. Each coefficient holds the other X's fixed.</p>
+    <p>If two X's carry almost the same information, you see odd signs, large standard errors, and a warning under the table. Check the correlation and keep one of them.</p>
+    <p>To test several coefficients at once, use f test. By hand, compare the R squared of the unrestricted and the restricted model.</p>
+  </aside>
+</section>
+
+<section class="slide" id="next" data-part="Wrap-up">
+  <div class="slide-card">
+    <h2>Practice, and what comes next</h2>
+    <div class="cols">
+      <div>
+        <h3>Practice notebook</h3>
+        <p>All the code from this module, plus short exercises: 90% intervals and a house of your own, what a larger sample does to the two intervals, the orange juice demand for another brand, the two collinearity examples, and F-tests by hand and with <code>f_test</code>.</p>
+        <div class="btn-row" data-notebook-links></div>
+        <p class="small">In Colab: <i>File → Save a copy in Drive</i> to keep your own version.</p>
+      </div>
+      <div>
+        <h3>Next</h3>
+        <p>What to do when the important differences between groups cannot be measured, so that no control variable helps: comparisons over time. Difference-in-differences, and the synthetic control method.</p>
+      </div>
+    </div>
+    <p class="src">References: Stock &amp; Watson, <i>Introduction to Econometrics</i>, sections 6.7 and 7.2; Békés &amp; Kézdi, <i>Data Analysis for Business, Economics, and Policy</i>, chapters 9, 10 and 13. Data: the house-price, orange-juice and SUV files of the course.</p>
+  </div>
+  <aside class="script">
+    <p>That's it for this module. If you want to keep the code, open the practice notebook.</p>
+  </aside>
+</section>
+
+</div><!-- deck -->
+</body>
+</html>
