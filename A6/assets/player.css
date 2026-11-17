@@ -389,3 +389,39 @@ body.recording .recorder { margin: 0 0 16px; }
 body.recording .recorder .prompter { font-size: 21px; max-height: 46vh; }
 .toc a.has-take .seen::after { content: " ●"; color: var(--bad); }
 .btn kbd { background: transparent; color: inherit; border-color: currentColor; opacity: .75; margin-left: 4px; }
+
+/* narration cues (../../CUES.md): a marker highlight on what the voice-over talks about, and a pulsing
+   ring with a callout on a control it asks students to use */
+:root { --cue: #f59e0b; --cue-ink: #231400; --cue-soft: rgba(250, 204, 21, .32); --cue-ring: rgba(245, 158, 11, .7); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --cue: #fbbf24; --cue-ink: #1a1000; --cue-soft: rgba(251, 191, 36, .22); --cue-ring: rgba(251, 191, 36, .65); }
+}
+:root[data-theme="dark"] { --cue: #fbbf24; --cue-ink: #1a1000; --cue-soft: rgba(251, 191, 36, .22); --cue-ring: rgba(251, 191, 36, .65); }
+.cue-spot { background-color: var(--cue-soft) !important; box-shadow: 0 0 0 2px var(--cue); border-radius: 6px; transition: background-color .25s, box-shadow .25s; }
+tr.cue-spot { box-shadow: none; }
+tr.cue-spot > td, tr.cue-spot > th { background-color: var(--cue-soft) !important; }
+tr.cue-spot > :first-child { box-shadow: inset 3px 0 0 var(--cue); }
+img.cue-spot, figure.cue-spot, svg.cue-spot { box-shadow: 0 0 0 3px var(--cue); }
+.cue-click { position: relative; z-index: 2; background-image: linear-gradient(var(--cue-soft), var(--cue-soft)); animation: cue-pulse 1.4s ease-out infinite; }
+@keyframes cue-pulse {      /* an inset ring that always shows, plus an outer pulse */
+  0% { box-shadow: inset 0 0 0 2px var(--cue), 0 0 0 0 var(--cue-ring); }
+  70% { box-shadow: inset 0 0 0 2px var(--cue), 0 0 0 12px rgba(245, 158, 11, 0); }
+  100% { box-shadow: inset 0 0 0 2px var(--cue), 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+.seg:has(.cue-click), .controls:has(.cue-click) { overflow: visible; }   /* segmented controls clip their buttons */
+.cue-layer { position: fixed; inset: 0; pointer-events: none; z-index: 25; }
+.cue-note {
+  position: absolute; transform: translate(-50%, calc(-100% - 10px)); padding: 5px 10px; border-radius: 8px;
+  background: var(--cue); color: var(--cue-ink); font: 600 13px/1.25 var(--font); white-space: nowrap;
+  box-shadow: var(--shadow); animation: cue-in .25s ease-out;
+}
+.cue-note::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px; background: inherit; transform: translateX(-50%) rotate(45deg); }
+.cue-note.below { transform: translate(-50%, 10px); }
+.cue-note.below::after { top: -5px; bottom: auto; }
+.cue-note.soft { background: var(--card); color: var(--ink); border: 2px solid var(--cue); }
+.cue-note.soft::after { background: var(--cue); }
+@keyframes cue-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .cue-click { animation: none; box-shadow: inset 0 0 0 2px var(--cue), 0 0 0 3px var(--cue); }
+  .cue-note { animation: none; }
+}

@@ -8,6 +8,10 @@
  *
  * Audio files: audio/<slide id>.<ext>, tried in the order of CONFIG.audioExts. The first file that
  * exists plays, so a new recording (e.g. lln.m4a) overrides an archived clip (lln.2024.m4a).
+ *
+ * Narration cues (../../CUES.md): a slide's <script type="application/json" class="cues"> lists what to
+ * highlight, or which control to point at, when the recording reaches a phrase; assets/cues.js
+ * (window.CUE_TIMES, from build_cues.py) holds the times. Loaded only when the page has cues.
  */
 (function () {
   "use strict";
@@ -112,6 +116,7 @@
       <span class="sep"></span>
       <button class="pill" id="speedBtn" title="Playback speed">1×</button>
       <button class="pill" id="autoBtn" title="Go to the next slide when the audio ends">Auto<span class="hide-sm">-advance</span></button>
+      <button class="pill" id="cueBtn" title="Highlight what the voice-over is talking about (H)" hidden>✦<span class="hide-sm"> Highlights</span></button>
       <button class="icon-btn" id="ccBtn" aria-label="Show or hide the transcript" title="Transcript (T)">${I.cc}</button>
     </footer>
     <div class="pause-hint" id="pauseHint"><span>Your turn: try the interactive part, then continue.</span><button id="pauseGo">Continue ▸</button></div>
@@ -122,6 +127,7 @@
         <tr><td><kbd>Space</kbd></td><td>Play / pause the voice-over</td></tr>
         <tr><td><kbd>T</kbd></td><td>Show / hide the transcript</td></tr>
         <tr><td><kbd>A</kbd></td><td>Auto-advance on / off (watch it like a video)</td></tr>
+        <tr class="cue-help" hidden><td><kbd>H</kbd></td><td>Highlights on / off (the slide points at what the voice-over talks about)</td></tr>
         <tr><td><kbd>S</kbd></td><td>Change the speed</td></tr>
         <tr><td><kbd>M</kbd></td><td>Show / hide the contents</td></tr>
       </table>
@@ -134,7 +140,7 @@
   const audio = $("audio");
   const ui = {
     toc: $("toc"), counter: $("counter"), progress: $("progress"), play: $("playBtn"), prev: $("prevBtn"), next: $("nextBtn"),
-    scrub: $("scrub"), time: $("time"), status: $("status"), speed: $("speedBtn"), auto: $("autoBtn"), cc: $("ccBtn"),
+    scrub: $("scrub"), time: $("time"), status: $("status"), speed: $("speedBtn"), auto: $("autoBtn"), cc: $("ccBtn"), cue: $("cueBtn"),
     transcript: $("transcript"), tLabel: $("tLabel"), tTag: $("tTag"), tBody: $("tBody"), hint: $("pauseHint"),
   };
 
@@ -148,6 +154,7 @@
     auto: store.get("auto", false),
     speed: store.get("speed", 1),
     showT: store.get("transcript", true),
+    cues: store.get("cues", true),
     seen: new Set(store.get("seen", [])),
     tokens: 0,
   };
@@ -222,6 +229,7 @@
     if (location.hash !== "#" + s.id) history.replaceState(null, "", "#" + s.id);
     enterSlide(s);
     loadMedia(s, !!opts.play);
+    Cues.load(s);
     if (!opts.noScroll) window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
     if (RECORD) Recorder.show(s);
   }
@@ -296,8 +304,9 @@
   }
   audio.addEventListener("play", () => setPlayIcon(true));
   audio.addEventListener("pause", () => setPlayIcon(false));
-  audio.addEventListener("timeupdate", () => { if (state.mode === "audio") { ui.scrub.value = audio.currentTime; updateTime(); syncLines(audio.currentTime); } });
-  audio.addEventListener("ended", () => onEnded());
+  audio.addEventListener("timeupdate", () => { if (state.mode === "audio") { ui.scrub.value = audio.currentTime; updateTime(); syncLines(audio.currentTime); Cues.sync(audio.currentTime); } });
+  audio.addEventListener("seeked", () => { if (state.mode === "audio") Cues.sync(audio.currentTime); });
+  audio.addEventListener("ended", () => { Cues.sync(Infinity); onEnded(); });
   function updateTime() {
     const f = (t) => { t = Math.max(0, t || 0); return `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`; };
     ui.time.textContent = `${f(audio.currentTime)} / ${f(audio.duration)}`;
@@ -429,6 +438,120 @@
   function escapeHtml(t) { return t.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
   function setTranscript(on) { state.showT = on; store.set("transcript", on); ui.transcript.hidden = !on; ui.cc.classList.toggle("on", on); ui.cc.style.opacity = on ? 1 : 0.55; }
 
+  /* ---------------- narration cues: highlight, or point at a control, as the recording plays ---------------- */
+  const Cues = (function () {
+    let slide = null, list = [], dismissed = new Set(), shown = new Map(), lastT = 0;
+    const layer = document.createElement("div");
+    layer.className = "cue-layer";
+    document.body.appendChild(layer);
+    function parse(s) {
+      const box = s.querySelector('script.cues[type="application/json"]');
+      if (!box) return [];
+      let spec;
+      try { spec = JSON.parse(box.textContent); } catch (e) { console.warn("cues on " + s.id + ":", e.message); return []; }
+      const times = (window.CUE_TIMES || {})[s.id] || [];
+      const out = spec.map((c, k) => {
+        const tm = times[k];
+        if (!tm || tm[2] !== c.at) return null;          // not timed for this recording: rebuild assets/cues.js
+        return Object.assign({}, c, { k, start: tm[0], until: tm[1] });
+      }).filter(Boolean);
+      const starts = out.map((c) => c.start).sort((a, b) => a - b);
+      out.forEach((c) => {                               // a cue lasts until the next one starts, unless told otherwise
+        if (c.hold) c.end = Infinity;
+        else if (c.until != null && c.until > c.start) c.end = c.until;
+        else { const nx = starts.find((t) => t > c.start); c.end = nx === undefined ? Infinity : nx; }
+        c.kind = c.do || (c.click ? "click" : "spot");
+      });
+      return out;
+    }
+    function targets(c) {
+      const card = slide.querySelector(".slide-card") || slide;
+      try {
+        if (c.sel) return Array.from(card.querySelectorAll(c.sel));
+        if (c.click) {
+          const want = c.click.toLowerCase();
+          const el = Array.from(card.querySelectorAll("button, a, .opt, label, summary, [role=button], [role=tab]"))
+            .find((b) => b.getClientRects().length && b.textContent.toLowerCase().includes(want));
+          return el ? [el] : [];
+        }
+      } catch (e) { console.warn("cue target", c, e.message); }
+      return [];
+    }
+    function reveal(el) {                                // a cue on a later step shows that step (and the ones before it)
+      const step = el.closest(".step");
+      if (!step || step.classList.contains("shown")) return;
+      const btn = step.parentElement && step.parentElement.querySelector(".step-btn");
+      for (let i = 0; i < 30 && btn && btn.isConnected && !step.classList.contains("shown"); i++) btn.click();
+      if (!step.classList.contains("shown")) step.classList.add("shown");
+    }
+    function place(note, el) {
+      const r = el.getBoundingClientRect();
+      const below = r.top < 110;
+      note.classList.toggle("below", below);
+      note.style.left = `${Math.min(window.innerWidth - 70, Math.max(70, r.left + r.width / 2))}px`;
+      note.style.top = `${below ? r.bottom : r.top}px`;
+      note.style.display = r.width || r.height ? "" : "none";
+    }
+    function on(c) {
+      const els = targets(c);
+      if (!els.length) return;
+      els.forEach((el) => { reveal(el); el.classList.add(c.kind === "click" ? "cue-click" : "cue-spot"); });
+      let note = null;
+      if (c.kind === "click" || c.note) {
+        note = document.createElement("div");
+        note.className = "cue-note" + (c.kind === "click" ? "" : " soft");
+        note.textContent = c.note || "Click here";
+        layer.appendChild(note);
+        place(note, els[0]);
+      }
+      shown.set(c.k, { els, note, kind: c.kind });
+      // bring it into view by scrolling the page only (scrollIntoView would also shift code editors and tables sideways)
+      const r = els[0].getBoundingClientRect();
+      if (!audio.paused && (r.bottom > window.innerHeight - 80 || r.top < 60)) {
+        window.scrollBy({ top: r.top - Math.max(70, (window.innerHeight - r.height) / 2), behavior: "smooth" });
+      }
+    }
+    function off(k) {
+      const x = shown.get(k);
+      if (!x) return;
+      x.els.forEach((el) => el.classList.remove(x.kind === "click" ? "cue-click" : "cue-spot"));
+      if (x.note) x.note.remove();
+      shown.delete(k);
+    }
+    function clear() { Array.from(shown.keys()).forEach(off); }
+    function sync(t) {
+      lastT = t;
+      if (!slide || !state.cues || RECORD || state.mode !== "audio") { clear(); return; }
+      const want = new Set(list.filter((c) => !dismissed.has(c.k) && c.start <= t && t < c.end).map((c) => c.k));
+      Array.from(shown.keys()).forEach((k) => { if (!want.has(k) || shown.get(k).els.some((el) => !el.isConnected)) off(k); });   // widgets redraw their tables
+      list.forEach((c) => { if (want.has(c.k) && !shown.has(c.k)) on(c); });
+    }
+    function load(s) {
+      clear();
+      slide = s; list = parse(s); dismissed = new Set(); lastT = 0;
+    }
+    function reposition() { shown.forEach((x) => { if (x.note) place(x.note, x.els[0]); }); }
+    window.addEventListener("scroll", reposition, { passive: true });
+    window.addEventListener("resize", reposition);
+    // using the control a "click here" cue points at, or any part of a highlighted element, retires that cue
+    deck.addEventListener("click", (e) => {
+      shown.forEach((x, k) => { if (x.kind === "click" && x.els.some((el) => el.contains(e.target))) { dismissed.add(k); off(k); } });
+    }, true);
+    function init() {
+      const any = deck.querySelector('script.cues[type="application/json"]');
+      if (!any) return;
+      ui.cue.hidden = false;
+      document.querySelectorAll(".cue-help").forEach((r) => { r.hidden = false; });
+      if (window.CUE_TIMES) return;
+      const sc = document.createElement("script");
+      sc.src = "assets/cues.js";
+      sc.onload = () => { if (slide) { list = parse(slide); sync(lastT); } };
+      document.head.appendChild(sc);
+    }
+    return { load, sync, clear, init, refresh: () => sync(lastT) };
+  })();
+  function setCues(on) { state.cues = on; store.set("cues", on); ui.cue.classList.toggle("on", on); Cues.refresh(); }
+
   /* ---------------- player buttons ---------------- */
   ui.play.addEventListener("click", togglePlay);
   ui.prev.addEventListener("click", prev);
@@ -441,6 +564,7 @@
   ui.speed.addEventListener("click", () => setSpeed(SPEEDS[(SPEEDS.indexOf(state.speed) + 1) % SPEEDS.length]));
   function setAuto(on) { state.auto = on; store.set("auto", on); ui.auto.classList.toggle("on", on); }
   ui.auto.addEventListener("click", () => setAuto(!state.auto));
+  ui.cue.addEventListener("click", () => setCues(!state.cues));
   ui.cc.addEventListener("click", () => setTranscript(!state.showT));
   $("tocBtn").addEventListener("click", () => {
     if (window.matchMedia("(max-width: 1100px)").matches) document.body.classList.toggle("toc-open");
@@ -463,6 +587,7 @@
     else if (k === " " || k === "k") { e.preventDefault(); togglePlay(); }
     else if (k === "t" || k === "T") setTranscript(!state.showT);
     else if (k === "a" || k === "A") setAuto(!state.auto);
+    else if ((k === "h" || k === "H") && !ui.cue.hidden) setCues(!state.cues);
     else if (k === "s" || k === "S") ui.speed.click();
     else if (k === "m" || k === "M") $("tocBtn").click();
     else if ((k === "r" || k === "R") && RECORD) { e.preventDefault(); Recorder.toggle(); }
@@ -720,6 +845,8 @@
     setSpeed(state.speed);
     setAuto(state.auto);
     setTranscript(state.showT);
+    ui.cue.classList.toggle("on", state.cues);
+    Cues.init();
     if (RECORD) {                   // the recorder sits above the slide; the transcript is its teleprompter
       await Recorder.init();
       document.body.classList.add("recording");

@@ -113,12 +113,12 @@
     <h2>How to use this page</h2>
     <div class="cols">
       <div>
-        <div class="feature"><span class="ic">▶</span><div><b>Listen.</b> Each slide has its own short voice-over. Press <kbd>Space</kbd>; change the speed at the bottom right.</div></div>
-        <div class="feature"><span class="ic">⇄</span><div><b>Your pace.</b> Use <kbd>←</kbd> <kbd>→</kbd> or the contents. <i>Auto-advance</i> plays it like a video.</div></div>
-        <div class="feature"><span class="ic">≡</span><div><b>Read.</b> The transcript is under each slide (<kbd>T</kbd> hides it).</div></div>
+        <div class="feature" data-c="listen"><span class="ic">▶</span><div><b>Listen.</b> Each slide has its own short voice-over. Press <kbd>Space</kbd>; change the speed at the bottom right.</div></div>
+        <div class="feature" data-c="pace"><span class="ic">⇄</span><div><b>Your pace.</b> Use <kbd>←</kbd> <kbd>→</kbd> or the contents. <i>Auto-advance</i> plays it like a video.</div></div>
+        <div class="feature" data-c="read"><span class="ic">≡</span><div><b>Read.</b> The transcript is under each slide (<kbd>T</kbd> hides it).</div></div>
       </div>
       <div>
-        <div class="feature"><span class="ic">✦</span><div><b>Try it.</b> Move a churn model's threshold, pick a bin of the score, change the number of strata, match with different calipers.</div></div>
+        <div class="feature" data-c="tryit"><span class="ic">✦</span><div><b>Try it.</b> Move a churn model's threshold, pick a bin of the score, change the number of strata, match with different calipers.</div></div>
         <div class="feature"><span class="ic">{ }</span><div><b>Code.</b> Python cells run in the page; the same code is in a Colab notebook.</div></div>
         <div class="feature"><span class="ic">✓</span><div><b>Check.</b> Short self-checks end each part. Not graded.</div></div>
       </div>
@@ -129,6 +129,14 @@
       <p>Reading linear-probability and logit output (coefficients vs. marginal effects, points vs. percent); what the propensity score is and why one number is enough; the three uses and what each estimates (ATE or ATT); reading an overlap plot and a balance table; "design before outcomes". Not the proofs or the code.</p>
     </div>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "every slide has its own", "sel": "[data-c=listen]"},
+    {"at": "go at your own pace", "sel": "[data-c=pace]"},
+    {"at": "the transcript is under each", "sel": "[data-c=read]"},
+    {"at": "you can move a", "sel": "[data-c=tryit]"}
+  ]
+  </script>
   <aside class="script">
     <p>A quick word on how to use this page. As before, every slide has its own voice-over, you can go at your own pace, and the transcript is under each slide. On the try-it slides you can move a churn model's threshold, pick a bin of the score, change the number of strata, and trim extreme weights.</p>
     <p>For the exam, focus on reading logit output, what the propensity score is and why one number is enough, the three ways to use it and what each one estimates, and how to read an overlap plot and a balance table. No proofs, and no code.</p>
@@ -139,13 +147,21 @@
   <div class="slide-card">
     <h2>Four parts</h2>
     <div class="parts">
-      <button data-goto="yes-no"><b>Part 1</b>Yes/no outcomes: the linear probability model, the logit, marginal effects</button>
-      <button data-goto="sales-rep"><b>Part 2</b>The propensity score: a sales-rep case, the theorem, overlap</button>
-      <button data-goto="strata"><b>Part 3</b>Three ways to use it: strata, matching, weighting; checking balance</button>
-      <button data-goto="roadmap7"><b>Part 4</b>The case done properly, the job-training data, and what the score cannot do</button>
+      <button data-goto="yes-no" data-c="p1"><b>Part 1</b>Yes/no outcomes: the linear probability model, the logit, marginal effects</button>
+      <button data-goto="sales-rep" data-c="p2"><b>Part 2</b>The propensity score: a sales-rep case, the theorem, overlap</button>
+      <button data-goto="strata" data-c="p3"><b>Part 3</b>Three ways to use it: strata, matching, weighting; checking balance</button>
+      <button data-goto="roadmap7" data-c="p4"><b>Part 4</b>The case done properly, the job-training data, and what the score cannot do</button>
       <button data-goto="summary"><b>Wrap-up</b>Summary and practice notebook</button>
     </div>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "Part 1 is about binary", "sel": "[data-c=p1]"},
+    {"at": "Part 2 introduces the", "sel": "[data-c=p2]"},
+    {"at": "Part 3 shows three ways", "sel": "[data-c=p3]"},
+    {"at": "Part 4 runs the case", "sel": "[data-c=p4]"}
+  ]
+  </script>
   <aside class="script">
     <p>Part one is about yes-or-no outcomes: the linear probability model, the logit, and how to read its output. Part two introduces the sales-rep case and the propensity score. Part three shows three ways to use the score, and how to check that they worked. Part four runs the case from start to finish and revisits the job-training data from the live session.</p>
   </aside>
@@ -158,23 +174,31 @@
     <div class="cols c-60">
       <div>
         <ul>
-          <li>Will this customer buy? Churn? Will the loan default? Will the employee quit? Will a sales rep visit this doctor?</li>
-          <li>Machine learning calls a model for a yes/no target a <b>classifier</b>; statistics calls it a regression with a <b>binary dependent variable</b>. Same thing.</li>
+          <li data-c="examples">Will this customer buy? Churn? Will the loan default? Will the employee quit? Will a sales rep visit this doctor?</li>
+          <li data-c="classifier">Machine learning calls a model for a yes/no target a <b>classifier</b>; statistics calls it a regression with a <b>binary dependent variable</b>. Same thing.</li>
           <li>Two reasons it is in this module:
             <ul>
               <li>many business outcomes are binary;</li>
-              <li>the <b>propensity score</b> is itself a model of a binary variable: was this unit treated or not?</li>
+              <li data-c="psbinary">the <b>propensity score</b> is itself a model of a binary variable: was this unit treated or not?</li>
             </ul>
           </li>
         </ul>
       </div>
       <div class="box">
         <div class="label">Running example</div>
-        <p>A telecom company's <b>7,218 customers</b>; <b>26%</b> left ("churned") during the data window.</p>
+        <p data-c="telecom">A telecom company's <b>7,218 customers</b>; <b>26%</b> left ("churned") during the data window.</p>
         <p class="small">Covariates: months with the company, monthly charges, contract type (month-to-month, one year, two years), senior citizen, partner, fiber-optic internet, paperless billing.</p>
       </div>
     </div>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "Many business outcomes are yes", "sel": "[data-c=examples]"},
+    {"at": "Machine learning calls a model", "sel": "[data-c=classifier]"},
+    {"at": "propensity score itself is a", "sel": "[data-c=psbinary]"},
+    {"at": "Our running example is a", "sel": "[data-c=telecom]"}
+  ]
+  </script>
   <aside class="script">
     <p>Many business outcomes are yes or no. Will this customer buy? Will she cancel her contract? Will the loan default? Machine learning calls a model for such an outcome a classifier. In statistics it's a regression with a binary dependent variable. Same thing.</p>
     <p>We care for two reasons. These outcomes are everywhere. And, which is why the topic is in this module, the propensity score is itself a model of a yes-or-no variable: was this unit treated or not?</p>
@@ -185,23 +209,33 @@
 <section class="slide" id="lpm" data-part="1 · Yes/no outcomes">
   <div class="slide-card">
     <h2>The linear probability model</h2>
-    <p>OLS with a 0/1 outcome: \(\Pr(Y_i = 1 \mid X_i) = \beta_0 + \beta_1 X_{1i} + \beta_2 X_{2i} + \cdots\)</p>
+    <p data-c="formula">OLS with a 0/1 outcome: \(\Pr(Y_i = 1 \mid X_i) = \beta_0 + \beta_1 X_{1i} + \beta_2 X_{2i} + \cdots\)</p>
     <div class="cols c-60">
       <div>
         <ul>
           <li>\(\beta_k\) is the change in the <b>probability</b>, in <b>percentage points</b>, for a one-unit change in \(X_k\).</li>
-          <li><b>Points vs. percent</b>: from 26% to 25.55% is a fall of 0.45 <i>points</i> and of 1.7 <i>percent</i>. Say which.</li>
-          <li>For <b>treatment effects</b> (the experiments in the live sessions) it is the right tool: a difference in means of a 0/1 variable is a difference in probabilities. Use robust standard errors.</li>
+          <li data-c="points"><b>Points vs. percent</b>: from 26% to 25.55% is a fall of 0.45 <i>points</i> and of 1.7 <i>percent</i>. Say which.</li>
+          <li data-c="te">For <b>treatment effects</b> (the experiments in the live sessions) it is the right tool: a difference in means of a 0/1 variable is a difference in probabilities. Use robust standard errors.</li>
         </ul>
       </div>
       <table class="t">
         <tr><th class="l">Churn regressed on…</th><th>Coefficient</th><th class="l">Reads as</th></tr>
-        <tr><td class="l">Months with the company</td><td>−0.0045</td><td class="l">−0.45 points per month</td></tr>
-        <tr><td class="l">Two-year contract</td><td>−0.160</td><td class="l">−16 points</td></tr>
-        <tr><td class="l">Fiber-optic internet</td><td>+0.180</td><td class="l">+18 points</td></tr>
+        <tr data-c="months"><td class="l">Months with the company</td><td>−0.0045</td><td class="l">−0.45 points per month</td></tr>
+        <tr data-c="twoyear"><td class="l">Two-year contract</td><td>−0.160</td><td class="l">−16 points</td></tr>
+        <tr data-c="fiber"><td class="l">Fiber-optic internet</td><td>+0.180</td><td class="l">+18 points</td></tr>
       </table>
     </div>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "The simplest approach is the", "sel": "[data-c=formula]"},
+    {"at": "Each extra month with a", "sel": "[data-c=months]"},
+    {"at": "contract lowers it by", "sel": "[data-c=twoyear]"},
+    {"at": "internet raises it by", "sel": "[data-c=fiber]"},
+    {"at": "Be careful with the words", "sel": "[data-c=points]"},
+    {"at": "like experiments in the live", "sel": "[data-c=te]"}
+  ]
+  </script>
   <aside class="script">
     <p>The simplest approach is the one we've used all along: OLS with the zero-one outcome on the left. That's the linear probability model. A coefficient is the change in the probability, in percentage points. Each extra month with the company lowers the churn probability by 0.45 points. A two-year contract lowers it by sixteen points, and fiber-optic internet raises it by eighteen.</p>
     <p>Be careful with the words. Going from twenty-six percent to 25.55 percent is a drop of 0.45 points, but of 1.7 percent. Always say which.</p>
@@ -214,10 +248,19 @@
     <h2>Two problems with the linear probability model</h2>
     <div class="widget" data-widget="churnPred"></div>
     <ul>
-      <li><b>Predictions outside [0, 1].</b> A straight line has no floor or ceiling: 17% of customers get a <i>negative</i> predicted churn probability.</li>
-      <li><b>The same effect everywhere.</b> One more month lowers churn by 0.45 points for a customer at 60% risk and for one at 1% risk, who cannot fall that far. Near 0 and 1, changes in \(X\) must do less.</li>
+      <li data-c="outside"><b>Predictions outside [0, 1].</b> A straight line has no floor or ceiling: 17% of customers get a <i>negative</i> predicted churn probability.</li>
+      <li data-c="same"><b>The same effect everywhere.</b> One more month lowers churn by 0.45 points for a customer at 60% risk and for one at 1% risk, who cannot fall that far. Near 0 and 1, changes in \(X\) must do less.</li>
     </ul>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "of them get a negative", "sel": ".widget > .readout:last-child"},
+    {"at": "A straight line has no", "sel": "[data-c=outside]"},
+    {"at": "the line gives the same", "sel": "[data-c=same]"},
+    {"at": "click logit model to see", "click": "Logit", "note": "Click Logit"},
+    {"at": "every prediction stays between", "sel": ".widget > .readout:last-child"}
+  ]
+  </script>
   <aside class="script">
     <p>But the linear model has two problems when you need actual probabilities. The chart shows the predicted churn probability for every customer. Seventeen percent of them get a negative probability. A straight line has no floor and no ceiling.</p>
     <p>Second, the line gives the same effect everywhere. One more month lowers churn by 0.45 points for a customer at sixty percent risk and for one at one percent risk, who can barely go lower.</p>
@@ -228,11 +271,23 @@
 <section class="slide" id="logit" data-part="1 · Yes/no outcomes" data-pause>
   <div class="slide-card">
     <h2>The logit: an S-curve for the index</h2>
-    <p>Keep the linear <b>index</b> \(z_i = \beta_0 + \beta_1 X_{1i} + \cdots\), but pass it through a curve that stays between 0 and 1:
-      \[ \Pr(Y_i = 1 \mid X_i) = \Lambda(z_i) = \frac{e^{z_i}}{1 + e^{z_i}} \]</p>
+    <p>Keep the linear <b>index</b> <span data-c="index">\(z_i = \beta_0 + \beta_1 X_{1i} + \cdots\)</span>, but pass it through a curve that stays between 0 and 1:
+      <span data-c="lambda" style="display:block">\[ \Pr(Y_i = 1 \mid X_i) = \Lambda(z_i) = \frac{e^{z_i}}{1 + e^{z_i}} \]</span></p>
     <div class="widget" data-widget="sCurve"></div>
-    <p class="small">Probit uses the normal distribution's S instead; the two give practically the same predictions. Both are fitted by maximum likelihood: <code>smf.logit(formula, data).fit()</code>.</p>
+    <p class="small" data-c="probit">Probit uses the normal distribution's S instead; the two give practically the same predictions. Both are fitted by maximum likelihood: <code>smf.logit(formula, data).fit()</code>.</p>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "keeps the linear index", "sel": "[data-c=index]"},
+    {"at": "passes it through a", "sel": "[data-c=lambda]"},
+    {"at": "another model called probit", "sel": "[data-c=probit]"},
+    {"at": "you can try the sliders", "sel": ".widget .controls label:nth-child(1) input[type=range]", "do": "click", "note": "Drag me"},
+    {"at": "a change in the index", "sel": ".widget .controls label:nth-child(2)"},
+    {"at": "the coupon takes the customer", "sel": ".widget > .readout:last-child"},
+    {"at": "the same coefficient adds only", "sel": ".widget .controls label:nth-child(1) input[type=range]", "do": "click", "note": "Try 0.90"},
+    {"at": "curve is steepest in the", "sel": ".widget .charts > div:nth-child(2)"}
+  ]
+  </script>
   <aside class="script">
     <p>The logit keeps the linear index, beta zero plus beta one times X and so on, but passes it through an S-shaped curve that always stays between zero and one. Probit uses a slightly different S; the two give practically the same predictions. Both are fitted by maximum likelihood rather than least squares, but in Python it's one line.</p>
     <p>Try the sliders. Pick a starting probability and a change in the index, say a coefficient of 0.8 for receiving a coupon. From ten percent, the coupon takes the customer to about twenty percent. From ninety percent, the same coefficient adds only five points. The curve is steepest in the middle and flat at the ends.</p>
@@ -245,7 +300,7 @@
     <div class="cols">
       <table class="t" style="font-size:15px">
         <tr><th class="l"></th><th>Linear</th><th>Logit coefficient</th><th class="hi">Logit, average marginal effect</th></tr>
-        <tr><td class="l">Months</td><td>−0.0045</td><td>−0.033</td><td class="hi">−0.0045</td></tr>
+        <tr><td class="l">Months</td><td data-c="mlin">−0.0045</td><td data-c="mlogit">−0.033</td><td class="hi" data-c="mame">−0.0045</td></tr>
         <tr><td class="l">Monthly charges ($)</td><td>0.0009</td><td>0.014</td><td class="hi">0.0019</td></tr>
         <tr><td class="l">Two-year contract</td><td>−0.160</td><td>−2.46</td><td class="hi">−0.335</td></tr>
         <tr><td class="l">Senior citizen</td><td>0.050</td><td>0.255</td><td class="hi">0.035</td></tr>
@@ -254,14 +309,25 @@
       <div>
         <ul>
           <li>A logit coefficient moves the <i>index</i>. The change in probability depends on where the customer starts:
-            \[ \Delta \Pr \approx \beta_k \, \Delta X_k \; p\,(1 - p) \]
-            At \(p = 0.6\): \(-0.033 \times 0.6 \times 0.4 = -0.008\) per month. At \(p = 0.05\): \(-0.0016\).</li>
-          <li><b>Average marginal effect</b>: that effect at each customer's own \(p\), averaged. Back on the probability scale.</li>
-          <li><b>For a dummy, predict twice and subtract.</b> A typical month-to-month customer at 26% risk falls to 3% on a two-year contract: −23 points (the linear model said −16).</li>
+            <span data-c="approx" style="display:block">\[ \Delta \Pr \approx \beta_k \, \Delta X_k \; p\,(1 - p) \]</span>
+            <span data-c="atp">At \(p = 0.6\): \(-0.033 \times 0.6 \times 0.4 = -0.008\) per month. At \(p = 0.05\): \(-0.0016\).</span></li>
+          <li data-c="ame"><b>Average marginal effect</b>: that effect at each customer's own \(p\), averaged. Back on the probability scale.</li>
+          <li data-c="dummy"><b>For a dummy, predict twice and subtract.</b> A typical month-to-month customer at 26% risk falls to 3% on a two-year contract: −23 points (the linear model said −16).</li>
         </ul>
       </div>
     </div>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "The logit coefficient on month", "sel": "[data-c=mlin],[data-c=mlogit]"},
+    {"at": "multiply the coefficient by", "sel": "[data-c=approx]"},
+    {"at": "one more month lowers the churn", "sel": "[data-c=atp]"},
+    {"at": "average this effect over all", "sel": "[data-c=ame]"},
+    {"at": "reported in the last column", "sel": "table .hi"},
+    {"at": "the same as the linear", "sel": "[data-c=mlin],[data-c=mame]"},
+    {"at": "For a dummy, predict twice", "sel": "[data-c=dummy]"}
+  ]
+  </script>
   <aside class="script">
     <p>Here's the churn model both ways. The logit coefficient on months is minus 0.033, about seven times the linear one. It's a change in the index, not in the probability, so you can't read it as points.</p>
     <p>To get back to probabilities, multiply the coefficient by p times one minus p, where p is the customer's starting probability. At sixty percent risk, one more month lowers churn by 0.8 points; at five percent, by only 0.16.</p>
@@ -274,8 +340,17 @@
   <div class="slide-card">
     <h2>From probabilities to decisions: the threshold</h2>
     <div class="widget" data-widget="threshold"></div>
-    <p class="small">The threshold is a business choice: the cost of a missed churner against the cost of a wasted retention offer. For this course the probabilities matter more than the classifications: the propensity score <i>is</i> a predicted probability.</p>
+    <p class="small"><span data-c="business">The threshold is a business choice: the cost of a missed churner against the cost of a wasted retention offer.</span> For this course the probabilities matter more than the classifications: the propensity score <i>is</i> a predicted probability.</p>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "that's a business choice", "sel": "[data-c=business]"},
+    {"at": "You can move the slider", "sel": ".widget input[type=range]", "do": "click", "note": "Drag me"},
+    {"at": "of customers and", "sel": ".widget > .readout:last-child", "until": "with more false alarms"},
+    {"at": "about half of the churners", "sel": ".widget input[type=range]", "do": "click", "note": "Try 0.30"},
+    {"at": "predicting that nobody churns is", "sel": ".widget > .readout:last-child"}
+  ]
+  </script>
   <aside class="script">
     <p>A logit gives every customer a probability, from almost zero up to eighty percent here. That's what a retention team wants: a ranked list. To turn it into a decision, say who gets a discount offer, you need a threshold, and that's a business choice, not a statistical one.</p>
     <p>Move the slider. At 0.5, the model flags twenty-one percent of customers and catches about half of the churners. At 0.3, it flags thirty-eight percent and catches three quarters, with more false alarms. Which is better depends on what a missed churner costs against a wasted discount.</p>
@@ -312,6 +387,11 @@ print(f"threshold 0.3: flags {np.mean(p > 0.3):.0%} of customers, catches {np.me
 </textarea></div>
     <p class="small">Statsmodels does the same in one line (<code>smf.logit(...).fit()</code>, then <code>.get_margeff()</code>); that version is in the notebook. Your turn: try a threshold of 0.2.</p>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "it and see coefficients", "click": "Run", "note": "Run the code"}
+  ]
+  </script>
   <aside class="script">
     <p>Here's the logit in code. To keep the page light it uses only NumPy, and fits the logit by Newton's method, which is what statsmodels does behind the scenes. Run it and you'll see the coefficients and average marginal effects from the table, and the seventeen percent of negative predictions from the linear model. In the notebook the same thing takes one line.</p>
   </aside>
@@ -342,6 +422,11 @@ print(f"threshold 0.3: flags {np.mean(p > 0.3):.0%} of customers, catches {np.me
       <div class="explain">Here "nobody churns" is 74% accurate, and the 0.5 threshold catches only half the churners.</div>
     </div>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "three questions on part one", "sel": ".quiz:first-of-type .q", "note": "Click an answer"}
+  ]
+  </script>
   <aside class="script">
     <p>Three quick questions on part one. Click an answer to see the explanation.</p>
   </aside>
@@ -354,25 +439,35 @@ print(f"threshold 0.3: flags {np.mean(p > 0.3):.0%} of customers, catches {np.me
     <div class="cols c-60">
       <div>
         <ul>
-          <li>A large pharmaceutical company markets a prescription drug to about 250,000 doctors. Its main tool is <b>detailing</b>: a rep visits the doctor, describes the drug, leaves samples. Each visit costs money.</li>
-          <li>For every doctor: prescriptions in the six months <b>before</b>, whether a rep visited, prescriptions in the six months <b>after</b>, and 100+ background variables (specialty, region, years in practice, practice type, HMO share, …).</li>
-          <li>The question: which doctors <i>not yet visited</i> should the reps visit next, to get the most <b>extra</b> prescriptions per visit?</li>
+          <li data-c="setting">A large pharmaceutical company markets a prescription drug to about 250,000 doctors. Its main tool is <b>detailing</b>: a rep visits the doctor, describes the drug, leaves samples. Each visit costs money.</li>
+          <li data-c="data">For every doctor: prescriptions in the six months <b>before</b>, whether a rep visited, prescriptions in the six months <b>after</b>, and 100+ background variables (specialty, region, years in practice, practice type, HMO share, …).</li>
+          <li data-c="question">The question: which doctors <i>not yet visited</i> should the reps visit next, to get the most <b>extra</b> prescriptions per visit?</li>
         </ul>
       </div>
       <div>
         <table class="t">
           <tr><th class="l"></th><th>Not visited</th><th>Visited</th></tr>
           <tr><td class="l">Doctors</td><td>14,536</td><td>5,464</td></tr>
-          <tr><td class="l">Prescriptions before</td><td>37.5</td><td>57.0</td></tr>
+          <tr data-c="before"><td class="l">Prescriptions before</td><td>37.5</td><td>57.0</td></tr>
           <tr><td class="l">Prescriptions after</td><td>40.0</td><td>62.0</td></tr>
           <tr><td class="l">Change</td><td>+7%</td><td>+9%</td></tr>
-          <tr><td class="l"><b>Difference after</b></td><td colspan="2" class="hi">+22.1</td></tr>
+          <tr data-c="diff"><td class="l"><b>Difference after</b></td><td colspan="2" class="hi">+22.1</td></tr>
         </table>
-        <p class="small">Simulated data (20,000 doctors) built to match the patterns of the published study; the company's data are proprietary.</p>
+        <p class="small" data-c="sim">Simulated data (20,000 doctors) built to match the patterns of the published study; the company's data are proprietary.</p>
       </div>
     </div>
     <p class="src">Rubin &amp; Waterman (2006), "Estimating the Causal Effects of Marketing Interventions Using Propensity Score Methodology," <i>Statistical Science</i> 21(2).</p>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "A large pharmaceutical company markets", "sel": "[data-c=setting]"},
+    {"at": "For every doctor, the company knows", "sel": "[data-c=data]"},
+    {"at": "The question is, which doctor", "sel": "[data-c=question]"},
+    {"at": "The real data are proprietary", "sel": "[data-c=sim]"},
+    {"at": "The table shows the first problem", "sel": "[data-c=diff]"},
+    {"at": "they also wrote far more", "sel": "[data-c=before]"}
+  ]
+  </script>
   <aside class="script">
     <p>Now the main case, from a published study by Rubin and Waterman. A large pharmaceutical company markets a prescription drug to about a quarter of a million doctors. Its main tool is detailing: a sales rep visits the doctor, describes the drug, and leaves samples. Every visit costs money.</p>
     <p>For every doctor, the company knows prescriptions in the six months before, whether a rep visited, prescriptions in the six months after, and over a hundred background variables. The question: which doctors who haven't been visited yet should the reps visit next, to get the most extra prescriptions per visit?</p>
@@ -384,10 +479,20 @@ print(f"threshold 0.3: flags {np.mean(p > 0.3):.0%} of customers, catches {np.me
   <div class="slide-card">
     <h2>Who got visited, and the company's list</h2>
     <div class="widget" data-widget="priorHist"></div>
-    <p><b>The company's targeting rule</b>: regress prescriptions <i>after</i> on prescriptions <i>before</i> and the background variables (\(R^2 = 0.90\)); rank the unvisited doctors by predicted prescriptions; visit decile 10 first.</p>
+    <p data-c="rule"><b>The company's targeting rule</b>: regress prescriptions <i>after</i> on prescriptions <i>before</i> and the background variables (<span data-c="r2">\(R^2 = 0.90\)</span>); rank the unvisited doctors by predicted prescriptions; visit decile 10 first.</p>
     <div class="widget" data-widget="tradTable"></div>
-    <div class="box"><p>The marketing VP: "And it works: the doctors we visited last period wrote 9% more prescriptions after the visit than before."</p></div>
+    <div class="box" data-c="vp"><p>The marketing VP: "And it works: the doctors we visited last period wrote 9% more prescriptions after the visit than before."</p></div>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "On the left, prior prescriptions", "sel": "[data-widget=priorHist] .charts"},
+    {"at": "visited doctors were writing", "sel": "[data-widget=priorHist] > .readout:last-child"},
+    {"at": "is the company's targeting rule", "sel": "[data-c=rule]"},
+    {"at": "which predicts very well", "sel": "[data-c=r2]"},
+    {"at": "sends the representatives to the", "sel": "[data-widget=tradTable] .hi"},
+    {"at": "the marketing VP adds", "sel": "[data-c=vp]"}
+  ]
+  </script>
   <aside class="script">
     <p>On the left, prior prescriptions for the two groups. The visited doctors were writing fifty-two percent more prescriptions before anyone visited them.</p>
     <p>On the right is the company's targeting rule. It regresses prescriptions after the period on prescriptions before and the background variables, which predicts very well, with an R-squared of 0.9. Then it ranks the unvisited doctors by predicted prescriptions and sends the reps to the top decile first.</p>
@@ -399,12 +504,20 @@ print(f"threshold 0.3: flags {np.mean(p > 0.3):.0%} of customers, catches {np.me
   <div class="slide-card">
     <h2>Pause and think</h2>
     <ol>
-      <li>The visited doctors' prescriptions rose 9% from before to after. Is that the effect of the visit? What would you need to know?</li>
-      <li>Visited doctors prescribed 52% more than unvisited doctors <i>before</i> any visit. What does that do to the comparison "visited minus not visited" afterwards (+22)?</li>
-      <li>The regression says past prescriptions predict future prescriptions, so the reps go to the top prescribers. What question does the regression answer, and what question does the company need answered?</li>
-      <li>To know what a visit would do to <i>one</i> unvisited doctor, whom would you compare her with? What would the data need to contain for that comparison to be fair?</li>
+      <li data-c="q1">The visited doctors' prescriptions rose 9% from before to after. Is that the effect of the visit? What would you need to know?</li>
+      <li data-c="q2">Visited doctors prescribed 52% more than unvisited doctors <i>before</i> any visit. What does that do to the comparison "visited minus not visited" afterwards (+22)?</li>
+      <li data-c="q3">The regression says past prescriptions predict future prescriptions, so the reps go to the top prescribers. What question does the regression answer, and what question does the company need answered?</li>
+      <li data-c="q4">To know what a visit would do to <i>one</i> unvisited doctor, whom would you compare her with? What would the data need to contain for that comparison to be fair?</li>
     </ol>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "four questions. First, the", "sel": "[data-c=q1]"},
+    {"at": "Second, they prescribe", "sel": "[data-c=q2]"},
+    {"at": "Third, what question does", "sel": "[data-c=q3]"},
+    {"at": "And fourth, to know", "sel": "[data-c=q4]"}
+  ]
+  </script>
   <aside class="script">
     <p>Pause the video here and think about four questions. First, the visited doctors' prescriptions rose nine percent. Is that the effect of the visit? Second, they prescribed fifty-two percent more before any visit. What does that do to the comparison afterwards? Third, what question does the company's regression answer, and what question does the company need answered? And fourth, to know what a visit would do to one particular doctor, whom would you compare her with?</p>
   </aside>
@@ -417,24 +530,34 @@ print(f"threshold 0.3: flags {np.mean(p > 0.3):.0%} of customers, catches {np.me
       <div>
         <div class="docs">
           <span></span><span class="head">After, if visited</span><span class="head">After, if not visited</span>
-          <span class="who">Doctor A<br><span class="small" style="font-weight:400;color:var(--muted)">10 before</span></span>
-          <div class="bx"><b>15</b><span>prescriptions</span></div><div class="bx"><b>15</b><span>prescriptions</span></div>
-          <span></span><div class="eff">Before–after: +5. Effect of a visit: <b>0</b>.</div>
-          <span class="who">Doctor B<br><span class="small" style="font-weight:400;color:var(--muted)">1 before</span></span>
-          <div class="bx"><b>5</b><span>prescriptions</span></div><div class="bx"><b>1</b><span>prescription</span></div>
-          <span></span><div class="eff">Before–after if visited: +4. Effect of a visit: <b>4</b>.</div>
+          <span class="who" data-c="doca">Doctor A<br><span class="small" style="font-weight:400;color:var(--muted)">10 before</span></span>
+          <div class="bx" data-c="doca"><b>15</b><span>prescriptions</span></div><div class="bx" data-c="doca"><b>15</b><span>prescriptions</span></div>
+          <span></span><div class="eff" data-c="effa">Before–after: +5. Effect of a visit: <b>0</b>.</div>
+          <span class="who" data-c="docb">Doctor B<br><span class="small" style="font-weight:400;color:var(--muted)">1 before</span></span>
+          <div class="bx" data-c="docb"><b>5</b><span>prescriptions</span></div><div class="bx" data-c="docb"><b>1</b><span>prescription</span></div>
+          <span></span><div class="eff" data-c="effb">Before–after if visited: +4. Effect of a visit: <b>4</b>.</div>
         </div>
       </div>
       <div>
         <ul>
           <li><b>Doctor A</b> is the prediction model's favorite, and visiting her is money wasted.</li>
           <li><b>Doctor B</b> is worth visiting.</li>
-          <li>The causal effect compares the two boxes <i>after</i>: with and without the visit. "Before" matters only if nothing would change without a visit.</li>
-          <li>The VP's 9% mixes trends, seasonality, regression to the mean, and the effect. The <i>unvisited</i> doctors' prescriptions rose 7% over the same period.</li>
+          <li data-c="compare">The causal effect compares the two boxes <i>after</i>: with and without the visit. "Before" matters only if nothing would change without a visit.</li>
+          <li data-c="vpmix">The VP's 9% mixes trends, seasonality, regression to the mean, and the effect. The <i>unvisited</i> doctors' prescriptions rose 7% over the same period.</li>
         </ul>
       </div>
     </div>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "Doctor A is a big", "sel": "[data-c=doca]"},
+    {"at": "but the effect of visit", "sel": "[data-c=effa]"},
+    {"at": "Doctor B writes one prescription", "sel": "[data-c=docb]"},
+    {"at": "The effect of a visit", "sel": "[data-c=effb]"},
+    {"at": "The causal effect compares the", "sel": "[data-c=compare]"},
+    {"at": "mixes trends and the effects", "sel": "[data-c=vpmix]"}
+  ]
+  </script>
   <aside class="script">
     <p>Let's take the questions in turn, starting with two doctors. Doctor A is a big prescriber: ten prescriptions before, and fifteen afterwards, whether a rep visits or not. Her before-after change is plus five, but the effect of a visit is zero. Visiting her is money wasted.</p>
     <p>Doctor B writes one prescription before. Left alone, she'd write one afterwards; visited, she'd write five. The effect of a visit is four. She's the one worth visiting.</p>
@@ -450,14 +573,23 @@ print(f"threshold 0.3: flags {np.mean(p > 0.3):.0%} of customers, catches {np.me
       <div>
         <ul>
           <li>The reps chose whom to visit: doctors who already prescribed a lot, and some specialties far more than others.</li>
-          <li>Why? They were paid on the <i>total</i> prescriptions of the doctors they visited, not on the <i>change</i> they caused. Polishing the Ferraris rather than the Jeeps "causes" the Ferraris to keep winning.</li>
-          <li>So the +22 is almost all <b>selection bias</b>. Because we built the data, we know the true effect on the visited doctors: about <b>+1.5</b> prescriptions.</li>
-          <li>Good news: this is selection on <b>observables</b>. The reps targeted on variables that are in the data.</li>
-          <li>The fix is matching: an unvisited <b>clone</b> for each visited doctor. With 100+ variables no two doctors are alike. We need a one-number summary.</li>
+          <li data-c="paid">Why? They were paid on the <i>total</i> prescriptions of the doctors they visited, not on the <i>change</i> they caused. Polishing the Ferraris rather than the Jeeps "causes" the Ferraris to keep winning.</li>
+          <li data-c="selbias">So the +22 is almost all <b>selection bias</b>. Because we built the data, we know the true effect on the visited doctors: about <b>+1.5</b> prescriptions.</li>
+          <li data-c="obs">Good news: this is selection on <b>observables</b>. The reps targeted on variables that are in the data.</li>
+          <li data-c="clone">The fix is matching: an unvisited <b>clone</b> for each visited doctor. With 100+ variables no two doctors are alike. We need a one-number summary.</li>
         </ul>
       </div>
     </div>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "Because they were paid on", "sel": "[data-c=paid]"},
+    {"at": "The chart shows that the", "sel": "[data-widget=specBars] .charts"},
+    {"at": "is almost entirely selection bias", "sel": "[data-c=selbias]"},
+    {"at": "The good news is that", "sel": "[data-c=obs]"},
+    {"at": "The fix from the live", "sel": "[data-c=clone]"}
+  ]
+  </script>
   <aside class="script">
     <p>Why did the reps visit the busiest doctors? Because they were paid on the total prescriptions of the doctors they visited, not on the change they caused. The study calls it polishing the Ferraris rather than the Jeeps: the Ferraris keep winning, polished or not. The chart shows that the reps also favored some specialties: obstetricians, for example, were rarely visited.</p>
     <p>So the plus twenty-two is almost entirely selection bias. Because we built the data, we know the true effect on the visited doctors: about one and a half prescriptions.</p>
@@ -468,16 +600,25 @@ print(f"threshold 0.3: flags {np.mean(p > 0.3):.0%} of customers, catches {np.me
 <section class="slide" id="pscore" data-part="2 · The propensity score">
   <div class="slide-card">
     <h2>The propensity score, and the theorem that makes it work</h2>
-    <div class="box"><div class="label">The propensity score</div><p>\(e(X_i) = P(D_i = 1 \mid X_i)\): the probability that a unit with covariates \(X_i\) is treated.</p></div>
-    <div class="box"><div class="label">Rosenbaum &amp; Rubin (1983)</div>
+    <div class="box" data-c="def"><div class="label">The propensity score</div><p>\(e(X_i) = P(D_i = 1 \mid X_i)\): the probability that a unit with covariates \(X_i\) is treated.</p></div>
+    <div class="box" data-c="rr"><div class="label">Rosenbaum &amp; Rubin (1983)</div>
       <p>If \((Y_{1i}, Y_{0i}) \perp\!\!\!\perp D_i \mid X_i\) and \(0 &lt; e(X_i) &lt; 1\), then
       \[ (Y_{1i}, Y_{0i}) \perp\!\!\!\perp D_i \mid e(X_i) \qquad \text{and} \qquad X_i \perp\!\!\!\perp D_i \mid e(X_i) \]</p></div>
     <ul>
-      <li><b>One number is enough</b>: conditioning on \(e(X)\) removes selection bias just as conditioning on all of \(X\) does. Match, stratify, or weight on a single number.</li>
-      <li><b>The balancing property</b>: among units with the same score, treated and untreated have the same distribution of <i>every</i> covariate in \(X\). This one we can check.</li>
-      <li>Intuition: all doctors with \(e(X) = 0.3\) were visited with probability 0.3. Within that group, who got visited is the toss of a 30% coin: a small randomized experiment, for the variables in \(X\).</li>
+      <li data-c="enough"><b>One number is enough</b>: conditioning on \(e(X)\) removes selection bias just as conditioning on all of \(X\) does. Match, stratify, or weight on a single number.</li>
+      <li data-c="balance"><b>The balancing property</b>: among units with the same score, treated and untreated have the same distribution of <i>every</i> covariate in \(X\). This one we can check.</li>
+      <li data-c="coin">Intuition: all doctors with \(e(X) = 0.3\) were visited with probability 0.3. Within that group, who got visited is the toss of a 30% coin: a small randomized experiment, for the variables in \(X\).</li>
     </ul>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "That number is exactly the", "sel": "[data-c=def]"},
+    {"at": "Rosenbaum and Rubin proved in", "sel": "[data-c=rr]"},
+    {"at": "dimensions can be collapsed into", "sel": "[data-c=enough]"},
+    {"at": "The second statement is a", "sel": "[data-c=balance]"},
+    {"at": "The intuition here is that", "sel": "[data-c=coin]"}
+  ]
+  </script>
   <aside class="script">
     <p>That number is the propensity score: the probability that a unit with these characteristics is treated. For a doctor, the probability of a visit given her prior prescriptions, specialty, and everything else.</p>
     <p>Rosenbaum and Rubin proved in 1983 that it's enough. If treatment is as good as random once we condition on all the X's, it's also as good as random once we condition on the score alone. A hundred dimensions become one.</p>
@@ -490,13 +631,22 @@ print(f"threshold 0.3: flags {np.mean(p > 0.3):.0%} of customers, catches {np.me
   <div class="slide-card">
     <h2>Estimating the score: a logit of treatment on the covariates</h2>
     <ul>
-      <li>\(e(X)\) is unknown: estimate it with Part 1's tool, a logit of \(D_i\) on \(X_i\). The predicted probability is \(\hat e(X_i)\).</li>
-      <li><b>Which covariates</b>: everything that plausibly drove the treatment decision <i>and</i> predicts the outcome, measured <b>before</b> the treatment. Past outcomes first. Be generous with squares and interactions: the score must fit the assignment, not be parsimonious.</li>
+      <li data-c="logit">\(e(X)\) is unknown: estimate it with Part 1's tool, a logit of \(D_i\) on \(X_i\). The predicted probability is \(\hat e(X_i)\).</li>
+      <li data-c="which"><b>Which covariates</b>: everything that plausibly drove the treatment decision <i>and</i> predicts the outcome, measured <b>before</b> the treatment. Past outcomes first. Be generous with squares and interactions: the score must fit the assignment, not be parsimonious.</li>
       <li><b>What not to include</b>: anything the treatment could have affected (bad controls), and variables that drive the treatment but not the outcome (Part 5).</li>
-      <li>The score is a tool, not a model of interest: nobody reports its coefficients or its \(R^2\). It is judged by one thing, <b>balance</b> (Part 3), and re-specified until balance is achieved.</li>
-      <li>In the case: a logit of <i>visited</i> on prior prescriptions, specialty, region, years in practice, practice type, and HMO share. From 20 to 80 prior prescriptions, the odds of a visit rise about <b>13-fold</b> (\(e^{0.043 \times 60}\)).</li>
+      <li data-c="tool">The score is a tool, not a model of interest: nobody reports its coefficients or its \(R^2\). It is judged by one thing, <b>balance</b> (Part 3), and re-specified until balance is achieved.</li>
+      <li data-c="case">In the case: a logit of <i>visited</i> on prior prescriptions, specialty, region, years in practice, practice type, and HMO share. From 20 to 80 prior prescriptions, <span data-c="odds">the odds of a visit rise about <b>13-fold</b> (\(e^{0.043 \times 60}\))</span>.</li>
     </ul>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "estimate it with the tool", "sel": "[data-c=logit]"},
+    {"at": "Everything that plausibly drove the", "sel": "[data-c=which]"},
+    {"at": "the score itself is a tool", "sel": "[data-c=tool]"},
+    {"at": "the logit includes things like", "sel": "[data-c=case]"},
+    {"at": "multiplies the odds of a", "sel": "[data-c=odds]"}
+  ]
+  </script>
   <aside class="script">
     <p>We don't know the score, so we estimate it with the tool from part one: a logit of treated or not on the covariates. The predicted probability is the estimated score.</p>
     <p>Which covariates? Everything that plausibly drove the treatment decision and predicts the outcome, measured before the treatment. Past outcomes first. And be generous with squares and interactions: the goal is to fit the assignment.</p>
@@ -509,15 +659,23 @@ print(f"threshold 0.3: flags {np.mean(p > 0.3):.0%} of customers, catches {np.me
   <div class="slide-card">
     <h2>Design before outcomes</h2>
     <ul>
-      <li>The score is estimated from \(D\) and \(X\) only. The comparison group is chosen, trimmed, and checked for balance <b>without ever looking at the outcome</b>: the outcome sits in escrow until the design is fixed.</li>
-      <li>Why: an analyst who watches the estimate change with each specification will, consciously or not, stop at the one the client wants. Balance is a target that does not involve the answer.</li>
-      <li>It mirrors an experiment: first decide who is compared with whom; then the analysis is a simple difference.</li>
+      <li><span data-c="dx">The score is estimated from \(D\) and \(X\) only.</span> The comparison group is chosen, trimmed, and checked for balance <b data-c="nolook">without ever looking at the outcome</b>: the outcome sits in escrow until the design is fixed.</li>
+      <li data-c="analyst">Why: an analyst who watches the estimate change with each specification will, consciously or not, stop at the one the client wants. Balance is a target that does not involve the answer.</li>
+      <li data-c="exp">It mirrors an experiment: first decide who is compared with whom; then the analysis is a simple difference.</li>
     </ul>
     <div class="flow">
       <div><b>1</b> Assemble pre-treatment covariates</div><div><b>2</b> Estimate \(\hat e(X)\)</div><div><b>3</b> Check overlap, trim</div><div><b>4</b> Stratify, match, or weight</div>
       <div><b>5</b> Check balance; back to 2 if needed</div><div class="last" style="grid-column: span 3"><b>6</b> Open the envelope: estimate the effect, <b>once</b></div>
     </div>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "The score is estimated from", "sel": "[data-c=dx]"},
+    {"at": "without ever looking at the", "sel": "[data-c=nolook]"},
+    {"at": "An analyst who watches the", "sel": "[data-c=analyst]"},
+    {"at": "how the experiment works", "sel": "[data-c=exp]"}
+  ]
+  </script>
   <aside class="script">
     <p>One rule keeps this approach honest: design before outcomes. The score is estimated from the treatment and the covariates only. The comparison group is chosen, trimmed, and checked for balance without ever looking at the outcome. The outcome sits in escrow until the design is fixed.</p>
     <p>Why? An analyst who watches the estimate change with every specification will, consciously or not, stop at the one the client likes. Balance is a target that doesn't involve the answer. It's also how an experiment works: first decide who is compared with whom, then compute a simple difference.</p>
@@ -529,10 +687,19 @@ print(f"threshold 0.3: flags {np.mean(p > 0.3):.0%} of customers, catches {np.me
     <h2>Overlap on one axis</h2>
     <div class="widget" data-widget="overlap"></div>
     <ul>
-      <li><b>Common support</b>: keep units whose score lies where both groups have members. Simplest rule: from the larger of the two minimums to the smaller of the two maximums.</li>
-      <li>Dropping units changes the question slightly: the effect for doctors <i>on the common support</i>.</li>
+      <li data-c="cs"><b>Common support</b>: keep units whose score lies where both groups have members. Simplest rule: from the larger of the two minimums to the smaller of the two maximums.</li>
+      <li data-c="newq">Dropping units changes the question slightly: the effect for doctors <i>on the common support</i>.</li>
     </ul>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "the estimated scores of the", "sel": ".widget .charts > div:nth-child(1)"},
+    {"at": "the visited doctors below", "sel": ".widget .charts > div:nth-child(2)"},
+    {"at": "Common support means keeping units", "sel": "[data-c=cs]"},
+    {"at": "Here is about", "sel": ".widget > .readout:last-child"},
+    {"at": "the question is going to", "sel": "[data-c=newq]"}
+  ]
+  </script>
   <aside class="script">
     <p>Here is the payoff of having one number: overlap fits in a single picture. These are the estimated scores of the unvisited doctors on top and the visited doctors below. The visited sit to the right, with an average score of 0.43 against 0.21, but the two groups overlap over most of the range.</p>
     <p>Common support means keeping units whose score lies where both groups have members. The simplest rule runs from the larger of the two minimums to the smaller of the two maximums: here, 0.011 to 0.889. That drops eighteen visited and thirty-four unvisited doctors who have no counterpart, and the question becomes the effect for doctors on the common support.</p>
@@ -544,6 +711,15 @@ print(f"threshold 0.3: flags {np.mean(p > 0.3):.0%} of customers, catches {np.me
     <h2>Inside one bin of the score, the covariates balance</h2>
     <div class="widget" data-widget="binBalance"></div>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "Pick the bin of the", "click": "0.5–0.6", "note": "This bin"},
+    {"at": "Inside the bin, it's like", "sel": ".widget > .readout:last-child"},
+    {"at": "The specialty mix is nearly", "sel": ".widget .charts > div:nth-child(2)"},
+    {"at": "click through the other bins", "sel": ".widget .seg", "do": "click", "note": "Try other bins"},
+    {"at": "compare with all doctors", "click": "All doctors"}
+  ]
+  </script>
   <aside class="script">
     <p>Here's the balancing property at work. Pick the bin of the score from 0.5 to 0.6. It has 754 visited and 632 unvisited doctors. Overall, the visited wrote fifty-seven prior prescriptions against thirty-seven and a half. Inside the bin, it's 67.2 against 67.2. The specialty mix is nearly identical too.</p>
     <p>Click through the other bins, and compare with all doctors. Within every bin, the score did to prior prescriptions and specialty what a coin toss would have done. That's why one number is enough.</p>
@@ -575,6 +751,11 @@ print(f"threshold 0.3: flags {np.mean(p > 0.3):.0%} of customers, catches {np.me
       <div class="explain">No comparison exists for them in the data. Say so, and change the question to the common support.</div>
     </div>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "three questions on part two", "sel": ".quiz:first-of-type .q", "note": "Click an answer"}
+  ]
+  </script>
   <aside class="script">
     <p>Three questions on part two.</p>
   </aside>
@@ -585,8 +766,18 @@ print(f"threshold 0.3: flags {np.mean(p > 0.3):.0%} of customers, catches {np.me
   <div class="slide-card">
     <h2>(a) Subclassification on the score</h2>
     <div class="widget" data-widget="strata"></div>
-    <p class="small">Within each stratum, compare visited and unvisited doctors; average the differences with stratum sizes (effect on everyone, ATE) or with the number of visited doctors (effect on the visited, ATT). On the common support.</p>
+    <p class="small" data-c="how">Within each stratum, compare visited and unvisited doctors; average the differences with stratum sizes (effect on everyone, ATE) or with the number of visited doctors (effect on the visited, ATT). On the common support.</p>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "cut the score into groups", "sel": "[data-c=how]"},
+    {"at": "one group or one stratum","sel": ".widget input[type=range]", "do": "click", "note": "Slide to 1"},
+    {"at": "five strata. That's the classic","sel": ".widget input[type=range]", "do": "click", "note": "Back to 5"},
+    {"at": "The effect on the visited falls", "sel": ".widget > .readout:last-child"},
+    {"at": "comes from the top stratum", "sel": ".widget table tr:last-child"},
+    {"at": "Now you can keep going", "sel": ".widget input[type=range]", "do": "click", "note": "Try 10, then 20"}
+  ]
+  </script>
   <aside class="script">
     <p>The first way to use the score is subclassification: cut the score into strata, compare visited and unvisited doctors within each stratum, and average the differences. Weighted by stratum size, you get the effect for everyone; weighted by the number of visited doctors, the effect on the visited.</p>
     <p>With one stratum, you have the naive comparison: twenty-two prescriptions. Now move to five strata, the classic choice. The effect on the visited falls to 3.5, against a true 1.55. Five strata removed ninety percent of the bias, just as Cochran's rule of thumb says.</p>
@@ -599,10 +790,20 @@ print(f"threshold 0.3: flags {np.mean(p > 0.3):.0%} of customers, catches {np.me
     <h2>(b) Matching on the score</h2>
     <div class="widget" data-widget="matchPicture"></div>
     <ul class="small">
-      <li>For each visited doctor, the unvisited doctor with the closest score (on the log-odds scale, \(\log \frac{\hat e}{1 - \hat e}\)); average the pair differences: the effect on the treated.</li>
-      <li><b>With replacement</b>, so every treated unit gets its best match. <b>Caliper</b>: refuse matches farther than 0.2 standard deviations of the log-odds; report the units left unmatched. <b>Neighbors</b>: one for the closest matches, several when the pool is large.</li>
+      <li data-c="nn">For each visited doctor, the unvisited doctor with the closest score (on the log-odds scale, \(\log \frac{\hat e}{1 - \hat e}\)); average the pair differences: the effect on the treated.</li>
+      <li><b data-c="repl">With replacement</b>, so every treated unit gets its best match. <b data-c="cal">Caliper</b>: refuse matches farther than 0.2 standard deviations of the log-odds; report the units left unmatched. <b data-c="nbr">Neighbors</b>: one for the closest matches, several when the pool is large.</li>
     </ul>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "find the unvisited doctor with", "sel": "[data-c=nn]"},
+    {"at": "The picture below shows a", "sel": ".widget .charts"},
+    {"at": "match with replacement so every", "sel": "[data-c=repl]"},
+    {"at": "use a caliper which refuses", "sel": "[data-c=cal], .widget .controls > .seg:nth-child(4)"},
+    {"at": "choose how many neighbors", "sel": "[data-c=nbr], .widget .controls > .seg:nth-child(2)"},
+    {"at": "and the true is", "sel": ".widget > .readout:last-child"}
+  ]
+  </script>
   <aside class="script">
     <p>The second way is matching. For each visited doctor, find the unvisited doctor with the closest score, usually on the log-odds scale where distances are more even, and average the differences between the pairs. That gives the effect on the treated.</p>
     <p>The picture shows a small sample: visited doctors on top, unvisited below, and a line to each match. Three choices. Match with replacement, so every treated unit gets its best match. Use a caliper, which refuses matches that are too far away. And choose how many neighbors.</p>
@@ -617,15 +818,24 @@ print(f"threshold 0.3: flags {np.mean(p > 0.3):.0%} of customers, catches {np.me
       <div class="widget" data-widget="lovePlot"></div>
       <div>
         <p>For each covariate, the <b>standardized mean difference</b>:
-          \[ \text{SMD}_k = \frac{\bar X_{k,\text{treated}} - \bar X_{k,\text{comparison}}}{\sqrt{(s^2_{k,1} + s^2_{k,0})/2}} \]</p>
+          <span data-c="smd" style="display:block">\[ \text{SMD}_k = \frac{\bar X_{k,\text{treated}} - \bar X_{k,\text{comparison}}}{\sqrt{(s^2_{k,1} + s^2_{k,0})/2}} \]</span></p>
         <ul>
-          <li>Rule of thumb: \(|\text{SMD}| &lt; 0.1\).</li>
+          <li data-c="thumb">Rule of thumb: \(|\text{SMD}| &lt; 0.1\).</li>
           <li>This <b>Love plot</b> is the matched design's balance table, the one figure every analysis must show.</li>
-          <li>A covariate still above 0.1? Change the score (add its square, an interaction) and match again, before looking at the outcome.</li>
+          <li data-c="fix">A covariate still above 0.1? Change the score (add its square, an interaction) and match again, before looking at the outcome.</li>
         </ul>
       </div>
     </div>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "with a standardized mean difference", "sel": "[data-c=smd]"},
+    {"at": "The rule of thumb is", "sel": "[data-c=thumb]"},
+    {"at": "This chart is called a", "sel": ".widget .charts"},
+    {"at": "after weighting, which comes next", "click": "After weighting", "note": "Tick this box"},
+    {"at": "go back and change the", "sel": "[data-c=fix]"}
+  ]
+  </script>
   <aside class="script">
     <p>How do we know matching worked? We check balance, covariate by covariate, with the standardized mean difference: the gap between the group means divided by the standard deviation. The rule of thumb is to get it below 0.1.</p>
     <p>This chart is called a Love plot. Before matching, prior prescriptions are off by 0.9 standard deviations, and obstetricians by almost half. After matching, every covariate is within 0.03, and after weighting, which comes next, within about 0.01.</p>
@@ -638,15 +848,23 @@ print(f"threshold 0.3: flags {np.mean(p > 0.3):.0%} of customers, catches {np.me
     <h2>(c) Weighting by the inverse of the score</h2>
     <table class="t formula-table">
       <tr><th class="l">Target</th><th class="l">Treated get weight</th><th class="l">Untreated get weight</th><th class="l">Then</th></tr>
-      <tr><td>Effect on everyone (ATE)</td><td>\(1 / \hat e(X)\)</td><td>\(1 / (1 - \hat e(X))\)</td><td>each group re-weighted to look like the whole population</td></tr>
-      <tr><td>Effect on the treated (ATT)</td><td>1</td><td>\(\hat e(X) / (1 - \hat e(X))\)</td><td>the untreated re-weighted to look like the treated</td></tr>
+      <tr data-c="ate"><td>Effect on everyone (ATE)</td><td>\(1 / \hat e(X)\)</td><td>\(1 / (1 - \hat e(X))\)</td><td>each group re-weighted to look like the whole population</td></tr>
+      <tr data-c="att"><td>Effect on the treated (ATT)</td><td>1</td><td>\(\hat e(X) / (1 - \hat e(X))\)</td><td>the untreated re-weighted to look like the treated</td></tr>
     </table>
     <ul>
-      <li>Intuition: a visited doctor with \(\hat e = 0.1\) is one of the few visited among doctors like her; she stands in for the other nine: weight \(1/0.1 = 10\). An unvisited doctor with \(\hat e = 0.9\) also gets \(1/(1-0.9) = 10\).</li>
-      <li>Then compare <b>weighted means</b>. On the case: ATE <b>2.84</b> (truth 3.05), ATT <b>1.72</b> (truth 1.53).</li>
+      <li data-c="intuition">Intuition: a visited doctor with \(\hat e = 0.1\) is one of the few visited among doctors like her; she stands in for the other nine: weight \(1/0.1 = 10\). An unvisited doctor with \(\hat e = 0.9\) also gets \(1/(1-0.9) = 10\).</li>
+      <li data-c="results">Then compare <b>weighted means</b>. On the case: ATE <b>2.84</b> (truth 3.05), ATT <b>1.72</b> (truth 1.53).</li>
       <li>Subclassification is weighting with coarse weights; weighting is subclassification with infinitely fine strata.</li>
     </ul>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "A visited doctor with a", "sel": "[data-c=intuition]"},
+    {"at": "each group looks like the whole", "sel": "[data-c=ate]"},
+    {"at": "For the effect on the treated", "sel": "[data-c=att]"},
+    {"at": "So in this case, if you", "sel": "[data-c=results]"}
+  ]
+  </script>
   <aside class="script">
     <p>The third way is weighting. A visited doctor with a score of 0.1 is one of the few visited doctors among doctors like her. She stands in for the other nine, so she gets a weight of one over 0.1, which is ten. An unvisited doctor with a score of 0.9 also gets a weight of ten. After re-weighting, each group looks like the whole population, and the weighted means are comparable.</p>
     <p>For the effect on the treated, the visited keep a weight of one, and the unvisited get the score divided by one minus the score. That makes the comparison group look like the visited.</p>
@@ -660,12 +878,19 @@ print(f"threshold 0.3: flags {np.mean(p > 0.3):.0%} of customers, catches {np.me
     <h2>(d) Regression, and the doubly robust combination</h2>
     <table class="t formula-table">
       <tr><th class="l">Approach</th><th class="l">On the case</th><th class="l">What it relies on</th></tr>
-      <tr><td>OLS with the covariates as controls</td><td>2.14</td><td>neither the ATE (3.05) nor the ATT (1.53): with effects that differ across doctors, OLS weights them in a way that matches no population you asked about</td></tr>
-      <tr><td>Two outcome models (one per group), predict both for everyone, average the difference</td><td>2.88 (ATE)</td><td>the outcome model being right</td></tr>
-      <tr><td><b>Doubly robust</b>: the outcome models <i>plus</i> the weights</td><td>2.95 (ATE)</td><td>right if <i>either</i> the outcome model <i>or</i> the score model is right; the engine of modern causal machine learning</td></tr>
+      <tr data-c="ols"><td>OLS with the covariates as controls</td><td>2.14</td><td>neither the ATE (3.05) nor the ATT (1.53): with effects that differ across doctors, OLS weights them in a way that matches no population you asked about</td></tr>
+      <tr data-c="two"><td>Two outcome models (one per group), predict both for everyone, average the difference</td><td>2.88 (ATE)</td><td>the outcome model being right</td></tr>
+      <tr data-c="drob"><td><b>Doubly robust</b>: the outcome models <i>plus</i> the weights</td><td>2.95 (ATE)</td><td>right if <i>either</i> the outcome model <i>or</i> the score model is right; the engine of modern causal machine learning</td></tr>
     </table>
     <p>In practice: build the design by matching or weighting, <b>then</b> regress on the matched or weighted sample. The regression mops up what the design left; the design keeps the regression honest.</p>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "What about the","sel": "[data-c=ols]"},
+    {"at": "The better regression approach would", "sel": "[data-c=two]"},
+    {"at": "robust estimator adds","sel": "[data-c=drob]"}
+  ]
+  </script>
   <aside class="script">
     <p>What about plain regression with all the covariates as controls, as in the live sessions? On the case it gives 2.14. That's neither the effect on everyone nor the effect on the visited. When effects differ across doctors, regression weights them in a way that matches no population you asked about.</p>
     <p>A better regression approach fits one outcome model for each group, predicts both outcomes for everyone, and averages the difference: 2.88. The doubly robust estimator adds the weights to that. It's right if either the outcome model or the score model is right, and it gives 2.95.</p>
@@ -678,7 +903,7 @@ print(f"threshold 0.3: flags {np.mean(p > 0.3):.0%} of customers, catches {np.me
     <h2>All the estimators on one dataset</h2>
     <table class="t" style="font-size:15px">
       <tr><th class="l">Estimator</th><th>Target</th><th>Estimate</th><th>Truth</th></tr>
-      <tr><td class="l">Difference in means, visited − not visited</td><td>ATT</td><td class="hi">+22.1</td><td>+1.53</td></tr>
+      <tr data-c="naive"><td class="l">Difference in means, visited − not visited</td><td>ATT</td><td class="hi">+22.1</td><td>+1.53</td></tr>
       <tr><td class="l">OLS with all covariates</td><td>(neither)</td><td>+2.14</td><td></td></tr>
       <tr><td class="l">Five strata, weighted by stratum size</td><td>ATE</td><td>+4.09</td><td>+3.05</td></tr>
       <tr><td class="l">Five strata, weighted by visited count</td><td>ATT</td><td>+3.53</td><td>+1.55</td></tr>
@@ -691,6 +916,11 @@ print(f"threshold 0.3: flags {np.mean(p > 0.3):.0%} of customers, catches {np.me
     </table>
     <p class="small"><b>Which to use</b>: matching for the effect on the treated with a large pool of controls; weighting for the effect on everyone; strata as a quick, robust check; doubly robust when you can. Always report the overlap plot, the balance table, the units dropped, and the target.</p>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "except the simple difference in", "sel": "[data-c=naive]"}
+  ]
+  </script>
   <aside class="script">
     <p>Here are all the estimators on one dataset. Every method that respects the design lands within a fraction of a prescription of the truth it targets, except five coarse strata. The naive comparison is off by twenty.</p>
     <p>Notice that the truth differs across rows, because the targets differ: the effect for everyone is 3.05, the effect on the visited is 1.53. So the first decision is the question.</p>
@@ -738,6 +968,11 @@ print("truth (we simulated the data): ATT 1.53, ATE 3.05")
 </textarea></div>
     <p class="small">Your turn: set <code>K = 20</code>. (This cell skips the common-support trimming, so five strata give 3.6 here, not 3.5.)</p>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "try to run the codes", "click": "Run", "note": "Run the code"}
+  ]
+  </script>
   <aside class="script">
     <p>Here's the whole workflow in code, on the twenty thousand simulated doctors. First the score, from the logit in part one, without touching the outcome. Then the three uses: strata, one-to-one matching on the log-odds, and the two weighted comparisons. You'll see the naive twenty-two shrink to a couple of prescriptions, with matching and weighting close to the truth. Then try twenty strata instead of five.</p>
   </aside>
@@ -768,6 +1003,11 @@ print("truth (we simulated the data): ATT 1.53, ATE 3.05")
       <div class="explain">Units near 0 or 1 dominate weighted estimates; trimming (and saying so) is the standard fix.</div>
     </div>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "three questions on part three", "sel": ".quiz:first-of-type .q", "note": "Click an answer"}
+  ]
+  </script>
   <aside class="script">
     <p>Three questions on part three.</p>
   </aside>
@@ -778,22 +1018,35 @@ print("truth (we simulated the data): ATT 1.53, ATE 3.05")
   <div class="slide-card">
     <h2>The roadmap, and the case step by step</h2>
     <div class="flow">
-      <div><b>1</b> Assemble covariates measured <i>before</i> the intervention</div>
-      <div><b>2</b> Define the intervention (one visit? one or more?)</div>
-      <div><b>3</b> Estimate \(\hat e(X)\) by logit</div>
-      <div><b>4</b> Stratify, match, or weight; enforce overlap</div>
-      <div><b>5</b> Check balance. Not balanced? Back to 3</div>
-      <div><b>6</b> Find the clones: matched pairs or weights</div>
-      <div><b>7</b> Open the envelope: estimate the effect, once</div>
+      <div data-c="s1"><b>1</b> Assemble covariates measured <i>before</i> the intervention</div>
+      <div data-c="s2"><b>2</b> Define the intervention (one visit? one or more?)</div>
+      <div data-c="s3"><b>3</b> Estimate \(\hat e(X)\) by logit</div>
+      <div data-c="s4"><b>4</b> Stratify, match, or weight; enforce overlap</div>
+      <div data-c="s5"><b>5</b> Check balance. Not balanced? Back to 3</div>
+      <div data-c="s6"><b>6</b> Find the clones: matched pairs or weights</div>
+      <div data-c="s7"><b>7</b> Open the envelope: estimate the effect, once</div>
       <div class="last"><b>Then</b> model the <i>effects</i>; target where they are largest</div>
     </div>
     <table class="t" style="font-size:15px">
       <tr><td class="l" style="white-space:nowrap"><b>1–2</b></td><td class="l">20,000 doctors; covariates before the visit period; treatment = one or more visits; outcome in escrow</td></tr>
-      <tr><td class="l" style="white-space:nowrap"><b>3–4</b></td><td class="l">Scores from 0.01 to 0.89; common support drops 18 visited and 34 unvisited doctors; nearest neighbor with a caliper</td></tr>
-      <tr><td class="l"><b>5</b></td><td class="l">Largest |SMD| from 0.90 to 0.03 (matching) or 0.01 (weighting)</td></tr>
-      <tr><td class="l" style="white-space:nowrap"><b>6–7</b></td><td class="l">Effect on the visited: <b>+1.5</b> (matching), <b>+1.7</b> (weighting); truth +1.5. The naive comparison said +22</td></tr>
+      <tr data-c="r34"><td class="l" style="white-space:nowrap"><b>3–4</b></td><td class="l">Scores from 0.01 to 0.89; common support drops 18 visited and 34 unvisited doctors; nearest neighbor with a caliper</td></tr>
+      <tr data-c="r5"><td class="l"><b>5</b></td><td class="l">Largest |SMD| from 0.90 to 0.03 (matching) or 0.01 (weighting)</td></tr>
+      <tr data-c="r67"><td class="l" style="white-space:nowrap"><b>6–7</b></td><td class="l">Effect on the visited: <b>+1.5</b> (matching), <b>+1.7</b> (weighting); truth +1.5. The naive comparison said +22</td></tr>
     </table>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "assemble covariates measured before the", "sel": "[data-c=s1]"},
+    {"at": "We define the intervention", "sel": "[data-c=s2]"},
+    {"at": "We estimate the propensity score", "sel": "[data-c=s3]"},
+    {"at": "Then we stratify and match", "sel": "[data-c=s4]"},
+    {"at": "Then we check balance", "sel": "[data-c=s5]"},
+    {"at": "find the right clones", "sel": "[data-c=s6],[data-c=s7]"},
+    {"at": "For this case, we have", "sel": "[data-c=r34]"},
+    {"at": "the largest imbalance down from", "sel": "[data-c=r5]"},
+    {"at": "prescriptions by matching or by","sel": "[data-c=r67]"}
+  ]
+  </script>
   <aside class="script">
     <p>Part four puts it all together. This is the study's roadmap. Assemble covariates measured before the intervention. Define the intervention. Estimate the score by logit. Stratify, match, or weight, keeping to the common support. Check balance, and if it fails, go back and change the score. Find the clones. And only then open the envelope and estimate the effect, once. Steps one to six never touch the outcome.</p>
     <p>For the case: scores from 0.01 to 0.89, fifty-two doctors dropped for lack of overlap, the largest imbalance down from 0.9 to 0.03, and an effect on the visited of about one and a half prescriptions, by matching or by weighting. The naive comparison said twenty-two.</p>
@@ -804,8 +1057,18 @@ print("truth (we simulated the data): ATT 1.53, ATE 3.05")
   <div class="slide-card">
     <h2>From effects to a policy, and a warning about sorting on noise</h2>
     <div class="widget" data-widget="deciles"></div>
-    <p class="small">For each <i>unvisited</i> doctor, her clones among the visited give "what if visited"; minus her own prescriptions, an estimated effect. Rank the unvisited by it and visit from the top. The fix for the noise: model the estimated effects on the covariates, and target on the model's predictions; that also covers doctors outside the data.</p>
+    <p class="small"><span data-c="clones">For each <i>unvisited</i> doctor, her clones among the visited give "what if visited"; minus her own prescriptions, an estimated effect.</span> <span data-c="rank">Rank the unvisited by it and visit from the top.</span> <span data-c="fix">The fix for the noise: model the estimated effects on the covariates, and target on the model's predictions; that also covers doctors outside the data.</span></p>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "For each unvisited doctor, her", "sel": "[data-c=clones]"},
+    {"at": "we can rank unvisited doctors", "sel": "[data-c=rank]"},
+    {"at": "the chart shows the true", "sel": ".widget .charts"},
+    {"at": "The company ranking goes the", "sel": ".widget > .readout:last-child"},
+    {"at": "Now show the estimates themselves", "click": "and the estimates", "note": "Show the estimates"},
+    {"at": "The fix is to model", "sel": "[data-c=fix]"}
+  ]
+  </script>
   <aside class="script">
     <p>Back to the company's question: whom to visit next. For each unvisited doctor, her clones among the visited doctors tell us what she would have written if visited. Subtracting her own prescriptions gives an estimated effect. Rank the unvisited doctors by it and visit from the top.</p>
     <p>The chart shows the true effect of a visit by decile of each ranking, which we know because we built the data. The company's ranking goes the wrong way: its top decile has a negative effect. The causal ranking climbs from 0.3 to 5.6. Prediction ranks the Ferraris; the causal ranking finds the Jeeps.</p>
@@ -817,13 +1080,22 @@ print("truth (we simulated the data): ATT 1.53, ATE 3.05")
   <div class="slide-card">
     <h2>What the case teaches</h2>
     <ul>
-      <li><b>Prediction is not causal effect estimation.</b> A model that predicts who will prescribe (buy, churn, click) a lot does not say for whom a visit (coupon, call, ad) <i>changes</i> that. Targeting on predicted outcomes sends resources to units that would have done well anyway.</li>
-      <li><b>A before–after change is not an effect.</b> Trends, seasonality, and regression to the mean live in "before".</li>
-      <li><b>Selection on observables can be plausible</b> when the targeting rule was built from recorded variables.</li>
-      <li><b>Design first, outcomes last.</b></li>
-      <li><b>Overlap decides what you can learn.</b> The doctors that no one like them was visited (or spared) are the ones to experiment on, not to extrapolate to.</li>
+      <li data-c="l1"><b>Prediction is not causal effect estimation.</b> A model that predicts who will prescribe (buy, churn, click) a lot does not say for whom a visit (coupon, call, ad) <i>changes</i> that. Targeting on predicted outcomes sends resources to units that would have done well anyway.</li>
+      <li data-c="l2"><b>A before–after change is not an effect.</b> Trends, seasonality, and regression to the mean live in "before".</li>
+      <li data-c="l3"><b>Selection on observables can be plausible</b> when the targeting rule was built from recorded variables.</li>
+      <li data-c="l4"><b>Design first, outcomes last.</b></li>
+      <li data-c="l5"><b>Overlap decides what you can learn.</b> The doctors that no one like them was visited (or spared) are the ones to experiment on, not to extrapolate to.</li>
     </ul>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "First, prediction is not","sel": "[data-c=l1]"},
+    {"at": "change is not an effect", "sel": "[data-c=l2]"},
+    {"at": "selection on observables can be", "sel": "[data-c=l3]"},
+    {"at": "And fourth, design first", "sel": "[data-c=l4]"},
+    {"at": "overlap decides what we can", "sel": "[data-c=l5]"}
+  ]
+  </script>
   <aside class="script">
     <p>What does the case teach? First, prediction is not causal effect estimation. A model that predicts who will buy, churn, or prescribe a lot doesn't tell you for whom a visit, a coupon, or an ad changes that. Targeting on predicted outcomes sends resources to people who would have done well anyway.</p>
     <p>Second, a before-after change is not an effect. Third, selection on observables can be plausible when the targeting rule was built from recorded variables. Fourth, design first, outcomes last. And fifth, overlap decides what you can learn: the doctors for whom no similar doctor was visited, or spared, are the ones to experiment on, not to extrapolate to.</p>
@@ -834,9 +1106,19 @@ print("truth (we simulated the data): ATT 1.53, ATE 3.05")
   <div class="slide-card">
     <h2>The job-training data with the score</h2>
     <div class="widget" data-widget="lalonde"></div>
-    <p class="small">185 trainees from a randomized program vs. men from a national survey (CPS). Logit of trainee on age, education, race, marital status, degree, 1974 and 1975 earnings, zero-earnings dummies, squares and interactions (Dehejia &amp; Wahba's specification). After one-to-one matching on CPS-1, the large imbalances vanish (Black 2.4 → −0.1, 1975 earnings −1.8 → 0.0), but education, Hispanic and no degree stay at 0.16–0.24: the score would need re-specifying.</p>
+    <p class="small">185 trainees from a randomized program vs. men from a national survey (CPS). Logit of trainee on age, education, race, marital status, degree, 1974 and 1975 earnings, zero-earnings dummies, squares and interactions (Dehejia &amp; Wahba's specification). After one-to-one matching on CPS-1, the large imbalances vanish (Black 2.4 → −0.1, 1975 earnings −1.8 → 0.0), <span data-c="imbal">but education, Hispanic and no degree stay at 0.16–0.24: the score would need re-specifying.</span></p>
     <p class="src">Dehejia &amp; Wahba (1999), <i>JASA</i>; LaLonde (1986), <i>AER</i>. Data: NBER.</p>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "On the left, we have", "sel": ".widget .charts > div:nth-child(1)"},
+    {"at": "On the right are the", "sel": ".widget .charts > div:nth-child(2)"},
+    {"at": "It uses only", "sel": ".widget > .readout:last-child"},
+    {"at": "are still imbalanced if we","sel": "[data-c=imbal]"},
+    {"at": "Now switch to the smaller", "click": "CPS-3", "note": "Switch here"},
+    {"at": "the estimates are more dispersed", "sel": ".widget .charts > div:nth-child(2)"}
+  ]
+  </script>
   <aside class="script">
     <p>Finally, the job-training data from the live session. Trainees from a randomized program are compared with men from a national survey, and we know the experimental answer: about eighteen hundred dollars.</p>
     <p>Dehejia and Wahba tested whether the propensity score could recover it. On the left: ninety-three percent of the survey men have a score below 0.01. They look nothing like the trainees.</p>
@@ -849,12 +1131,21 @@ print("truth (we simulated the data): ATT 1.53, ATE 3.05")
   <div class="slide-card">
     <h2>The score balances what you put in it, and nothing else</h2>
     <ul>
-      <li>Perfect balance on 100 covariates says nothing about the 101st. The balancing property is a theorem about \(X\); selection on observables is an <b>assumption</b> about everything else. No diagnostic can test it.</li>
-      <li><b>Placebo tests</b>: estimate the "effect" on something the treatment cannot have touched (last year's sales; 1975 earnings for the trainees). Full survey sample: −$1,384 (SE 354): the design was broken. Matched sample: −$15 (SE 241). A placebo that passes does not prove the design; one that fails disproves it.</li>
+      <li data-c="assume">Perfect balance on 100 covariates says nothing about the 101st. The balancing property is a theorem about \(X\); selection on observables is an <b>assumption</b> about everything else. No diagnostic can test it.</li>
+      <li data-c="placebo"><b>Placebo tests</b>: estimate the "effect" on something the treatment cannot have touched (last year's sales; 1975 earnings for the trainees). <span data-c="full">Full survey sample: −$1,384 (SE 354): the design was broken.</span> <span data-c="matched">Matched sample: −$15 (SE 241).</span> A placebo that passes does not prove the design; one that fails disproves it.</li>
       <li><b>Sensitivity analysis</b>: how strong would an unobserved confounder have to be to erase the result? A result that survives a confounder doubling the odds of treatment is sturdier than one that dies at 20%.</li>
-      <li>And the judgment question: what did the person who assigned the treatment know that is not in the data? If the answer is "a lot", no score will fix it.</li>
+      <li data-c="judge">And the judgment question: what did the person who assigned the treatment know that is not in the data? If the answer is "a lot", no score will fix it.</li>
     </ul>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "covariates says nothing about the", "sel": "[data-c=assume]"},
+    {"at": "A placebo test estimates the", "sel": "[data-c=placebo]"},
+    {"at": "On the full survey sample", "sel": "[data-c=full]"},
+    {"at": "sample, you get minus","sel": "[data-c=matched]"},
+    {"at": "always ask a judgment question", "sel": "[data-c=judge]"}
+  ]
+  </script>
   <aside class="script">
     <p>What can still go wrong? The big one: the score balances what you put in it, and nothing else. Perfect balance on a hundred covariates says nothing about the hundred and first. Selection on observables is an assumption, and no diagnostic can test it.</p>
     <p>Two things help. A placebo test estimates the effect on something the treatment cannot have touched, like earnings before the training. On the full survey sample, the placebo effect was minus fourteen hundred dollars, so that design was broken. On the matched sample, minus fifteen dollars. A passing placebo doesn't prove the design, but a failing one disproves it. And a sensitivity analysis asks how strong a hidden confounder would need to be to erase the result.</p>
@@ -887,6 +1178,11 @@ print("truth (we simulated the data): ATT 1.53, ATE 3.05")
       <div class="explain">Reusing a handful of controls keeps bias low but makes the estimate fragile.</div>
     </div>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "three questions on part four", "sel": ".quiz:first-of-type .q", "note": "Click an answer"}
+  ]
+  </script>
   <aside class="script">
     <p>Three questions on part four.</p>
   </aside>
@@ -897,14 +1193,23 @@ print("truth (we simulated the data): ATT 1.53, ATE 3.05")
   <div class="slide-card">
     <h2>Summary</h2>
     <table class="t formula-table" style="font-size:15px">
-      <tr><td>Yes/no outcomes</td><td>The linear probability model reads in percentage points and is fine for average effects. The logit keeps probabilities in (0, 1); turn its coefficients into marginal effects (\(\beta\,p(1-p)\), averaged, or predict twice and subtract).</td></tr>
-      <tr><td>The propensity score</td><td>\(e(X) = P(D = 1 \mid X)\), estimated by logit, is enough: conditioning on it removes selection on observables, and it balances every covariate used to build it.</td></tr>
-      <tr><td>Three uses</td><td>Strata (five remove most of the bias); matching (nearest neighbor, caliper, with replacement: the ATT); weighting (\(1/e\), \(1/(1-e)\) for the ATE; \(e/(1-e)\) for the ATT; watch extreme weights). Then regress on the designed sample.</td></tr>
-      <tr><td>Diagnostics</td><td>The overlap plot and the Love plot. The outcome stays in escrow until the design is done.</td></tr>
+      <tr data-c="sy"><td>Yes/no outcomes</td><td>The linear probability model reads in percentage points and is fine for average effects. The logit keeps probabilities in (0, 1); turn its coefficients into marginal effects (\(\beta\,p(1-p)\), averaged, or predict twice and subtract).</td></tr>
+      <tr data-c="sps"><td>The propensity score</td><td>\(e(X) = P(D = 1 \mid X)\), estimated by logit, is enough: conditioning on it removes selection on observables, and it balances every covariate used to build it.</td></tr>
+      <tr data-c="suses"><td>Three uses</td><td>Strata (five remove most of the bias); matching (nearest neighbor, caliper, with replacement: the ATT); weighting (\(1/e\), \(1/(1-e)\) for the ATE; \(e/(1-e)\) for the ATT; watch extreme weights). Then regress on the designed sample.</td></tr>
+      <tr data-c="sdiag"><td>Diagnostics</td><td>The overlap plot and the Love plot. The outcome stays in escrow until the design is done.</td></tr>
       <tr><td>The case</td><td>Prediction ranks the Ferraris; matched effects find the Jeeps; a model of the effects is what targeting runs on.</td></tr>
-      <tr><td>The limit</td><td>The assumption is untestable: report placebos and sensitivity, and ask what the decision maker knew.</td></tr>
+      <tr data-c="slimit"><td>The limit</td><td>The assumption is untestable: report placebos and sensitivity, and ask what the decision maker knew.</td></tr>
     </table>
   </div>
+  <script type="application/json" class="cues">
+  [
+    {"at": "the linear probability model reads", "sel": "[data-c=sy]"},
+    {"at": "The propensity score is the", "sel": "[data-c=sps]"},
+    {"at": "use it in three different", "sel": "[data-c=suses]"},
+    {"at": "always check the overlap plot", "sel": "[data-c=sdiag]"},
+    {"at": "we should remember the limit", "sel": "[data-c=slimit]"}
+  ]
+  </script>
   <aside class="script">
     <p>Let's wrap up. For yes-or-no outcomes, the linear probability model reads in percentage points and is fine for average effects. The logit keeps probabilities between zero and one, and its coefficients must be turned into marginal effects.</p>
     <p>The propensity score is the probability of treatment given the covariates. Conditioning on it removes selection on observables, and it balances every covariate used to build it. Use it three ways: strata, matching, or weighting, and check the overlap plot and the Love plot before you look at the outcome.</p>
